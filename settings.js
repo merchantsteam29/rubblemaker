@@ -28,7 +28,7 @@ const defaultBinds = () => Object.fromEntries(ACTIONS.map(([id, , b]) => [id, b.
 export const DEFAULTS = {
   sens: 1, invertY: false, wheelSwap: true,
   fov: 95, quality: 'high', shake: 1, viewBob: true,
-  master: 0.8, sfx: 0.8,
+  master: 0.8, sfx: 0.8, music: 0.6,
   crosshair: 'cross', crossColor: '#ffffff', crossSize: 1, difficulty: 'normal', showFPS: false, hitmarkers: true,
   binds: defaultBinds(),
 };
@@ -87,7 +87,7 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
       CONTROLS: ['binds'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob'],
-      AUDIO: ['master', 'sfx'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers'],
+      AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers'],
     }[tab];
     for (const k of keysFor) { settings[k] = structuredClone(DEFAULTS[k]); onChange(k); }
     saveSettings(); render();
@@ -149,6 +149,7 @@ export function initSettingsUI(root, onChange, onBack) {
     } else if (tab === 'AUDIO') {
       panel.appendChild(slider('Master volume', 'master', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(slider('Sound effects', 'sfx', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
+      panel.appendChild(slider('Music', 'music', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
     } else {
       panel.appendChild(choice('Difficulty', 'difficulty', Object.entries(DIFFS).map(([k, d]) => [k, d.label])));
       panel.appendChild(choice('Crosshair', 'crosshair', [['cross', 'CROSS'], ['dot', 'DOT'], ['circle', 'CIRCLE'], ['crossdot', 'CROSS+DOT'], ['none', 'NONE']]));

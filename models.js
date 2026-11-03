@@ -142,6 +142,39 @@ export function buildEnemyModel(type, color) {
         orb.scale.setScalar(0.08);
       }
     }
+  } else if (type === 'flyer') {
+    // ---- GARGOYLE: stone bat that circles and dives
+    const hips = rig.hips = pivot(root, 0, 0.5, 0);
+    m(B(0.5, 0.4, 0.7), skin, hips);
+    m(B(0.42, 0.3, 0.1), armor, hips, 0, 0.02, 0.33);
+    m(B(0.44, 0.08, 0.6), armor, hips, 0, 0.22, -0.02);
+    for (let i = 0; i < 3; i++) m(K(0.05, 0.16, 4), armor, hips, 0, 0.28, 0.2 - i * 0.2, -0.3);
+    m(B(0.2, 0.04, 0.02), glow, hips, 0, 0.05, 0.385);
+    const head = rig.head = pivot(hips, 0, 0.12, 0.38);
+    m(B(0.32, 0.28, 0.32), skin, head, 0, 0.02, 0.1);
+    m(B(0.22, 0.14, 0.22), armor, head, 0, -0.05, 0.3);
+    for (const s of [-1, 1]) {
+      m(B(0.07, 0.035, 0.02), glow, head, s * 0.08, 0.08, 0.265);
+      m(K(0.04, 0.24, 4), armor, head, s * 0.12, 0.2, 0.0, -0.9, 0, -s * 0.3);
+      m(K(0.015, 0.06, 3), glow, head, s * 0.06, -0.13, 0.38, Math.PI);
+    }
+    for (const s of [-1, 1]) {
+      const w = rig[s < 0 ? 'wL' : 'wR'] = pivot(hips, s * 0.24, 0.12, 0);
+      m(B(0.8, 0.07, 0.1), armor, w, s * 0.4, 0, 0.05);
+      m(B(0.8, 0.025, 0.55), skin, w, s * 0.4, 0, -0.22);
+      const w2 = rig[s < 0 ? 'w2L' : 'w2R'] = pivot(w, s * 0.8, 0, 0.05);
+      m(B(0.6, 0.06, 0.08), armor, w2, s * 0.3, 0, 0);
+      m(B(0.6, 0.02, 0.45), skin, w2, s * 0.3, 0, -0.22);
+      m(K(0.04, 0.2, 4), armor, w2, s * 0.65, 0, 0, 0, 0, -s * HALF_PI);
+      for (const z of [-0.2, -0.4]) m(K(0.025, 0.14, 3), dark, w2, s * 0.5, 0, z - 0.05, -HALF_PI);
+      m(B(0.08, 0.2, 0.08), skin, hips, s * 0.15, -0.28, 0.1);
+      for (const t of [-0.03, 0.03]) m(K(0.02, 0.1, 3), dark, hips, s * 0.15 + t, -0.42, 0.15, Math.PI - 0.4);
+    }
+    const tail = rig.tail = pivot(hips, 0, 0, -0.35);
+    m(C(0.08, 0.12, 0.4, 5), skin, tail, 0, 0, -0.2, HALF_PI);
+    const tail2 = rig.tail2 = pivot(tail, 0, 0, -0.4);
+    m(C(0.04, 0.08, 0.4, 5), skin, tail2, 0, 0, -0.2, HALF_PI);
+    m(O(0.09), glow, tail2, 0, 0, -0.45);
   } else {
     // ---- BRUTE: armored furnace with hammer fists
     const hips = rig.hips = pivot(root, 0, 1.0, 0);
@@ -212,8 +245,22 @@ export function animateEnemy(e, dt, moving, w, time) {
   const ph = e.walk;
   const sw = moving ? Math.sin(ph) : 0;
   const breathe = Math.sin(time * 2 + e.walk) * 0.03;
+  const type = e.animType || e.type;
 
-  if (e.type === 'grunt') {
+  if (type === 'flyer') {
+    const diving = e.state === 'dive';
+    const flap = diving ? 0 : Math.sin(time * (e.state === 'windup' ? 22 : 13) + e.walk) * 0.75;
+    const fold = diving ? -0.9 : 0;
+    r.wL.rotation.z = flap + fold; r.wR.rotation.z = -flap - fold;
+    r.w2L.rotation.z = flap * 0.6 + (diving ? -0.6 : 0); r.w2R.rotation.z = -flap * 0.6 - (diving ? -0.6 : 0);
+    r.hips.rotation.x = diving ? 0.6 : e.state === 'windup' ? -0.4 * w : 0.1;
+    r.tail.rotation.x = Math.sin(time * 4 + e.walk) * 0.3;
+    r.tail2.rotation.x = Math.sin(time * 4 + e.walk - 0.8) * 0.4;
+    r.head.rotation.x = e.state === 'windup' ? -0.3 * w : 0;
+    return;
+  }
+
+  if (type === 'grunt') {
     lerp(r.hipL, 'x', -sw * 0.75); lerp(r.hipR, 'x', sw * 0.75);
     lerp(r.kneeL, 'x', moving ? Math.max(0, Math.sin(ph + 1.2)) * 1.1 : 0.1);
     lerp(r.kneeR, 'x', moving ? Math.max(0, Math.sin(ph + 1.2 + Math.PI)) * 1.1 : 0.1);
@@ -225,7 +272,7 @@ export function animateEnemy(e, dt, moving, w, time) {
     lerp(r.elL, 'x', elx); lerp(r.elR, 'x', elx);
     lerp(r.torso, 'x', tor);
     lerp(r.jaw, 'x', jaw);
-  } else if (e.type === 'shooter') {
+  } else if (type === 'shooter') {
     r.hips.position.y = 0.25 + Math.sin(time * 2.4 + e.walk) * 0.12;
     r.hips.rotation.x = moving ? 0.12 : 0;
     r.halo.rotation.z += dt * 1.5;
@@ -363,4 +410,51 @@ export function buildViewmodels(GLOW) {
   arm.position.copy(arm.userData.rest);
 
   return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, coils, cyl, hammer, pump };
+}
+
+// ---------------------------------------------------------------- bosses
+// Bosses reuse a base rig, scaled up and dressed with extra parts.
+export function buildBossModel(kind) {
+  if (kind === 'boss1') {
+    const md = buildEnemyModel('heavy', 0x8c8478);
+    const crownMat = md.glow;
+    const r = md.rig;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      m(K(0.06, 0.32, 4), crownMat, r.head, Math.sin(a) * 0.3, 0.62, Math.cos(a) * 0.3, Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25);
+    }
+    const chainMat = md.mats[1];
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) m(T(0.07, 0.02, 4, 8), chainMat, r.torso, s * 0.7, 0.55 - i * 0.12, 0.62, 0, i % 2 ? HALF_PI : 0, 0);
+    m(B(0.5, 0.5, 0.12), md.glow, r.torso, 0, 0.35, 0.5);
+    md.root.scale.setScalar(2.1);
+    finishHit(md);
+    return md;
+  }
+  const md = buildEnemyModel('shooter', 0xd8c49a);
+  const r = md.rig;
+  r.extraHalos = [];
+  for (let i = 0; i < 2; i++) {
+    const h = m(T(0.55 + i * 0.22, 0.02, 4, 32), md.glow, r.head, 0, 0.32, -0.3 - i * 0.05);
+    h.userData.noHit = true;
+    r.extraHalos.push(h);
+  }
+  r.bricks = pivot(r.torso, 0, 0.2, 0);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const b = m(B(0.22, 0.12, 0.12), md.mats[1], r.bricks, Math.cos(a) * 0.9, Math.sin(i * 1.7) * 0.2, Math.sin(a) * 0.9, 0, -a, 0);
+    b.userData.noHit = true;
+  }
+  md.root.scale.setScalar(3);
+  finishHit(md);
+  return md;
+}
+function finishHit(md) {
+  md.hit.length = 0;
+  md.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  md.rig.head.traverse((o) => { if (o.isMesh && !o.userData.noHit) o.userData.part = 'head'; });
+  md.root.traverse((o) => {
+    if (!o.isMesh || o.userData.noHit) return;
+    if (!o.userData.part) o.userData.part = 'body';
+    md.hit.push(o);
+  });
 }
