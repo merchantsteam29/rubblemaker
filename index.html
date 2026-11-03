@@ -20,7 +20,8 @@
 <div id="game"></div>
 
 <div id="hud" class="hidden">
-  <div id="crosshair"><span></span><span></span><span></span><span></span></div>
+  <div id="crosshair" class="cross"><span></span><span></span><span></span><span></span><i class="dot"></i><i class="ring"></i></div>
+  <div id="fps" class="hidden"></div>
   <div id="hitmarker"></div>
   <div id="charge"><div id="chargeFill"></div></div>
 
@@ -54,13 +55,8 @@
   <h1>RUBBLEMAKER</h1>
   <p class="tag">brick. cobblestone. carnage.</p>
   <button id="startBtn">CLICK TO START</button>
-  <div class="controls">
-    <div><b>WASD</b> move</div><div><b>MOUSE</b> aim</div>
-    <div><b>LMB</b> fire</div><div><b>RMB</b> alt fire</div>
-    <div><b>1 / 2 / wheel</b> swap</div><div><b>F</b> punch / parry</div>
-    <div><b>SPACE</b> jump / wall jump</div><div><b>SHIFT</b> dash</div>
-    <div><b>CTRL / C</b> slide &middot; in air: slam</div><div><b>ESC</b> pause</div>
-  </div>
+  <button class="sub" id="menuSettingsBtn">SETTINGS</button>
+  <div class="controls" id="controlsList"></div>
   <div class="tips">
     Revolver RMB: hold to charge a piercing shot. Shotgun RMB: lob a core &mdash; shoot it with the revolver for a <b>COMBO BLAST</b>.<br>
     Punch glowing orbs to <b>PARRY</b> them back. Hitting enemies up close heals you. Mix your weapons &mdash; stale moves earn less style.
@@ -71,8 +67,11 @@
 <div id="pause" class="screen hidden">
   <h1>PAUSED</h1>
   <button id="resumeBtn">CLICK TO RESUME</button>
-  <label class="sens">Mouse sensitivity <input id="sens" type="range" min="0.2" max="3" step="0.05" value="1"></label>
+  <button class="sub" id="pauseSettingsBtn">SETTINGS</button>
+  <button class="sub" id="quitBtn">QUIT TO MENU</button>
 </div>
+
+<div id="settings" class="screen hidden"></div>
 
 <div id="over" class="screen hidden">
   <h1>YOU WERE RUBBLED</h1>

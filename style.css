@@ -23,12 +23,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
 
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
-#crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-#crosshair span { position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+#crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; color: var(--ch, #fff); transform: scale(var(--chs, 1)); }
+#crosshair span, #crosshair i { position: absolute; background: currentColor; box-shadow: 0 0 2px #000; display: none; }
 #crosshair span:nth-child(1) { left: -1px; top: -12px; width: 2px; height: 7px; }
 #crosshair span:nth-child(2) { left: -1px; top: 5px; width: 2px; height: 7px; }
 #crosshair span:nth-child(3) { left: -12px; top: -1px; width: 7px; height: 2px; }
 #crosshair span:nth-child(4) { left: 5px; top: -1px; width: 7px; height: 2px; }
+#crosshair .dot { left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 50%; }
+#crosshair .ring { left: -11px; top: -11px; width: 22px; height: 22px; border-radius: 50%; background: none; border: 2px solid currentColor; box-sizing: border-box; box-shadow: 0 0 2px #000, inset 0 0 2px #000; }
+#crosshair.cross span, #crosshair.crossdot span, #crosshair.crossdot .dot, #crosshair.dot .dot, #crosshair.circle .ring, #crosshair.circle .dot { display: block; }
+#fps { position: absolute; left: 12px; top: 10px; font: 700 14px monospace; color: #9f9; text-shadow: 1px 1px 0 #000; }
 #hitmarker { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0;
   background: linear-gradient(45deg, transparent 45%, #ff3b1c 45%, #ff3b1c 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #ff3b1c 45%, #ff3b1c 55%, transparent 55%); }
 #hitmarker.head { background: linear-gradient(45deg, transparent 42%, #ffe14a 42%, #ffe14a 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, #ffe14a 42%, #ffe14a 58%, transparent 58%); }
@@ -73,3 +77,28 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
   text-shadow: 0 0 24px rgba(255,74,28,.6), 4px 4px 0 #000; opacity: 0; transition: opacity .3s; }
 #banner.show { opacity: 1; }
 #hurt { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(200,0,0,.7)); opacity: 0; transition: opacity .25s; }
+
+/* ---------- settings ---------- */
+.screen button.sub { font-size: 16px; padding: 8px 22px; border-width: 2px; }
+#settings { justify-content: flex-start; padding-top: 5vh; overflow-y: auto; }
+#settings h2 { font-family: 'Bungee', sans-serif; font-size: 44px; color: #ff4a1c; transform: skew(-6deg); text-shadow: 4px 4px 0 #3a120a; }
+#settings .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#settings .tabs button, #settings .row-buttons button { font-size: 15px; padding: 8px 16px; border-width: 2px; }
+#settings .tabs button.on { background: #ff4a1c; color: #1c0d08; }
+#settings .panel { width: min(640px, 100%); background: rgba(0,0,0,.45); border: 2px solid #3a1a10; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; max-height: 58vh; overflow-y: auto; }
+#settings .hint { color: #a8907a; font-size: 13px; text-align: left; }
+#settings .opt { display: flex; align-items: center; gap: 14px; justify-content: space-between; min-height: 36px; border-bottom: 1px solid rgba(255,255,255,.05); padding-bottom: 6px; }
+#settings .opt label { font-weight: 700; color: #ffd9c4; text-align: left; }
+#settings .opt input[type=range] { flex: 1; max-width: 260px; accent-color: #ff4a1c; }
+#settings .opt .val { width: 56px; text-align: right; font-family: 'Bungee', sans-serif; font-size: 14px; color: #ffb35c; }
+#settings .opt input[type=color] { width: 60px; height: 32px; border: 2px solid #ff4a1c; background: none; cursor: pointer; }
+#settings .opt button { font-family: 'Bungee', sans-serif; font-size: 13px; padding: 6px 12px; border: 2px solid #5a2a1a; background: #1c0d08; color: #ffd9c4; cursor: pointer; transform: none; }
+#settings .opt button:hover { border-color: #ff4a1c; background: #2a120a; color: #fff; transform: none; }
+#settings .opt button.on { background: #ff4a1c; border-color: #ff4a1c; color: #1c0d08; }
+#settings .choices, #settings .slots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+#settings .slots button { min-width: 110px; }
+#settings .slots button.empty { color: #665; }
+#settings .slots button.listening { border-color: #ffe14a; color: #ffe14a; animation: blink .6s infinite; }
+@keyframes blink { 50% { opacity: .4; } }
+#settings .row-buttons { display: flex; gap: 12px; }
+#settings .panel { scrollbar-color: #ff4a1c #1c0d08; scrollbar-width: thin; }
