@@ -286,6 +286,8 @@ export function buildLevel(level, ctx) {
           const s = rand(1.1, 1.6);
           if (!tryRect(x, z, s * 2.1, s * 2.1)) continue;
           ctx.box(x, 0, z, s, s, s, M.wood, 1.5);
+          for (const y of [0.04, s - 0.12]) ctx.box(x, y, z, s + 0.04, 0.08, s + 0.04, M.iron, 1, false);
+          for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.box(x + ox * s * 0.48, 0, z + oz * s * 0.48, 0.08, s + 0.02, 0.08, M.iron, 1, false);
           if (rng() < 0.5) ctx.box(x + s * 0.55, 0, z + rand(-0.3, 0.3), s * 0.8, s * 0.8, s * 0.8, M.wood, 1.5);
           if (rng() < 0.4) ctx.box(x, s, z, s * 0.8, s * 0.8, s * 0.8, M.wood, 1.5);
         }
@@ -422,21 +424,41 @@ export function buildLevel(level, ctx) {
     else ctx.torch(tx - CW / 2, 3.5, tz, 1, 0);
   }
 
-  function makeDoor(room, side, open) {
+  function makeDoor(room, side, open, forward) {
     const [dx, dz] = DIRS[side];
     const horiz = side === 'N' || side === 'S';
     const x = horiz ? room.cx : room.cx + dx * (room.w / 2 + 0.5);
     const z = horiz ? room.cz + dz * (room.d / 2 + 0.5) : room.cz;
-    const mesh = ctx.box(x, 0, z, horiz ? CW : 0.6, T.doorH, horiz ? 0.6 : CW, M.iron, 2);
-    const strip = new ctx.THREE.Mesh(new ctx.THREE.BoxGeometry(horiz ? CW * 0.9 : 0.66, 0.18, horiz ? 0.66 : CW * 0.9), M.doorGlow.clone());
-    strip.position.y = T.doorH * 0.5 - 0.6;
-    mesh.add(strip);
-    for (let i = -2; i <= 2; i++) {
-      const bar = new ctx.THREE.Mesh(new ctx.THREE.BoxGeometry(horiz ? 0.18 : 0.7, T.doorH * 0.98, horiz ? 0.7 : 0.18), M.ironDark);
-      if (horiz) bar.position.x = i * CW * 0.2; else bar.position.z = i * CW * 0.2;
+    // invisible solid slab (blocks movement + bullets); the portcullis you see is its children
+    const mesh = ctx.box(x, 0, z, horiz ? CW : 0.6, T.doorH, horiz ? 0.6 : CW, M.hidden, 2);
+    const TH = ctx.THREE;
+    const along = (o, v) => { if (horiz) o.position.x = v; else o.position.z = v; };
+    const H = T.doorH;
+    for (let i = -3; i <= 3; i++) {
+      const bar = new TH.Mesh(new TH.CylinderGeometry(0.07, 0.07, H * 0.96, 6), M.ironDark);
+      along(bar, i * CW * 0.135);
       mesh.add(bar);
+      const spike = new TH.Mesh(new TH.ConeGeometry(0.1, 0.35, 4), M.iron);
+      spike.position.y = -H / 2 - 0.05; spike.rotation.x = Math.PI;
+      along(spike, i * CW * 0.135);
+      mesh.add(spike);
     }
-    const door = { mesh, strip, h: T.doorH, baseY: T.doorH / 2, solid: mesh.userData.solid, t: open ? 1 : 0, target: open ? 1 : 0 };
+    for (const y of [-H * 0.25, H * 0.1, H * 0.42]) {
+      const cross = new TH.Mesh(new TH.BoxGeometry(horiz ? CW * 0.96 : 0.22, 0.16, horiz ? 0.22 : CW * 0.96), M.iron);
+      cross.position.y = y;
+      mesh.add(cross);
+      for (let i = -3; i <= 3; i++) {
+        const rv = new TH.Mesh(new TH.SphereGeometry(0.06, 5, 4), M.iron);
+        rv.position.y = y; along(rv, i * CW * 0.135);
+        if (horiz) rv.position.z = 0.12; else rv.position.x = 0.12;
+        mesh.add(rv);
+      }
+    }
+    const strip = new TH.Mesh(new TH.BoxGeometry(horiz ? CW * 0.98 : 0.26, 0.12, horiz ? 0.26 : CW * 0.98), M.doorGlow.clone());
+    strip.position.y = H * 0.5 - 0.2;
+    mesh.add(strip);
+    for (const c of mesh.children) c.castShadow = true;
+    const door = { forward, mesh, strip, h: T.doorH, baseY: T.doorH / 2, solid: mesh.userData.solid, t: open ? 1 : 0, target: open ? 1 : 0 };
     room.doorObjs.push(door);
     doors.push(door);
     return door;
@@ -446,7 +468,7 @@ export function buildLevel(level, ctx) {
     const combat = r.state === 'idle';
     for (const { side, door } of r.doors) {
       const forward = door.a === r; // this doorway leads onward
-      makeDoor(r, side, !(combat && forward));
+      makeDoor(r, side, !(combat && forward), forward);
     }
   });
 

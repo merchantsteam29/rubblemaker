@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, animateEnemy, buildViewmodels } from './models.js';
+import { buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, buildPortal, animateEnemy, buildViewmodels } from './models.js';
 import { LEVELS, SCENES, buildLevel } from './levels.js';
 import { createMusic } from './music.js';
 import { settings, ACTIONS, DIFFS, keyLabel, initSettingsUI } from './settings.js';
@@ -238,14 +238,27 @@ const waxGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.3, 8);
 const waxMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.6 });
 const flameMat = new THREE.SpriteMaterial({ map: GLOW, color: 0xff8a2a, blending: THREE.AdditiveBlending, depthWrite: false });
 bracketGeo.userData.shared = waxGeo.userData.shared = true;
+const SCONCE = [
+  [new THREE.BoxGeometry(0.3, 0.5, 0.06), 0, 0, 0.03],
+  [new THREE.BoxGeometry(0.06, 0.06, 0.3), 0, -0.05, 0.18],
+  [new THREE.CylinderGeometry(0.16, 0.07, 0.14, 8), 0, 0.06, 0.34],
+  [new THREE.BoxGeometry(0.03, 0.32, 0.03), 0.13, 0.26, 0.34],
+  [new THREE.BoxGeometry(0.03, 0.32, 0.03), -0.13, 0.26, 0.34],
+  [new THREE.BoxGeometry(0.03, 0.32, 0.03), 0, 0.26, 0.47],
+  [new THREE.BoxGeometry(0.03, 0.32, 0.03), 0, 0.26, 0.21],
+  [new THREE.TorusGeometry(0.14, 0.015, 4, 12).rotateX(Math.PI / 2), 0, 0.42, 0.34],
+];
+for (const [g] of SCONCE) g.userData.shared = true;
 function torch(x, y, z, nx, nz, small = false) {
   if (!small) {
-    const br = new THREE.Mesh(bracketGeo, bracketMat);
-    br.position.set(x + nx * 0.2, y, z + nz * 0.2);
-    levelGroup.add(br);
+    const sc = new THREE.Group();
+    sc.position.set(x, y, z);
+    sc.rotation.y = Math.atan2(nx, nz);
+    for (const [geo, px, py, pz] of SCONCE) { const p = new THREE.Mesh(geo, bracketMat); p.position.set(px, py, pz); p.castShadow = true; sc.add(p); }
+    levelGroup.add(sc);
   }
   const flame = new THREE.Sprite(flameMat);
-  flame.position.set(x + nx * 0.25, y + (small ? 0.2 : 0.55), z + nz * 0.25);
+  flame.position.set(x + nx * 0.34, y + (small ? 0.2 : 0.42), z + nz * 0.34);
   flame.scale.setScalar(small ? 0.5 : 1.1);
   levelGroup.add(flame);
   torches.push({ pos: new V3(x + nx * 0.9, y + 0.6, z + nz * 0.9), flame, ph: rand(0, 100), small });
@@ -1865,9 +1878,11 @@ function gameOver() {
     if (earned) { awardScrap(earned); $('overStats').innerHTML += `<br><span class="scrap">+${earned} ◆ SCRAP</span>`; }
     $('againBtn').textContent = 'TRY AGAIN';
   } else {
-    $('overStats').innerHTML = `${G.level.id} · ${G.level.name}<br>${G.kills} KILLS · ${fmtTime(G.levelTime)}<br>HIGHEST STYLE: ${RANKS[G.bestRank].l}`;
-    $('againBtn').textContent = 'RESTART LEVEL';
+    G.deaths++;
+    $('overStats').innerHTML = `${G.level.id} · ${G.level.name}<br>DEATHS: ${G.deaths} <span style="opacity:.6">(each one costs a rank)</span><br>${fmtTime(G.levelTime)} · ${G.kills} KILLS`;
+    $('againBtn').textContent = 'RESPAWN AT CHECKPOINT';
   }
+  show('restartBtn', G.mode === 'campaign');
   show('hud', false);
   setTimeout(() => show('over', true), 600);
   sfx.explode();
@@ -2349,7 +2364,7 @@ const levelCtx = {
   THREE, box, torch, candle, makeWindow,
   decor: (o) => levelGroup.add(o),
   blocked: (x, z) => !!overlapBox(x - 0.9, 0.1, z - 0.9, x + 0.9, 2.2, z + 0.9),
-  mats: { brick: brickMat, cobble: cobbleMat, floor: floorMat, wood: woodMat, iron: ironMat, ironDark, water: waterMat, doorGlow: doorGlowMat },
+  mats: { hidden: new THREE.MeshBasicMaterial({ visible: false }), brick: brickMat, cobble: cobbleMat, floor: floorMat, wood: woodMat, iron: ironMat, ironDark, water: waterMat, doorGlow: doorGlowMat },
 };
 const fmtTime = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}.${Math.floor((t % 1) * 10)}`;
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'RUBBLEMAKER'];
@@ -2377,6 +2392,7 @@ function startRoom(r) {
 }
 function clearRoom(r) {
   r.state = 'clear';
+  G.checkpoint = { x: r.cx, z: r.cz, yaw: P.yaw };
   for (const d of r.doorObjs) d.target = 1;
   sfx.door();
   if (r.boss && !G.layout.rooms.some((x) => x.kind === 'exit')) {
@@ -2417,6 +2433,7 @@ function updateCampaign(dt) {
     const pt = G.portal;
     pt.ring.rotation.z += dt * 1.5;
     pt.ring2.rotation.z -= dt * 2.2;
+    pt.stones.rotation.z += dt * 0.3;
     pt.disc.material.opacity = 0.35 + Math.sin(G.time * 4) * 0.12;
     pt.g.rotation.y = Math.atan2(P.pos.x - pt.x, P.pos.z - pt.z);
     if (Math.hypot(P.pos.x - pt.x, P.pos.z - pt.z) < 1.9 && P.pos.y < 4) completeLevel();
@@ -2432,19 +2449,13 @@ function updateDoors(dt) {
   }
 }
 function spawnPortal(x, z) {
-  const g = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0x9ae8ff }));
-  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 40), new THREE.MeshBasicMaterial({ color: 0x3ac8ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x6ad8ff, blending: THREE.AdditiveBlending, depthWrite: false }));
-  glow.scale.setScalar(6);
-  g.add(ring, ring2, disc, glow);
+  const { g, ring, ring2, disc, stones } = buildPortal(GLOW);
   g.position.set(x, 2.1, z);
   levelGroup.add(g);
   const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.3, 8), ironMat);
   base.position.set(x, 0.15, z);
   levelGroup.add(base);
-  G.portal = { g, ring, ring2, disc, x, z };
+  G.portal = { g, ring, ring2, disc, stones, x, z };
   if (G.state === 'play') { sfx.portal(); showHint('The way out is open — step into the portal'); }
 }
 
@@ -2467,7 +2478,7 @@ function completeLevel() {
   const dmg = Math.round(G.dmgTaken);
   const gDmg = dmg <= 40 ? 4 : dmg <= 120 ? 3 : dmg <= 250 ? 2 : dmg <= 450 ? 1 : 0;
   const perfect = gTime === 4 && gStyle === 4 && gDmg === 4;
-  const overall = perfect ? 5 : Math.round((gTime + gStyle + gDmg) / 3);
+  const overall = Math.max(0, (perfect && !G.deaths ? 5 : Math.min(4, Math.round((gTime + gStyle + gDmg) / 3))) - G.deaths);
   const prog = loadProgress();
   prog.unlocked = Math.max(prog.unlocked, G.levelIdx + 1);
   const best = prog.best[lv.id];
@@ -2483,6 +2494,7 @@ function completeLevel() {
     `<span>STYLE</span><span>${Math.floor(G.styleTotal).toLocaleString()}</span>${g(gStyle)}` +
     `<span>DAMAGE TAKEN</span><span>${dmg}</span>${g(gDmg)}` +
     `<span>KILLS</span><span>${G.kills}</span><span></span>` +
+    `<span>DEATHS</span><span>${G.deaths}${G.deaths ? ' <small style="opacity:.6">(-' + G.deaths + ' rank)</small>' : ''}</span><span></span>` +
     `<span>SCRAP EARNED</span><span class="scrap">+${earned} ◆</span><span></span>`;
   const rk = $('completeRank');
   rk.textContent = GRADES[overall] + (newBest ? '' : '');
@@ -2534,6 +2546,8 @@ function startLevel(idx) {
   P.pos.set(layout.start.x, 0, layout.start.z);
   P.yaw = layout.start.yaw;
   G.spawn = P.pos.clone();
+  G.deaths = 0;
+  G.checkpoint = { x: P.pos.x, z: P.pos.z, yaw: P.yaw };
   G.styleTarget = Math.max(500, layout.rooms.reduce((s, r) => s + r.waves.reduce((a, w) => a + w.length, 0) * 80 + (r.boss ? 1200 : 0), 0));
   $('wave').textContent = lv.id;
   enterPlay();
@@ -2571,7 +2585,8 @@ function menuish() {
 $('startBtn').addEventListener('click', openLevels);
 $('pitBtn').addEventListener('click', startEndless);
 $('levelsBack').addEventListener('click', () => { G.state = 'menu'; show('levels', false); show('menu', true); });
-$('againBtn').addEventListener('click', () => (G.mode === 'endless' ? startEndless() : startLevel(G.levelIdx)));
+$('againBtn').addEventListener('click', () => (G.mode === 'endless' ? startEndless() : respawnCheckpoint()));
+$('restartBtn').addEventListener('click', () => startLevel(G.levelIdx));
 $('overMenuBtn').addEventListener('click', toMenu);
 $('nextBtn').addEventListener('click', () => startLevel(G.levelIdx + 1));
 $('retryBtn').addEventListener('click', () => startLevel(G.levelIdx));
@@ -3075,3 +3090,42 @@ function updateRoost(e, dt) {
 }
 
 applyVariantLook();
+
+// ================================================================ CHECKPOINTS
+// Dying in a level respawns you outside the room you died in; that fight resets.
+function respawnCheckpoint() {
+  const L = G.layout;
+  if (!L) { startLevel(G.levelIdx); return; }
+  const room = L.rooms.find((r) => r.state === 'active');
+  for (const e of enemies) { scene.remove(e.mesh); for (const mt of [...e.mats, ...e.extraMats]) mt.dispose(); }
+  enemies.length = 0;
+  for (const o of orbs) scene.remove(o.m);
+  orbs.length = 0;
+  for (const c of cores) scene.remove(c.m);
+  cores.length = 0;
+  for (const sh of shocks) { scene.remove(sh.m); sh.m.material.dispose(); }
+  shocks.length = 0;
+  clearProjectiles();
+  hideBeam();
+  G.boss = null;
+  show('bossBar', false);
+  feedEl.innerHTML = '';
+  let cp = G.checkpoint || { x: L.start.x, z: L.start.z, yaw: L.start.yaw };
+  if (room) {
+    room.state = 'idle'; room.queue = []; room.bossT = 0; room.wave = 0;
+    for (const d of room.doorObjs) d.target = d.t = d.forward ? 0 : 1;
+    const entry = room.doors.find((d) => d.door.b === room);
+    if (entry) {
+      const D = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[entry.side];
+      const half = D[0] ? room.w / 2 : room.d / 2;
+      cp = { x: room.cx + D[0] * (half + 2.4), z: room.cz + D[1] * (half + 2.4), yaw: Math.atan2(D[0], D[1]) };
+    }
+  }
+  Object.assign(P, { hp: 100, grounded: false, wallJumps: 3, pips: 3, dashT: 0, sliding: false, slamming: false, invuln: 1.0, camH: 1.6, roll: 0, hurtFlash: 0, pitch: 0 });
+  P.pos.set(cp.x, 0.05, cp.z); P.vel.set(0, 0, 0); P.yaw = cp.yaw;
+  ST.points = 0;
+  W.charging = false; W.charge = 0; W.pump = 0;
+  keys.clear();
+  enterPlay();
+  banner('CHECKPOINT');
+}

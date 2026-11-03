@@ -1,250 +1,365 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // =====================================================================
-//  Detailed low-poly models: rigged enemies + first-person viewmodels
+//  RUBBLEMAKER models — v3 total redesign.
+//  Enemies are built once per type as a template, baked (parts merged per
+//  pivot + material, so detail is cheap to draw), then cloned per spawn
+//  with their own flash-able materials.
 // =====================================================================
 
 const geoCache = new Map();
-function cached(key, make) {
-  let g = geoCache.get(key);
-  if (!g) { g = make(); geoCache.set(key, g); }
-  return g;
-}
-// chamfered boxes give everything a chunky, sharp-beveled look
-const B = (w, h, d) => cached(`b${w},${h},${d}`, () => {
-  const r = Math.min(w, h, d) * 0.2;
-  return r > 0.006 ? new RoundedBoxGeometry(w, h, d, 1, r) : new THREE.BoxGeometry(w, h, d);
-});
+const cached = (key, make) => { let g = geoCache.get(key); if (!g) { g = make(); geoCache.set(key, g); } return g; };
+const B = (w, h, d) => cached(`b${w},${h},${d}`, () => { const r = Math.min(w, h, d) * 0.22; return r > 0.006 ? new RoundedBoxGeometry(w, h, d, 1, r) : new THREE.BoxGeometry(w, h, d); });
 const C = (rt, rb, h, s = 8) => cached(`c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, s));
 const K = (r, h, s = 5) => cached(`k${r},${h},${s}`, () => new THREE.ConeGeometry(r, h, s));
 const T = (r, t, rs = 6, ts = 16, arc = Math.PI * 2) => cached(`t${r},${t},${rs},${ts},${arc}`, () => new THREE.TorusGeometry(r, t, rs, ts, arc));
-const S = (r, w = 12, h = 8) => cached(`s${r},${w},${h}`, () => new THREE.SphereGeometry(r, w, h));
+const S = (r, w = 10, h = 7) => cached(`s${r},${w},${h}`, () => new THREE.SphereGeometry(r, w, h));
 const O = (r) => cached(`o${r}`, () => new THREE.OctahedronGeometry(r, 0));
+const HP = Math.PI / 2;
 
-function m(geo, mat, parent, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+function m(geo, mat, parent, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) {
   const o = new THREE.Mesh(geo, mat);
   o.position.set(x, y, z);
   o.rotation.set(rx, ry, rz);
+  if (sx !== 1 || sy !== 1 || sz !== 1) o.scale.set(sx, sy, sz);
   parent.add(o);
   return o;
 }
-function pivot(parent, x = 0, y = 0, z = 0) {
+function pivot(parent, name, x = 0, y = 0, z = 0) {
   const g = new THREE.Group();
+  g.name = name || '';
   g.position.set(x, y, z);
   parent.add(g);
   return g;
 }
-const HALF_PI = Math.PI / 2;
+const mirror = (fn) => { fn(-1); fn(1); };
 
-// ---------------------------------------------------------------- enemies
-// Every enemy faces local +Z. Returns { root, rig, mats, hit, orb, headPivot }.
-export function buildEnemyModel(type, color) {
-  const skin = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, emissive: color, emissiveIntensity: 0.18, flatShading: true });
-  const armor = new THREE.MeshStandardMaterial({ color: type === 'heavy' ? 0x4a4038 : type === 'shooter' ? 0x2a2838 : 0x3a3a42, roughness: 0.38, metalness: 0.75, emissive: 0x000000, emissiveIntensity: 0, flatShading: true });
-  const glowCol = type === 'shooter' ? 0xffd04a : type === 'heavy' ? 0xff5a1a : 0xffa02a;
-  const glow = new THREE.MeshBasicMaterial({ color: glowCol });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x141218, roughness: 0.9, flatShading: true });
-  for (const mt of [skin, armor]) { mt.userData.baseEmissive = mt.emissive.getHex(); mt.userData.baseIntensity = mt.emissiveIntensity; }
-
-  const root = new THREE.Group();
-  const rig = {};
-  let orb = null;
-
-  if (type === 'grunt') {
-    // ---- HUSK: hunched clawed brawler
-    const hips = rig.hips = pivot(root, 0, 0.95, 0);
-    m(B(0.62, 0.25, 0.38), skin, hips);
-    m(B(0.68, 0.1, 0.44), armor, hips, 0, 0.08, 0);
-    m(B(0.26, 0.28, 0.06), armor, hips, 0, -0.08, 0.21, -0.1); // loin plate
-    for (const s of [-1, 1]) {
-      const hip = rig[s < 0 ? 'hipL' : 'hipR'] = pivot(hips, s * 0.2, -0.05, 0);
-      m(B(0.24, 0.48, 0.26), skin, hip, 0, -0.22, 0);
-      const knee = rig[s < 0 ? 'kneeL' : 'kneeR'] = pivot(hip, 0, -0.45, 0);
-      m(B(0.2, 0.45, 0.22), skin, knee, 0, -0.22, 0);
-      m(B(0.23, 0.3, 0.07), armor, knee, 0, -0.18, 0.12);
-      m(B(0.12, 0.12, 0.06), armor, knee, 0, 0.0, 0.13); // knee cap
-      m(B(0.25, 0.1, 0.38), armor, knee, 0, -0.45, 0.07);
-      for (const t of [-0.07, 0.07]) m(K(0.03, 0.1, 4), dark, knee, t, -0.47, 0.28, HALF_PI);
+// Merge every plain child mesh of each group by material. Meshes flagged keep/noHit or with children stay separate.
+function bake(root) {
+  const groups = [];
+  root.traverse((o) => { if (o.isGroup || o === root) groups.push(o); });
+  for (const g of groups) {
+    const byMat = new Map();
+    for (const c of g.children.slice()) {
+      if (!c.isMesh || c.userData.keep || c.userData.noHit || c.children.length) continue;
+      c.updateMatrix();
+      const geo = c.geometry.index ? c.geometry.toNonIndexed() : c.geometry.clone();
+      geo.applyMatrix4(c.matrix);
+      for (const k of Object.keys(geo.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') geo.deleteAttribute(k);
+      if (!geo.attributes.uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+      const key = c.material.uuid;
+      if (!byMat.has(key)) byMat.set(key, { mat: c.material, geos: [] });
+      byMat.get(key).geos.push(geo);
+      g.remove(c);
     }
-    const torso = rig.torso = pivot(hips, 0, 0.12, 0);
-    torso.rotation.x = 0.28;
-    m(B(0.5, 0.3, 0.32), skin, torso, 0, 0.18, 0);
-    for (let i = 0; i < 3; i++) m(B(0.42 - i * 0.04, 0.05, 0.04), armor, torso, 0, 0.1 + i * 0.08, 0.17); // ab plates
-    m(B(0.82, 0.48, 0.48), skin, torso, 0, 0.55, 0);
-    m(B(0.7, 0.36, 0.08), armor, torso, 0, 0.6, 0.26, -0.1);
-    m(B(0.3, 0.06, 0.02), glow, torso, 0, 0.62, 0.305, -0.1); // chest vent glow
-    for (let i = 0; i < 4; i++) m(K(0.06, 0.18, 4), armor, torso, 0, 0.35 + i * 0.15, -0.27, -HALF_PI - 0.4); // spine spikes
-    for (const s of [-1, 1]) {
-      m(B(0.34, 0.14, 0.38), armor, torso, s * 0.52, 0.82, 0, 0, 0, -s * 0.35);
-      m(K(0.05, 0.16, 4), armor, torso, s * 0.6, 0.93, 0, 0, 0, -s * 0.5);
-    }
-    const head = rig.head = pivot(torso, 0, 0.82, 0.1);
-    m(C(0.1, 0.12, 0.14, 6), skin, head, 0, 0.04, 0);
-    m(B(0.42, 0.36, 0.44), skin, head, 0, 0.22, 0);
-    rig.jaw = pivot(head, 0, 0.08, 0.02);
-    m(B(0.36, 0.1, 0.36), armor, rig.jaw, 0, -0.04, 0.06);
-    for (const t of [-0.1, -0.03, 0.04, 0.11]) m(K(0.018, 0.06, 3), glow, rig.jaw, t, 0.03, 0.23, Math.PI);
-    m(B(0.46, 0.12, 0.1), armor, head, 0, 0.27, 0.22);
-    for (const s of [-1, 1]) {
-      m(B(0.1, 0.035, 0.02), glow, head, s * 0.1, 0.25, 0.275);
-      m(K(0.05, 0.26, 5), armor, head, s * 0.18, 0.45, -0.02, -0.3, 0, -s * 0.55);
-    }
-    for (const s of [-1, 1]) {
-      const sh = rig[s < 0 ? 'shL' : 'shR'] = pivot(torso, s * 0.52, 0.7, 0);
-      sh.rotation.z = -s * 0.15;
-      m(B(0.2, 0.42, 0.22), skin, sh, 0, -0.2, 0);
-      const el = rig[s < 0 ? 'elL' : 'elR'] = pivot(sh, 0, -0.4, 0);
-      m(B(0.18, 0.4, 0.2), skin, el, 0, -0.18, 0);
-      m(B(0.23, 0.26, 0.24), armor, el, 0, -0.16, 0);
-      m(B(0.24, 0.03, 0.25), glow, el, 0, -0.04, 0);
-      m(B(0.2, 0.12, 0.18), skin, el, 0, -0.42, 0);
-      for (const t of [-0.065, 0, 0.065]) m(K(0.03, 0.2, 4), armor, el, t, -0.57, 0.04, Math.PI + 0.25);
-    }
-  } else if (type === 'shooter') {
-    // ---- CASTER: floating robed orb-thrower with a halo
-    const hips = rig.hips = pivot(root, 0, 0, 0);
-    m(C(0.28, 0.55, 1.1, 7), skin, hips, 0, 0.78, 0);
-    m(C(0.56, 0.6, 0.08, 7), armor, hips, 0, 0.25, 0);
-    m(C(0.4, 0.44, 0.06, 7), armor, hips, 0, 0.75, 0);
-    m(C(0.44, 0.5, 0.04, 7), glow, hips, 0, 0.2, 0);
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      m(K(0.07, 0.26, 3), dark, hips, Math.sin(a) * 0.5, 0.1, Math.cos(a) * 0.5, Math.PI);
-    }
-    const torso = rig.torso = pivot(hips, 0, 1.3, 0);
-    m(B(0.56, 0.52, 0.34), skin, torso, 0, 0.2, 0);
-    m(B(0.62, 0.12, 0.4), armor, torso, 0, 0.45, 0);
-    m(O(0.09), glow, torso, 0, 0.24, 0.19);
-    for (const s of [-1, 1]) m(S(0.13, 8, 6), armor, torso, s * 0.36, 0.42, 0);
-    const head = rig.head = pivot(torso, 0, 0.52, 0);
-    m(K(0.32, 0.6, 6), armor, head, 0, 0.26, -0.02);
-    m(B(0.26, 0.26, 0.1), dark, head, 0, 0.14, 0.17);
-    m(B(0.06, 0.06, 0.02), glow, head, -0.07, 0.17, 0.225);
-    m(B(0.06, 0.06, 0.02), glow, head, 0.07, 0.17, 0.225);
-    m(B(0.05, 0.05, 0.02), glow, head, 0, 0.08, 0.225);
-    rig.halo = m(T(0.36, 0.025, 6, 24), glow, head, 0, 0.32, -0.26);
-    for (const s of [-1, 1]) {
-      const sh = rig[s < 0 ? 'shL' : 'shR'] = pivot(torso, s * 0.36, 0.38, 0);
-      sh.rotation.z = -s * 0.25;
-      m(B(0.13, 0.38, 0.14), skin, sh, 0, -0.18, 0);
-      const el = rig[s < 0 ? 'elL' : 'elR'] = pivot(sh, 0, -0.36, 0);
-      m(C(0.07, 0.13, 0.36, 6), skin, el, 0, -0.16, 0);
-      m(C(0.14, 0.14, 0.04, 6), armor, el, 0, -0.34, 0);
-      m(B(0.1, 0.1, 0.1), dark, el, 0, -0.42, 0);
-      if (s > 0) {
-        orb = new THREE.Group();
-        orb.position.set(0, -0.6, 0.05);
-        el.add(orb);
-        const core = m(S(1, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffc23a }), orb);
-        core.userData.noHit = true;
-        rig.orbRings = [];
-        for (let k = 0; k < 2; k++) {
-          const r = m(T(1.5, 0.08, 4, 20), glow, orb, 0, 0, 0, k * 1.2, k * 0.8);
-          r.userData.noHit = true;
-          rig.orbRings.push(r);
-        }
-        orb.scale.setScalar(0.08);
-      }
-    }
-  } else if (type === 'flyer') {
-    // ---- GARGOYLE: stone bat that circles and dives
-    const hips = rig.hips = pivot(root, 0, 0.5, 0);
-    m(B(0.5, 0.4, 0.7), skin, hips);
-    m(B(0.42, 0.3, 0.1), armor, hips, 0, 0.02, 0.33);
-    m(B(0.44, 0.08, 0.6), armor, hips, 0, 0.22, -0.02);
-    for (let i = 0; i < 3; i++) m(K(0.05, 0.16, 4), armor, hips, 0, 0.28, 0.2 - i * 0.2, -0.3);
-    m(B(0.2, 0.04, 0.02), glow, hips, 0, 0.05, 0.385);
-    const head = rig.head = pivot(hips, 0, 0.12, 0.38);
-    m(B(0.32, 0.28, 0.32), skin, head, 0, 0.02, 0.1);
-    m(B(0.22, 0.14, 0.22), armor, head, 0, -0.05, 0.3);
-    for (const s of [-1, 1]) {
-      m(B(0.07, 0.035, 0.02), glow, head, s * 0.08, 0.08, 0.265);
-      m(K(0.04, 0.24, 4), armor, head, s * 0.12, 0.2, 0.0, -0.9, 0, -s * 0.3);
-      m(K(0.015, 0.06, 3), glow, head, s * 0.06, -0.13, 0.38, Math.PI);
-    }
-    for (const s of [-1, 1]) {
-      const w = rig[s < 0 ? 'wL' : 'wR'] = pivot(hips, s * 0.24, 0.12, 0);
-      m(B(0.8, 0.07, 0.1), armor, w, s * 0.4, 0, 0.05);
-      m(B(0.8, 0.025, 0.55), skin, w, s * 0.4, 0, -0.22);
-      const w2 = rig[s < 0 ? 'w2L' : 'w2R'] = pivot(w, s * 0.8, 0, 0.05);
-      m(B(0.6, 0.06, 0.08), armor, w2, s * 0.3, 0, 0);
-      m(B(0.6, 0.02, 0.45), skin, w2, s * 0.3, 0, -0.22);
-      m(K(0.04, 0.2, 4), armor, w2, s * 0.65, 0, 0, 0, 0, -s * HALF_PI);
-      for (const z of [-0.2, -0.4]) m(K(0.025, 0.14, 3), dark, w2, s * 0.5, 0, z - 0.05, -HALF_PI);
-      m(B(0.08, 0.2, 0.08), skin, hips, s * 0.15, -0.28, 0.1);
-      for (const t of [-0.03, 0.03]) m(K(0.02, 0.1, 3), dark, hips, s * 0.15 + t, -0.42, 0.15, Math.PI - 0.4);
-    }
-    const tail = rig.tail = pivot(hips, 0, 0, -0.35);
-    m(C(0.08, 0.12, 0.4, 5), skin, tail, 0, 0, -0.2, HALF_PI);
-    const tail2 = rig.tail2 = pivot(tail, 0, 0, -0.4);
-    m(C(0.04, 0.08, 0.4, 5), skin, tail2, 0, 0, -0.2, HALF_PI);
-    m(O(0.09), glow, tail2, 0, 0, -0.45);
-  } else {
-    // ---- BRUTE: armored furnace with hammer fists
-    const hips = rig.hips = pivot(root, 0, 1.0, 0);
-    m(B(1.2, 0.4, 0.8), skin, hips);
-    m(B(0.6, 0.5, 0.1), armor, hips, 0, -0.2, 0.43, -0.1);
-    for (const s of [-1, 1]) m(B(0.1, 0.5, 0.6), armor, hips, s * 0.64, -0.15, 0, 0, 0, s * 0.12);
-    for (const s of [-1, 1]) {
-      const hip = rig[s < 0 ? 'hipL' : 'hipR'] = pivot(hips, s * 0.4, -0.1, 0);
-      m(B(0.5, 0.5, 0.55), skin, hip, 0, -0.25, 0);
-      const knee = rig[s < 0 ? 'kneeL' : 'kneeR'] = pivot(hip, 0, -0.5, 0);
-      m(B(0.46, 0.42, 0.5), armor, knee, 0, -0.2, 0);
-      m(B(0.3, 0.2, 0.08), armor, knee, 0, 0.0, 0.28);
-      m(B(0.62, 0.16, 0.78), armor, knee, 0, -0.42, 0.08);
-      for (const t of [-0.2, 0, 0.2]) m(K(0.05, 0.12, 4), dark, knee, t, -0.44, 0.52, HALF_PI);
-    }
-    const torso = rig.torso = pivot(hips, 0, 0.2, 0);
-    m(B(1.3, 0.6, 0.9), skin, torso, 0, 0.3, 0);
-    m(B(1.9, 0.9, 1.15), skin, torso, 0, 1.0, 0);
-    m(B(1.4, 0.62, 0.12), armor, torso, 0, 1.02, 0.6);
-    m(C(0.22, 0.22, 0.1, 8), glow, torso, 0, 1.02, 0.67, HALF_PI);
-    m(T(0.25, 0.04, 4, 12), armor, torso, 0, 1.02, 0.68);
-    for (const [x, y] of [[-0.6, 1.25], [0.6, 1.25], [-0.6, 0.78], [0.6, 0.78]]) m(C(0.04, 0.04, 0.05, 6), dark, torso, x, y, 0.67, HALF_PI);
-    for (let i = 0; i < 3; i++) m(B(1.1 - i * 0.12, 0.08, 0.06), armor, torso, 0, 0.12 + i * 0.16, 0.46);
-    for (const s of [-1, 1]) {
-      m(C(0.13, 0.16, 0.7, 8), armor, torso, s * 0.4, 1.65, -0.45);
-      m(C(0.11, 0.11, 0.06, 8), glow, torso, s * 0.4, 2.01, -0.45);
-    }
-    for (const s of [-1, 1]) {
-      m(B(0.85, 0.42, 0.95), armor, torso, s * 1.05, 1.48, 0, 0, 0, -s * 0.18);
-      for (const z of [-0.25, 0.25]) m(K(0.09, 0.3, 4), dark, torso, s * 1.15, 1.78, z, 0, 0, -s * 0.35);
-    }
-    const head = rig.head = pivot(torso, 0, 1.45, 0.38);
-    m(B(0.6, 0.5, 0.6), skin, head, 0, 0.15, 0);
-    m(B(0.64, 0.32, 0.12), armor, head, 0, 0.12, 0.31);
-    m(B(0.42, 0.05, 0.02), glow, head, 0, 0.18, 0.375);
-    m(B(0.66, 0.1, 0.62), armor, head, 0, 0.42, 0);
-    for (const s of [-1, 1]) m(K(0.07, 0.3, 4), armor, head, s * 0.3, 0.45, 0, 0, 0, -s * 1.1);
-    for (const s of [-1, 1]) {
-      const sh = rig[s < 0 ? 'shL' : 'shR'] = pivot(torso, s * 1.15, 1.2, 0);
-      sh.rotation.z = -s * 0.12;
-      m(B(0.5, 0.7, 0.55), skin, sh, 0, -0.3, 0);
-      const el = rig[s < 0 ? 'elL' : 'elR'] = pivot(sh, 0, -0.65, 0);
-      m(B(0.55, 0.6, 0.6), armor, el, 0, -0.25, 0);
-      m(B(0.6, 0.06, 0.65), glow, el, 0, -0.05, 0);
-      m(B(0.78, 0.6, 0.78), armor, el, 0, -0.78, 0);
-      m(B(0.8, 0.08, 0.1), glow, el, 0, -0.62, 0.4);
-      for (const x of [-0.25, 0, 0.25]) m(B(0.12, 0.12, 0.1), dark, el, x, -0.72, 0.42);
+    for (const { mat, geos } of byMat.values()) {
+      const merged = mergeGeometries(geos, false);
+      if (!merged) continue;
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true;
+      g.add(mesh);
     }
   }
-
-  addDetails(type, rig, { skin, armor, glow, dark });
-
-  // shadows + hit parts
-  const hit = [];
-  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  rig.head.traverse((o) => { if (o.isMesh && !o.userData.noHit) o.userData.part = 'head'; });
-  root.traverse((o) => {
-    if (!o.isMesh || o.userData.noHit) return;
-    if (!o.userData.part) o.userData.part = 'body';
-    hit.push(o);
-  });
-  return { root, rig, mats: [skin, armor], extraMats: [glow, dark], hit, orb, glow };
 }
 
-// pose an enemy each frame. e.rig, e.type, e.state; w = windup 0..1
+// ---------------------------------------------------------------- materials
+const role = (r) => { const mt = new THREE.MeshStandardMaterial({ color: 0xffffff }); mt.userData.role = r; return mt; };
+const ROLE = { skin: role('skin'), armor: role('armor'), bone: role('bone'), cloth: role('cloth') };
+const DARK = new THREE.MeshStandardMaterial({ color: 0x120f12, roughness: 0.9, flatShading: true });
+const glowMats = new Map();
+const glowMat = (hex) => { if (!glowMats.has(hex)) glowMats.set(hex, new THREE.MeshBasicMaterial({ color: hex })); return glowMats.get(hex); };
+
+const PALETTE = {
+  grunt: { armor: 0x34323a, cloth: 0x3a160e, glow: 0xffa02a },
+  shooter: { armor: 0x8a6e2e, cloth: 0x1e1a34, glow: 0xffd04a },
+  heavy: { armor: 0x403630, cloth: 0x2a1c12, glow: 0xff5a1a },
+  flyer: { armor: 0x2e2c34, cloth: 0x2a2228, glow: 0xff8a2a },
+};
+
+// ---------------------------------------------------------------- templates
+function buildHusk(G) {
+  const root = new THREE.Group();
+  const hips = pivot(root, 'hips', 0, 0.95, 0);
+  m(B(0.56, 0.24, 0.36), ROLE.skin, hips);
+  m(B(0.64, 0.09, 0.44), ROLE.armor, hips, 0, 0.08, 0);
+  m(S(0.065), ROLE.bone, hips, 0, 0.08, 0.23);                                   // skull buckle
+  m(B(0.34, 0.5, 0.03), ROLE.cloth, hips, 0, -0.22, 0.2, -0.08);                 // loincloth
+  m(B(0.44, 0.6, 0.03), ROLE.cloth, hips, 0, -0.26, -0.2, 0.1);
+  for (const x of [-0.12, 0, 0.12]) m(K(0.05, 0.16, 3), ROLE.cloth, hips, x, -0.52, 0.2, Math.PI);
+  mirror((s) => {
+    m(B(0.14, 0.2, 0.3), ROLE.armor, hips, s * 0.33, -0.02, 0, 0, 0, s * 0.25);   // hip guards
+    const hip = pivot(hips, s < 0 ? 'hipL' : 'hipR', s * 0.19, -0.04, 0);
+    m(C(0.115, 0.09, 0.48, 6), ROLE.skin, hip, 0, -0.22, 0.02, 0.12);
+    m(S(0.1, 6, 5), ROLE.skin, hip, 0, -0.1, 0.05);
+    const knee = pivot(hip, s < 0 ? 'kneeL' : 'kneeR', 0, -0.45, 0);
+    m(S(0.08, 6, 5), ROLE.bone, knee, 0, 0, 0.06);
+    m(C(0.085, 0.06, 0.46, 6), ROLE.skin, knee, 0, -0.22, 0);
+    m(B(0.12, 0.32, 0.05), ROLE.bone, knee, 0, -0.2, 0.08);
+    m(K(0.035, 0.14, 4), ROLE.bone, knee, 0, 0.02, 0.15, HP);
+    m(B(0.18, 0.08, 0.3), ROLE.armor, knee, 0, -0.46, 0.07);
+    for (const t of [-0.06, 0, 0.06]) m(K(0.022, 0.12, 3), ROLE.bone, knee, t, -0.47, 0.26, HP);
+  });
+  const torso = pivot(root.getObjectByName('hips'), 'torso', 0, 0.12, 0);
+  torso.rotation.x = 0.28;
+  m(C(0.22, 0.27, 0.32, 7), ROLE.skin, torso, 0, 0.18, 0);
+  m(B(0.66, 0.42, 0.42), ROLE.skin, torso, 0, 0.53, 0);
+  for (let i = 0; i < 4; i++) m(T(0.27 - i * 0.02, 0.022, 4, 10, Math.PI), ROLE.bone, torso, 0, 0.36 + i * 0.09, 0.02, HP);
+  m(B(0.06, 0.36, 0.05), ROLE.bone, torso, 0, 0.5, 0.28);
+  m(B(0.34, 0.06, 0.02), G, torso, 0, 0.47, 0.205);                              // heart glow behind ribs
+  for (let i = 0; i < 5; i++) {
+    m(S(0.06, 6, 4), ROLE.bone, torso, 0, 0.25 + i * 0.13, -0.22);
+    m(K(0.04, 0.16, 4), ROLE.bone, torso, 0, 0.28 + i * 0.13, -0.3, -HP - 0.5);
+  }
+  m(B(0.38, 0.17, 0.42), ROLE.armor, torso, -0.5, 0.8, 0, 0, 0, 0.35);           // left pauldron
+  m(B(0.3, 0.1, 0.34), ROLE.armor, torso, -0.56, 0.9, 0, 0, 0, 0.45);
+  for (const z of [-0.12, 0.12]) m(K(0.05, 0.22, 4), ROLE.armor, torso, -0.62, 0.98, z, 0, 0, 0.6);
+  m(B(0.3, 0.1, 0.34), ROLE.bone, torso, 0.5, 0.82, 0, 0, 0, -0.3);              // right bone plate
+  m(B(0.5, 0.1, 0.3), ROLE.armor, torso, 0, 0.8, 0.02);
+  const head = pivot(torso, 'head', 0, 0.82, 0.12);
+  m(C(0.08, 0.1, 0.16, 6), ROLE.skin, head, 0, 0.04, 0);
+  m(B(0.34, 0.3, 0.46), ROLE.skin, head, 0, 0.21, 0.06);
+  m(B(0.12, 0.06, 0.42), ROLE.bone, head, 0, 0.37, 0.04);
+  m(B(0.38, 0.07, 0.1), ROLE.armor, head, 0, 0.29, 0.27);
+  mirror((s) => m(B(0.07, 0.035, 0.02), G, head, s * 0.09, 0.245, 0.315));
+  m(B(0.05, 0.03, 0.02), G, head, 0, 0.32, 0.305);
+  for (let i = 0; i < 6; i++) m(K(0.016, 0.06, 3), ROLE.bone, head, -0.1 + i * 0.04, 0.1, 0.3, Math.PI);
+  const jaw = pivot(head, 'jaw', 0, 0.1, 0.02);
+  m(B(0.3, 0.09, 0.34), ROLE.skin, jaw, 0, -0.05, 0.12);
+  for (let i = 0; i < 6; i++) m(K(0.015, 0.055, 3), ROLE.bone, jaw, -0.1 + i * 0.04, 0.0, 0.27);
+  mirror((s) => {
+    m(K(0.055, 0.22, 5), ROLE.bone, head, s * 0.15, 0.4, -0.02, -0.6, 0, -s * 0.4);
+    m(K(0.035, 0.2, 5), ROLE.bone, head, s * 0.22, 0.5, -0.14, -1.4, 0, -s * 0.2);
+  });
+  mirror((s) => {
+    const sh = pivot(torso, s < 0 ? 'shL' : 'shR', s * 0.46, 0.68, 0);
+    sh.rotation.z = -s * 0.15;
+    m(C(0.09, 0.08, 0.42, 6), ROLE.skin, sh, 0, -0.2, 0);
+    m(S(0.1, 6, 5), ROLE.skin, sh, 0, -0.12, 0.03);
+    const el = pivot(sh, s < 0 ? 'elL' : 'elR', 0, -0.4, 0);
+    m(C(0.08, 0.07, 0.38, 6), ROLE.skin, el, 0, -0.17, 0);
+    m(C(0.105, 0.095, 0.22, 6), ROLE.armor, el, 0, -0.14, 0);
+    m(B(0.215, 0.025, 0.215), G, el, 0, -0.06, 0);
+    m(K(0.03, 0.14, 4), ROLE.bone, el, 0, 0.02, -0.09, -HP);
+    m(B(0.14, 0.1, 0.14), ROLE.skin, el, 0, -0.4, 0);
+    if (s < 0) {
+      for (let i = 0; i < 4; i++) m(K(0.022, 0.22, 3), ROLE.bone, el, -0.06 + i * 0.04, -0.56, 0.04, Math.PI + 0.25);
+    } else {
+      m(B(0.04, 0.6, 0.24), ROLE.bone, el, 0, -0.66, 0.1);                       // bone cleaver
+      m(B(0.045, 0.56, 0.02), G, el, 0, -0.66, 0.23);
+      m(B(0.06, 0.08, 0.08), ROLE.armor, el, 0, -0.38, 0.02);
+    }
+  });
+  return root;
+}
+
+function buildCaster(G) {
+  const root = new THREE.Group();
+  const hips = pivot(root, 'hips', 0, 0, 0);
+  m(C(0.3, 0.42, 0.5, 8), ROLE.cloth, hips, 0, 1.0, 0);
+  m(C(0.42, 0.56, 0.52, 8), ROLE.cloth, hips, 0, 0.55, 0);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    m(K(0.08, 0.32, 3), ROLE.cloth, hips, Math.sin(a) * 0.5, 0.18, Math.cos(a) * 0.5, Math.PI);
+  }
+  m(B(0.24, 0.92, 0.03), ROLE.armor, hips, 0, 0.75, 0.44, -0.13);
+  for (let i = 0; i < 3; i++) m(O(0.04), G, hips, 0, 0.5 + i * 0.22, 0.47);
+  m(T(0.33, 0.03, 4, 16), ROLE.armor, hips, 0, 1.16, 0, HP);
+  mirror((s) => { m(C(0.006, 0.006, 0.3, 4), DARK, hips, s * 0.18, 1.0, 0.3); m(O(0.05), G, hips, s * 0.18, 0.83, 0.3); });
+  const torso = pivot(hips, 'torso', 0, 1.3, 0);
+  m(B(0.5, 0.48, 0.32), ROLE.cloth, torso, 0, 0.2, 0);
+  m(C(0.25, 0.46, 0.26, 8), ROLE.cloth, torso, 0, 0.36, 0);
+  m(C(0.2, 0.28, 0.2, 8), ROLE.armor, torso, 0, 0.5, 0);
+  m(O(0.08), G, torso, 0, 0.24, 0.18);
+  mirror((s) => {
+    m(C(0.035, 0.035, 0.14, 6), ROLE.bone, torso, s * 0.34, 0.55, -0.04);
+    m(O(0.035), G, torso, s * 0.34, 0.66, -0.04);
+    m(K(0.05, 0.28, 4), ROLE.armor, torso, s * 0.42, 0.52, 0, 0, 0, -s * 0.7);
+  });
+  const head = pivot(torso, 'head', 0, 0.55, 0);
+  m(K(0.3, 0.64, 7), ROLE.cloth, head, 0, 0.26, -0.02);
+  m(B(0.24, 0.26, 0.12), DARK, head, 0, 0.12, 0.13);
+  m(B(0.22, 0.17, 0.05), ROLE.bone, head, 0, 0.16, 0.2);
+  m(K(0.07, 0.42, 4), ROLE.bone, head, 0, 0.07, 0.4, HP);
+  mirror((s) => m(B(0.055, 0.025, 0.02), G, head, s * 0.06, 0.2, 0.226));
+  const halo = m(T(0.38, 0.025, 6, 24), G, head, 0, 0.32, -0.26);
+  halo.name = 'halo'; halo.userData.noHit = true;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    m(K(0.025, 0.14, 3), G, halo, Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0, 0, 0, a - HP);
+  }
+  mirror((s) => {
+    const sh = pivot(torso, s < 0 ? 'shL' : 'shR', s * 0.34, 0.38, 0);
+    sh.rotation.z = -s * 0.25;
+    m(C(0.065, 0.06, 0.38, 6), ROLE.cloth, sh, 0, -0.18, 0);
+    m(K(0.13, 0.24, 6), ROLE.cloth, sh, 0, -0.38, 0);
+    const el = pivot(sh, s < 0 ? 'elL' : 'elR', 0, -0.36, 0);
+    m(C(0.04, 0.035, 0.34, 5), ROLE.bone, el, 0, -0.16, 0);
+    m(S(0.05, 6, 5), ROLE.bone, el, 0, -0.36, 0);
+    for (let i = 0; i < 4; i++) m(K(0.012, 0.15, 3), ROLE.bone, el, -0.03 + i * 0.02, -0.46, 0.02, Math.PI + 0.2);
+    if (s > 0) {
+      const orb = pivot(el, 'orb', 0, -0.6, 0.05);
+      const core = m(S(1, 14, 10), glowMat(0xffc23a), orb);
+      core.userData.noHit = true;
+      for (let k = 0; k < 2; k++) {
+        const ring = m(T(1.5, 0.08, 4, 20), G, orb, 0, 0, 0, k * 1.2, k * 0.8);
+        ring.name = 'orbRing' + k; ring.userData.noHit = true;
+      }
+      orb.scale.setScalar(0.08);
+    }
+  });
+  return root;
+}
+
+function buildBrute(G) {
+  const root = new THREE.Group();
+  const hips = pivot(root, 'hips', 0, 1.0, 0);
+  m(B(1.2, 0.42, 0.8), ROLE.skin, hips);
+  m(B(1.32, 0.15, 0.92), ROLE.armor, hips, 0, 0.12, 0);
+  for (let i = 0; i < 5; i++) {
+    const a = -0.9 + i * 0.45;
+    m(B(0.28, 0.5, 0.06), ROLE.armor, hips, Math.sin(a) * 0.62, -0.2, Math.cos(a) * 0.45, -0.15, a, 0);
+  }
+  for (let i = 0; i < 6; i++) m(C(0.03, 0.03, 0.05, 6), DARK, hips, -0.5 + i * 0.2, 0.12, 0.47, HP);
+  mirror((s) => {
+    const hip = pivot(hips, s < 0 ? 'hipL' : 'hipR', s * 0.42, -0.1, 0);
+    m(C(0.27, 0.22, 0.5, 7), ROLE.skin, hip, 0, -0.25, 0);
+    const knee = pivot(hip, s < 0 ? 'kneeL' : 'kneeR', 0, -0.5, 0);
+    m(C(0.24, 0.29, 0.44, 7), ROLE.armor, knee, 0, -0.2, 0);
+    m(B(0.32, 0.26, 0.12), ROLE.armor, knee, 0, 0.0, 0.26);
+    m(K(0.06, 0.2, 4), ROLE.armor, knee, 0, 0.04, 0.36, HP);
+    m(B(0.6, 0.18, 0.82), ROLE.armor, knee, 0, -0.42, 0.1);
+    for (const t of [-0.2, 0, 0.2]) m(K(0.05, 0.14, 4), DARK, knee, t, -0.44, 0.56, HP);
+  });
+  const torso = pivot(hips, 'torso', 0, 0.2, 0);
+  m(C(0.62, 0.68, 0.6, 8), ROLE.skin, torso, 0, 0.3, 0);
+  m(B(1.9, 0.95, 1.15), ROLE.skin, torso, 0, 1.0, 0);
+  mirror((s) => m(B(0.8, 0.48, 0.24), ROLE.skin, torso, s * 0.42, 1.1, 0.5));
+  m(B(0.84, 0.52, 0.06), G, torso, 0, 0.36, 0.64);                                // furnace belly
+  for (let i = 0; i < 5; i++) m(B(0.06, 0.58, 0.08), ROLE.armor, torso, -0.32 + i * 0.16, 0.36, 0.68);
+  m(B(0.92, 0.08, 0.1), ROLE.armor, torso, 0, 0.66, 0.68);
+  m(B(0.26, 1.45, 0.1), ROLE.armor, torso, 0, 1.0, 0.64, 0, 0, 0.6);              // chest strap
+  for (let i = 0; i < 4; i++) m(C(0.035, 0.035, 0.05, 6), DARK, torso, -0.38 + i * 0.26, 0.68 + i * 0.2, 0.7, HP);
+  m(B(1.4, 0.6, 0.6), ROLE.skin, torso, 0, 1.42, -0.35);
+  for (const x of [-0.45, 0, 0.45]) {
+    m(C(0.12, 0.15, 0.7, 8), ROLE.armor, torso, x, 1.8, -0.5, -0.2);
+    m(C(0.1, 0.1, 0.06, 8), G, torso, x, 2.15, -0.57, -0.2);
+  }
+  mirror((s) => {
+    for (let i = 0; i < 3; i++) m(B(0.9 - i * 0.12, 0.16, 1.0 - i * 0.12), ROLE.armor, torso, s * (1.02 + i * 0.03), 1.48 + i * 0.13, 0, 0, 0, -s * (0.18 + i * 0.06));
+    for (const z of [-0.25, 0.25]) m(K(0.08, 0.32, 4), DARK, torso, s * 1.15, 1.9, z, 0, 0, -s * 0.35);
+  });
+  const head = pivot(torso, 'head', 0, 1.48, 0.42);
+  m(B(0.55, 0.48, 0.55), ROLE.skin, head, 0, 0.15, 0);
+  m(B(0.6, 0.32, 0.1), ROLE.armor, head, 0, 0.14, 0.3);
+  mirror((s) => {
+    m(B(0.14, 0.04, 0.02), G, head, s * 0.12, 0.2, 0.355);
+    m(K(0.05, 0.24, 5), ROLE.bone, head, s * 0.2, 0.04, 0.34, -0.3, 0, s * 0.15);
+    m(K(0.06, 0.28, 4), ROLE.armor, head, s * 0.28, 0.42, 0, 0, 0, -s * 1.0);
+  });
+  m(B(0.62, 0.1, 0.6), ROLE.armor, head, 0, 0.42, 0);
+  mirror((s) => {
+    const sh = pivot(torso, s < 0 ? 'shL' : 'shR', s * 1.15, 1.2, 0);
+    sh.rotation.z = -s * 0.12;
+    m(C(0.28, 0.24, 0.7, 7), ROLE.skin, sh, 0, -0.3, 0);
+    const el = pivot(sh, s < 0 ? 'elL' : 'elR', 0, -0.65, 0);
+    m(C(0.3, 0.34, 0.6, 7), ROLE.armor, el, 0, -0.25, 0);
+    m(B(0.08, 0.3, 0.08), G, el, s * 0.3, -0.25, 0.18);
+    for (let i = 0; i < 3; i++) m(T(0.33, 0.035, 4, 10), DARK, el, 0, -0.08 - i * 0.14, 0, HP + (i % 2) * 0.2, 0, 0);
+    m(B(0.8, 0.62, 0.8), ROLE.armor, el, 0, -0.8, 0);
+    m(B(0.82, 0.08, 0.1), G, el, 0, -0.63, 0.4);
+    for (const x of [-0.25, 0, 0.25]) m(K(0.07, 0.2, 4), DARK, el, x, -0.75, 0.48, HP);
+  });
+  return root;
+}
+
+function buildGargoyle(G) {
+  const root = new THREE.Group();
+  const hips = pivot(root, 'hips', 0, 0.5, 0);
+  m(C(0.2, 0.25, 0.64, 6), ROLE.skin, hips, 0, 0, 0, HP);
+  m(B(0.38, 0.28, 0.12), ROLE.armor, hips, 0, 0, 0.3);
+  m(B(0.22, 0.05, 0.3), G, hips, 0, -0.2, 0.05);
+  for (let i = 0; i < 4; i++) m(K(0.045, 0.16, 4), ROLE.bone, hips, 0, 0.22, 0.22 - i * 0.16, -0.4);
+  const head = pivot(hips, 'head', 0, 0.12, 0.38);
+  m(B(0.28, 0.24, 0.3), ROLE.skin, head, 0, 0.02, 0.08);
+  m(B(0.18, 0.1, 0.22), ROLE.armor, head, 0, 0.02, 0.28);
+  m(B(0.16, 0.05, 0.2), ROLE.skin, head, 0, -0.09, 0.26, 0.15);
+  for (let i = 0; i < 5; i++) { m(K(0.013, 0.05, 3), ROLE.bone, head, -0.06 + i * 0.03, -0.03, 0.37, Math.PI); m(K(0.012, 0.045, 3), ROLE.bone, head, -0.05 + i * 0.025, -0.08, 0.34); }
+  mirror((s) => {
+    m(B(0.065, 0.03, 0.02), G, head, s * 0.07, 0.08, 0.235);
+    m(K(0.045, 0.28, 5), ROLE.bone, head, s * 0.11, 0.18, -0.02, -1.0, 0, -s * 0.35);
+    m(K(0.03, 0.18, 5), ROLE.bone, head, s * 0.16, 0.24, -0.22, -1.9, 0, -s * 0.2);
+  });
+  mirror((s) => {
+    const w = pivot(hips, s < 0 ? 'wL' : 'wR', s * 0.22, 0.1, 0);
+    m(B(0.82, 0.06, 0.07), ROLE.bone, w, s * 0.41, 0, 0.04);
+    m(B(0.8, 0.02, 0.56), ROLE.skin, w, s * 0.4, -0.01, -0.22);
+    for (const [t, l] of [[0.25, 0.5], [0.55, 0.6]]) m(B(0.025, 0.025, l), ROLE.bone, w, s * t, 0, -l / 2 + 0.02);
+    const w2 = pivot(w, s < 0 ? 'w2L' : 'w2R', s * 0.82, 0, 0.04);
+    m(B(0.62, 0.05, 0.06), ROLE.bone, w2, s * 0.31, 0, 0);
+    m(B(0.6, 0.02, 0.48), ROLE.skin, w2, s * 0.3, -0.01, -0.22);
+    m(B(0.02, 0.02, 0.5), ROLE.bone, w2, s * 0.32, 0, -0.25);
+    m(K(0.035, 0.2, 4), ROLE.bone, w2, s * 0.66, 0, 0, 0, 0, -s * HP);
+    for (const z of [-0.18, -0.36]) m(K(0.022, 0.13, 3), DARK, w2, s * 0.5, -0.01, z - 0.04, -HP);
+    m(C(0.04, 0.035, 0.22, 5), ROLE.skin, hips, s * 0.14, -0.28, 0.08);
+    for (const t of [-0.03, 0.03]) m(K(0.02, 0.1, 3), ROLE.bone, hips, s * 0.14 + t, -0.42, 0.13, Math.PI - 0.4);
+  });
+  const tail = pivot(hips, 'tail', 0, 0, -0.32);
+  m(C(0.08, 0.12, 0.4, 5), ROLE.skin, tail, 0, 0, -0.2, HP);
+  for (let i = 0; i < 2; i++) m(K(0.03, 0.1, 3), ROLE.bone, tail, 0, 0.09, -0.1 - i * 0.16, -0.3);
+  const tail2 = pivot(tail, 'tail2', 0, 0, -0.4);
+  m(C(0.04, 0.08, 0.4, 5), ROLE.skin, tail2, 0, 0, -0.2, HP);
+  m(O(0.09), G, tail2, 0, 0, -0.45);
+  mirror((s) => m(K(0.025, 0.14, 3), ROLE.bone, tail2, s * 0.06, 0, -0.42, 0, 0, -s * 1.2));
+  return root;
+}
+
+const BUILDERS = { grunt: buildHusk, shooter: buildCaster, heavy: buildBrute, flyer: buildGargoyle };
+const RIG_KEYS = ['hips', 'torso', 'head', 'jaw', 'halo', 'orb', 'orbRing0', 'orbRing1', 'shL', 'shR', 'elL', 'elR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'wL', 'wR', 'w2L', 'w2R', 'tail', 'tail2'];
+const templates = new Map();
+function template(type) {
+  if (!templates.has(type)) {
+    const root = BUILDERS[type](glowMat(PALETTE[type].glow));
+    bake(root);
+    if (type === 'flyer') root.scale.setScalar(1.35);
+    templates.set(type, root);
+  }
+  return templates.get(type);
+}
+
+// Every enemy faces local +Z. Returns { root, rig, mats, extraMats, hit, orb, glow }.
+export function buildEnemyModel(type, color) {
+  const pal = PALETTE[type];
+  const flat = { flatShading: true };
+  const mats = {
+    skin: new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, emissive: color, emissiveIntensity: 0.16, ...flat }),
+    armor: new THREE.MeshStandardMaterial({ color: pal.armor, roughness: 0.36, metalness: 0.75, ...flat }),
+    bone: new THREE.MeshStandardMaterial({ color: 0xd8ccb0, roughness: 0.6, metalness: 0.05, emissive: 0x2a2418, emissiveIntensity: 0.3, ...flat }),
+    cloth: new THREE.MeshStandardMaterial({ color: pal.cloth, roughness: 0.95, ...flat, side: THREE.DoubleSide }),
+  };
+  for (const mt of Object.values(mats)) { mt.userData.baseEmissive = mt.emissive.getHex(); mt.userData.baseIntensity = mt.emissiveIntensity; }
+  const root = template(type).clone(true);
+  root.traverse((o) => { if (o.isMesh && o.material.userData.role) o.material = mats[o.material.userData.role]; });
+  const rig = {};
+  for (const k of RIG_KEYS) { const o = root.getObjectByName(k); if (o) rig[k] = o; }
+  if (rig.orbRing0) rig.orbRings = [rig.orbRing0, rig.orbRing1];
+  const md = { root, rig, mats: Object.values(mats), extraMats: [], hit: [], orb: rig.orb || null, glow: glowMat(pal.glow), armorMat: mats.armor, boneMat: mats.bone };
+  finishHit(md);
+  return md;
+}
+function finishHit(md) {
+  md.hit.length = 0;
+  md.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; delete o.userData.part; } });
+  md.rig.head.traverse((o) => { if (o.isMesh && !o.userData.noHit) o.userData.part = 'head'; });
+  md.root.traverse((o) => {
+    if (!o.isMesh || o.userData.noHit) return;
+    if (!o.userData.part) o.userData.part = 'body';
+    md.hit.push(o);
+  });
+}
+
+// pose an enemy each frame. w = windup 0..1
 export function animateEnemy(e, dt, moving, w, time) {
   const r = e.rig;
   const k = 1 - Math.exp(-dt * 14);
@@ -258,7 +373,8 @@ export function animateEnemy(e, dt, moving, w, time) {
     const diving = e.state === 'dive';
     const flap = diving ? 0 : Math.sin(time * (e.state === 'windup' ? 22 : 13) + e.walk) * 0.75;
     const fold = diving ? -0.9 : 0;
-    r.wL.rotation.z = flap + fold; r.wR.rotation.z = -flap - fold;
+    r.wL.rotation.z = flap + fold - 0.45; r.wR.rotation.z = -flap - fold + 0.45;
+    r.wL.rotation.x = r.wR.rotation.x = diving ? 0 : 0.35;
     r.w2L.rotation.z = flap * 0.6 + (diving ? -0.6 : 0); r.w2R.rotation.z = -flap * 0.6 - (diving ? -0.6 : 0);
     r.hips.rotation.x = diving ? 0.6 : e.state === 'windup' ? -0.4 * w : 0.1;
     r.tail.rotation.x = Math.sin(time * 4 + e.walk) * 0.3;
@@ -266,23 +382,22 @@ export function animateEnemy(e, dt, moving, w, time) {
     r.head.rotation.x = e.state === 'windup' ? -0.3 * w : 0;
     return;
   }
-
   if (type === 'grunt') {
     lerp(r.hipL, 'x', -sw * 0.75); lerp(r.hipR, 'x', sw * 0.75);
     lerp(r.kneeL, 'x', moving ? Math.max(0, Math.sin(ph + 1.2)) * 1.1 : 0.1);
     lerp(r.kneeR, 'x', moving ? Math.max(0, Math.sin(ph + 1.2 + Math.PI)) * 1.1 : 0.1);
     r.hips.position.y = 0.95 - (moving ? Math.abs(Math.cos(ph)) * 0.06 : 0);
-    let shx = sw * 0.6, elx = -0.4, tor = 0.28 + breathe, jaw = 0.05;
-    if (e.state === 'windup') { shx = -2.7 * w; elx = -0.7 * w; tor = 0.28 - 0.35 * w; jaw = 0.5 * w; }
+    let shx = sw * 0.6, elx = -0.4, tor = 0.28 + breathe, jaw = 0.05 + Math.max(0, Math.sin(time * 3 + ph)) * 0.08;
+    if (e.state === 'windup') { shx = -2.7 * w; elx = -0.7 * w; tor = 0.28 - 0.35 * w; jaw = 0.55 * w; }
     else if (e.state === 'recover') { shx = -0.8; elx = -0.1; tor = 0.6; jaw = 0.2; }
-    lerp(r.shL, 'x', e.state === 'chase' ? shx : shx); lerp(r.shR, 'x', e.state === 'chase' ? -shx : shx);
+    lerp(r.shL, 'x', shx); lerp(r.shR, 'x', e.state === 'chase' ? -shx : shx);
     lerp(r.elL, 'x', elx); lerp(r.elR, 'x', elx);
     lerp(r.torso, 'x', tor);
-    lerp(r.jaw, 'x', jaw);
+    if (r.jaw) lerp(r.jaw, 'x', jaw);
   } else if (type === 'shooter') {
     r.hips.position.y = 0.25 + Math.sin(time * 2.4 + e.walk) * 0.12;
     r.hips.rotation.x = moving ? 0.12 : 0;
-    r.halo.rotation.z += dt * 1.5;
+    if (r.halo) r.halo.rotation.z += dt * 1.5;
     let shR = -0.2, elR = -0.3, shL = -0.25 + breathe * 2, elL = -0.4;
     if (e.state === 'windup') { shR = -0.3 - 1.3 * w; elR = -0.2; shL = -0.6 * w; elL = -1.2 * w; }
     lerp(r.shR, 'x', shR); lerp(r.elR, 'x', elR);
@@ -294,255 +409,62 @@ export function animateEnemy(e, dt, moving, w, time) {
     lerp(r.kneeL, 'x', moving ? Math.max(0, Math.sin(ph + 1.2)) * 0.7 : 0.05);
     lerp(r.kneeR, 'x', moving ? Math.max(0, Math.sin(ph + 1.2 + Math.PI)) * 0.7 : 0.05);
     r.hips.position.y = 1.0 - (moving ? Math.abs(Math.cos(ph)) * 0.09 : 0);
-    let shx = sw * 0.35, elx = -0.3, tor = 0.1 + breathe, rz = 0;
+    let shx = sw * 0.35, elx = -0.3, tor = 0.1 + breathe;
     if (e.state === 'windup') { shx = -2.9 * w; elx = -0.5 * w; tor = -0.25 * w; }
     else if (e.state === 'recover') { shx = -0.9; elx = 0; tor = 0.55; }
-    lerp(r.shL, 'x', e.state === 'chase' ? shx : shx); lerp(r.shR, 'x', e.state === 'chase' ? -shx : shx);
+    lerp(r.shL, 'x', shx); lerp(r.shR, 'x', e.state === 'chase' ? -shx : shx);
     lerp(r.elL, 'x', elx); lerp(r.elR, 'x', elx);
     lerp(r.torso, 'x', tor);
-    r.torso.rotation.z = moving ? Math.sin(ph) * 0.05 : rz;
+    r.torso.rotation.z = moving ? Math.sin(ph) * 0.05 : 0;
   }
-}
-
-// ---------------------------------------------------------------- viewmodels
-export function buildViewmodels(GLOW) {
-  const steel = new THREE.MeshStandardMaterial({ color: 0xa2a2ae, metalness: 0.75, roughness: 0.28, flatShading: true });
-  const dsteel = new THREE.MeshStandardMaterial({ color: 0x4a4a54, metalness: 0.7, roughness: 0.4, flatShading: true });
-  const black = new THREE.MeshStandardMaterial({ color: 0x18181c, metalness: 0.4, roughness: 0.6, flatShading: true });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x7a4424, roughness: 0.55, flatShading: true });
-  const woodDark = new THREE.MeshStandardMaterial({ color: 0x4a2814, roughness: 0.6, flatShading: true });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xc89a44, metalness: 0.85, roughness: 0.3, flatShading: true });
-  const glove = new THREE.MeshStandardMaterial({ color: 0x2e2622, roughness: 0.85, flatShading: true });
-  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3a1410, roughness: 0.7, metalness: 0.2, flatShading: true });
-  const armorRed = new THREE.MeshStandardMaterial({ color: 0x7a2418, metalness: 0.55, roughness: 0.35, flatShading: true });
-  const chargeMat = new THREE.MeshStandardMaterial({ color: 0x113344, emissive: 0x3ac8ff, emissiveIntensity: 0.6 });
-  const coreGlow = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
-
-  const flashSprite = (z) => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xffc070, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
-    s.position.set(0, 0.03, z); s.scale.setScalar(0.38);
-    return s;
-  };
-  const gripHand = (parent, x, y, z, tilt) => {
-    const h = pivot(parent, x, y, z);
-    h.rotation.x = tilt;
-    m(B(0.075, 0.085, 0.08), glove, h, 0.006, 0, 0.012);
-    for (let i = 0; i < 4; i++) m(B(0.08, 0.02, 0.028), glove, h, -0.004, 0.03 - i * 0.022, -0.035);
-    m(B(0.024, 0.024, 0.07), glove, h, 0.04, 0.035, -0.01, 0, 0.2, 0);
-    m(C(0.045, 0.055, 0.32, 8), sleeve, h, 0.01, -0.05, 0.2, 1.15);
-    m(C(0.048, 0.048, 0.03, 8), brass, h, 0.01, -0.0, 0.07, 1.15);
-  };
-
-  // ---- REVOLVER
-  const revolver = new THREE.Group();
-  m(B(0.055, 0.085, 0.15), steel, revolver, 0, 0, 0);
-  m(B(0.045, 0.02, 0.22), steel, revolver, 0, 0.052, -0.05);
-  m(C(0.019, 0.021, 0.3, 12), steel, revolver, 0, 0.03, -0.27, HALF_PI);
-  m(B(0.014, 0.016, 0.3), dsteel, revolver, 0, 0.055, -0.27);
-  m(C(0.024, 0.024, 0.025, 12), black, revolver, 0, 0.03, -0.42, HALF_PI);
-  m(B(0.008, 0.022, 0.016), steel, revolver, 0, 0.072, -0.405);
-  m(B(0.02, 0.012, 0.02), black, revolver, 0, 0.07, 0.03); // rear sight
-  m(C(0.008, 0.008, 0.18, 6), dsteel, revolver, 0, 0.002, -0.2, HALF_PI);
-  const cyl = pivot(revolver, 0, 0.014, -0.065);
-  m(C(0.046, 0.046, 0.1, 6), dsteel, cyl, 0, 0, 0, HALF_PI);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
-    m(B(0.012, 0.012, 0.09), black, cyl, Math.cos(a) * 0.044, Math.sin(a) * 0.044, 0, 0, 0, a);
-    m(C(0.009, 0.009, 0.01, 6), brass, cyl, Math.cos(a) * 0.026, Math.sin(a) * 0.026, -0.05, HALF_PI);
-  }
-  const hammer = pivot(revolver, 0, 0.045, 0.07);
-  m(B(0.016, 0.045, 0.024), dsteel, hammer, 0, 0.02, 0, -0.3);
-  m(B(0.03, 0.01, 0.03), dsteel, hammer, 0, 0.045, 0.012, -0.3);
-  m(T(0.03, 0.005, 4, 10, Math.PI), dsteel, revolver, 0, -0.045, -0.01, 0, HALF_PI, Math.PI);
-  m(B(0.008, 0.03, 0.01), black, revolver, 0, -0.05, -0.005, 0.3);
-  m(B(0.05, 0.15, 0.07), wood, revolver, 0, -0.1, 0.085, -0.35);
-  m(B(0.054, 0.1, 0.04), woodDark, revolver, 0, -0.09, 0.07, -0.35);
-  m(B(0.054, 0.02, 0.075), brass, revolver, 0, -0.17, 0.115, -0.35);
-  const coils = [];
-  for (const z of [-0.17, -0.24, -0.31]) coils.push(m(T(0.028, 0.006, 6, 16), chargeMat, revolver, 0, 0.03, z));
-  m(B(0.01, 0.014, 0.12), chargeMat, revolver, 0, 0.064, -0.05);
-  gripHand(revolver, 0, -0.09, 0.09, -0.35);
-  const revFlash = flashSprite(-0.46); revolver.add(revFlash);
-  revolver.userData.base = new THREE.Vector3(0.24, -0.24, -0.55);
-
-  // ---- SHOTGUN
-  const shotgun = new THREE.Group();
-  for (const x of [-0.028, 0.028]) {
-    m(C(0.026, 0.026, 0.64, 12), steel, shotgun, x, 0.03, -0.36, HALF_PI);
-    m(C(0.03, 0.03, 0.04, 12), dsteel, shotgun, x, 0.03, -0.67, HALF_PI);
-    m(C(0.016, 0.016, 0.01, 10), black, shotgun, x, 0.03, -0.69, HALF_PI);
-  }
-  m(B(0.02, 0.012, 0.64), dsteel, shotgun, 0, 0.06, -0.36);
-  m(B(0.008, 0.012, 0.01), brass, shotgun, 0, 0.072, -0.67);
-  m(B(0.1, 0.1, 0.22), dsteel, shotgun, 0, 0.0, 0.02);
-  for (const s of [-1, 1]) m(B(0.004, 0.06, 0.13), brass, shotgun, s * 0.052, 0.005, 0.02);
-  const shotAccent = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
-  m(B(0.104, 0.028, 0.07), shotAccent, shotgun, 0, -0.012, -0.05);
-  m(B(0.104, 0.008, 0.16), shotAccent, shotgun, 0, 0.051, 0.02);
-  for (const x of [-0.02, 0.02]) m(B(0.012, 0.03, 0.02), black, shotgun, x, 0.06, 0.1, -0.4);
-  const pump = pivot(shotgun, 0, -0.035, -0.3);
-  m(B(0.09, 0.07, 0.22), wood, pump);
-  for (let i = 0; i < 4; i++) m(B(0.092, 0.008, 0.012), woodDark, pump, 0, -0.036, -0.08 + i * 0.05);
-  m(C(0.012, 0.012, 0.3, 6), dsteel, shotgun, 0, -0.02, -0.18, HALF_PI);
-  m(B(0.07, 0.11, 0.32), wood, shotgun, 0, -0.05, 0.27, 0.14);
-  m(B(0.074, 0.06, 0.1), woodDark, shotgun, 0, -0.02, 0.15, 0.14);
-  m(B(0.076, 0.125, 0.03), black, shotgun, 0, -0.072, 0.43, 0.14);
-  m(T(0.03, 0.005, 4, 10, Math.PI), dsteel, shotgun, 0, -0.055, 0.07, 0, HALF_PI, Math.PI);
-  gripHand(shotgun, 0, -0.07, 0.13, 0.1);
-  const shotFlash = flashSprite(-0.74); shotgun.add(shotFlash);
-  shotFlash.scale.setScalar(0.5);
-  shotgun.userData.base = new THREE.Vector3(0.27, -0.29, -0.56);
-  shotgun.visible = false;
-
-  // ---- GAUNTLET (left punch arm)
-  const arm = new THREE.Group();
-  m(C(0.075, 0.08, 0.3, 8), sleeve, arm, 0, 0, 0.36, HALF_PI);
-  for (let i = 0; i < 3; i++) {
-    const sc = 1 - i * 0.07;
-    m(B(0.135 * sc, 0.125 * sc, 0.11), armorRed, arm, 0, 0.005, 0.22 - i * 0.095);
-    m(B(0.137 * sc, 0.012, 0.012), brass, arm, 0, 0.065 * sc, 0.17 - i * 0.095);
-  }
-  m(B(0.03, 0.03, 0.22), coreGlow, arm, 0, 0.07, 0.12);
-  m(C(0.075, 0.075, 0.04, 8), brass, arm, 0, 0, -0.06, HALF_PI);
-  const fist = pivot(arm, 0, 0, -0.14);
-  m(B(0.13, 0.12, 0.1), glove, fist);
-  for (let i = 0; i < 4; i++) {
-    m(B(0.03, 0.055, 0.05), glove, fist, -0.047 + i * 0.031, 0.015, -0.065);
-    m(B(0.03, 0.03, 0.03), glove, fist, -0.047 + i * 0.031, -0.025, -0.05);
-  }
-  m(B(0.145, 0.035, 0.055), armorRed, fist, 0, 0.055, -0.065);
-  for (let i = 0; i < 4; i++) m(K(0.012, 0.035, 4), steel, fist, -0.047 + i * 0.031, 0.08, -0.075, -0.3);
-  m(B(0.13, 0.01, 0.01), coreGlow, fist, 0, 0.045, -0.095);
-  m(B(0.035, 0.035, 0.08), glove, fist, 0.072, -0.02, -0.03, 0, 0, 0.3);
-  arm.userData.rest = new THREE.Vector3(-0.32, -0.8, -0.3);
-  arm.userData.hit = new THREE.Vector3(-0.1, -0.17, -0.6);
-  arm.position.copy(arm.userData.rest);
-
-  // ---- variant attachments (main toggles visibility)
-  const lanceG = pivot(revolver);
-  for (const c of coils) { revolver.remove(c); lanceG.add(c); }
-  m(B(0.03, 0.02, 0.05), chargeMat, lanceG, 0, 0.07, -0.33);
-  const chainG = pivot(revolver);
-  for (let i = 0; i < 5; i++) m(T(0.026, 0.007, 4, 8), dsteel, chainG, 0, 0.03, -0.15 - i * 0.05, 0, i % 2 ? HALF_PI : 0, 0);
-  m(O(0.022), chargeMat, chainG, 0, 0.09, -0.1);
-  m(B(0.03, 0.02, 0.04), steel, chainG, 0, 0.068, -0.1);
-  const coinG = pivot(revolver);
-  m(B(0.03, 0.06, 0.05), dsteel, coinG, 0.045, -0.01, 0.0);
-  for (let i = 0; i < 5; i++) m(C(0.021, 0.021, 0.006, 10), brass, coinG, 0.064, -0.03 + i * 0.008, 0.0, 0, 0, HALF_PI);
-  m(C(0.012, 0.014, 0.08, 8), black, coinG, 0, 0.082, -0.02, HALF_PI);
-  m(C(0.013, 0.013, 0.004, 8), chargeMat, coinG, 0, 0.082, -0.061, HALF_PI);
-  const revVariants = [lanceG, chainG, coinG];
-
-  const furnaceG = pivot(shotgun);
-  m(C(0.014, 0.014, 0.12, 6), shotAccent, furnaceG, 0, -0.06, 0.0, HALF_PI);
-  const overG = pivot(shotgun);
-  m(C(0.032, 0.032, 0.016, 12), dsteel, overG, 0.06, 0.02, 0.02, 0, 0, HALF_PI);
-  m(C(0.026, 0.026, 0.004, 12), new THREE.MeshBasicMaterial({ color: 0xe8e0c8 }), overG, 0.069, 0.02, 0.02, 0, 0, HALF_PI);
-  const needle = m(B(0.002, 0.022, 0.003), black, overG, 0.072, 0.02, 0.02);
-  for (const y of [-0.01, 0.0]) m(C(0.006, 0.006, 0.3, 6), brass, overG, 0.055, y, -0.15, HALF_PI);
-  const pressureLights = [];
-  for (let i = 0; i < 3; i++) pressureLights.push(m(B(0.016, 0.01, 0.02), new THREE.MeshBasicMaterial({ color: 0x331a10 }), overG, 0, 0.06, 0.07 + i * 0.026));
-  const sawG = pivot(shotgun);
-  m(B(0.03, 0.03, 0.12), dsteel, sawG, 0, -0.045, -0.46);
-  const saw = pivot(sawG, 0, -0.075, -0.52);
-  m(C(0.075, 0.075, 0.008, 16), steel, saw, 0, 0, 0, 0, 0, HALF_PI);
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    m(K(0.012, 0.03, 3), steel, saw, 0, Math.cos(a) * 0.085, Math.sin(a) * 0.085, a, 0, 0);
-  }
-  m(C(0.02, 0.02, 0.012, 8), shotAccent, saw, 0, 0, 0, 0, 0, HALF_PI);
-  const shotVariants = [furnaceG, overG, sawG];
-
-  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw };
 }
 
 // ---------------------------------------------------------------- bosses
-// Bosses reuse a base rig, scaled up and dressed with extra parts.
 export function buildBossModel(kind) {
   if (kind === 'boss1') {
     const md = buildEnemyModel('heavy', 0x8c8478);
-    const crownMat = md.glow;
-    const r = md.rig;
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      m(K(0.06, 0.32, 4), crownMat, r.head, Math.sin(a) * 0.3, 0.62, Math.cos(a) * 0.3, Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xffc040);
+    for (let i = 0; i < 9; i++) {                                                // brick crown
+      const a = (i / 9) * Math.PI * 2;
+      m(B(0.16, 0.22, 0.1), A, r.head, Math.sin(a) * 0.34, 0.6, Math.cos(a) * 0.34, 0, a, 0);
+      if (i % 3 === 0) m(O(0.05), Gm, r.head, Math.sin(a) * 0.36, 0.76, Math.cos(a) * 0.36);
     }
-    const chainMat = md.mats[1];
-    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) m(T(0.07, 0.02, 4, 8), chainMat, r.torso, s * 0.7, 0.55 - i * 0.12, 0.62, 0, i % 2 ? HALF_PI : 0, 0);
-    m(B(0.5, 0.5, 0.12), md.glow, r.torso, 0, 0.35, 0.5);
+    const bell = pivot(r.torso, 'bell', 0, 1.6, -0.75);                         // bell cage on the back
+    m(C(0.35, 0.6, 0.8, 8), A, bell, 0, 0, 0);
+    m(S(0.22, 8, 6), Gm, bell, 0, -0.1, 0);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; m(B(0.04, 0.8, 0.04), md.mats[0], bell, Math.sin(a) * 0.6, 0, Math.cos(a) * 0.6); }
+    const trowel = pivot(r.elR, 'trowel', 0, -1.0, 0.3);                        // giant trowel blade
+    m(B(0.08, 1.2, 0.9), A, trowel, 0, -0.4, 0.2, 0.2);
+    m(B(0.09, 1.1, 0.04), Gm, trowel, 0, -0.4, 0.66, 0.2);
+    mirror((s) => { for (let i = 0; i < 6; i++) m(T(0.07, 0.02, 4, 8), A, r.torso, s * 0.75, 0.6 - i * 0.12, 0.66, 0, i % 2 ? HP : 0, 0); });
     md.root.scale.setScalar(2.1);
     finishHit(md);
     return md;
   }
   const md = buildEnemyModel('shooter', 0xd8c49a);
-  const r = md.rig;
+  const r = md.rig, A = md.armorMat, Gm = glowMat(0xfff0b0);
+  m(K(0.2, 0.7, 4), A, r.head, 0, 0.8, -0.02);                                   // mitre
+  m(B(0.03, 0.3, 0.02), Gm, r.head, 0, 0.8, 0.12);
+  m(B(0.16, 0.03, 0.02), Gm, r.head, 0, 0.86, 0.12);
   r.extraHalos = [];
   for (let i = 0; i < 2; i++) {
-    const h = m(T(0.55 + i * 0.22, 0.02, 4, 32), md.glow, r.head, 0, 0.32, -0.3 - i * 0.05);
+    const h = m(T(0.55 + i * 0.22, 0.02, 4, 32), Gm, r.head, 0, 0.32, -0.3 - i * 0.05);
     h.userData.noHit = true;
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; m(B(0.08, 0.05, 0.04), A, h, Math.cos(a) * (0.55 + i * 0.22), Math.sin(a) * (0.55 + i * 0.22), 0, 0, 0, a); }
     r.extraHalos.push(h);
   }
-  r.bricks = pivot(r.torso, 0, 0.2, 0);
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const b = m(B(0.22, 0.12, 0.12), md.mats[1], r.bricks, Math.cos(a) * 0.9, Math.sin(i * 1.7) * 0.2, Math.sin(a) * 0.9, 0, -a, 0);
-    b.userData.noHit = true;
+  r.bricks = pivot(r.torso, 'bricks', 0, 0.2, 0);
+  for (let i = 0; i < 4; i++) {                                                  // floating stone hands
+    const a = (i / 4) * Math.PI * 2;
+    const hand = pivot(r.bricks, '', Math.cos(a) * 1.15, Math.sin(i * 1.7) * 0.25, Math.sin(a) * 1.15);
+    hand.rotation.y = -a;
+    const palm = m(B(0.22, 0.28, 0.08), A, hand, 0, 0, 0); palm.userData.noHit = true;
+    for (let f = 0; f < 4; f++) { const fi = m(B(0.04, 0.16, 0.04), A, hand, -0.075 + f * 0.05, 0.2, 0); fi.userData.noHit = true; }
+    const gl = m(O(0.05), Gm, hand, 0, 0, 0.06); gl.userData.noHit = true;
   }
   md.root.scale.setScalar(3);
   finishHit(md);
   return md;
-}
-function finishHit(md) {
-  md.hit.length = 0;
-  md.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  md.rig.head.traverse((o) => { if (o.isMesh && !o.userData.noHit) o.userData.part = 'head'; });
-  md.root.traverse((o) => {
-    if (!o.isMesh || o.userData.noHit) return;
-    if (!o.userData.part) o.userData.part = 'body';
-    md.hit.push(o);
-  });
-}
-
-// ---------------------------------------------------------------- extra detail pass (chunkier silhouettes)
-function addDetails(type, r, M) {
-  const { skin, armor, glow, dark } = M;
-  if (type === 'grunt') {
-    m(B(0.6, 0.42, 0.12), armor, r.torso, 0, 0.6, -0.27, 0.1);           // back plate
-    m(B(0.5, 0.03, 0.02), glow, r.torso, 0, 0.62, -0.335, 0.1);
-    for (const s of [-1, 1]) {
-      m(B(0.12, 0.14, 0.12), armor, r.hips, s * 0.3, 0.02, 0.2);          // belt pouches
-      const el = s < 0 ? r.elL : r.elR;
-      m(K(0.035, 0.32, 3), armor, el, s * 0.13, -0.2, -0.05, 0.3, 0, s * 0.25); // wrist blade
-      const kn = s < 0 ? r.kneeL : r.kneeR;
-      m(K(0.04, 0.14, 4), armor, kn, 0, 0.02, 0.17, HALF_PI);              // knee spike
-    }
-    m(B(0.16, 0.05, 0.05), glow, r.head, 0, 0.36, 0.12);                  // brow glow
-  } else if (type === 'shooter') {
-    for (const s of [-1, 1]) {
-      m(K(0.06, 0.26, 4), armor, r.torso, s * 0.4, 0.62, 0, 0, 0, -s * 0.6);
-      m(B(0.16, 0.06, 0.16), glow, r.torso, s * 0.36, 0.5, 0);
-    }
-    m(B(0.22, 0.6, 0.03), armor, r.hips, 0, 0.75, 0.42, -0.14);            // robe front panel
-    m(O(0.05), glow, r.hips, 0, 0.85, 0.445);
-    r.shards = pivot(r.head, 0, 0.25, 0);
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
-      const sh = m(O(0.05), glow, r.shards, Math.cos(a) * 0.45, Math.sin(i * 2.1) * 0.08, Math.sin(a) * 0.45);
-      sh.userData.noHit = true;
-    }
-  } else if (type === 'heavy') {
-    for (const s of [-1, 1]) {
-      for (let i = 0; i < 4; i++) m(C(0.03, 0.03, 0.04, 6), dark, r.torso, s * 0.9, 0.7 + i * 0.16, 0.58, HALF_PI); // rivet strips
-      const el = s < 0 ? r.elL : r.elR;
-      m(B(0.08, 0.3, 0.08), glow, el, s * 0.3, -0.25, 0.2);               // arm vents
-      const kn = s < 0 ? r.kneeL : r.kneeR;
-      m(K(0.07, 0.22, 4), armor, kn, 0, 0.05, 0.32, HALF_PI);
-    }
-    m(B(1.0, 0.18, 0.4), armor, r.torso, 0, 1.62, -0.2);                   // collar
-  } else if (type === 'flyer') {
-    m(B(0.24, 0.05, 0.3), glow, r.hips, 0, -0.2, 0.05);                    // glowing belly
-    for (const s of [-1, 1]) m(K(0.03, 0.12, 3), armor, s < 0 ? r.wL : r.wR, s * 0.82, 0.05, 0.08, 0, 0, -s * HALF_PI);
-  }
 }
 
 // ---------------------------------------------------------------- trainer mini-bosses
@@ -550,72 +472,280 @@ export function buildTrainerModel(kind) {
   let md;
   if (kind === 'bulwark') {
     md = buildEnemyModel('grunt', 0x6a7088);
-    const r = md.rig, A = md.mats[1];
-    const shield = pivot(r.elL, -0.05, -0.25, 0.25);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0x9ae8ff);
+    const shield = pivot(r.elL, 'shield', -0.05, -0.25, 0.25);
     m(B(0.14, 1.5, 1.05), A, shield, 0, 0, 0, 0, 0.2, 0);
-    m(B(0.16, 1.2, 0.08), md.glow, shield, 0.02, 0, 0, 0, 0.2, 0);
-    m(B(0.16, 0.08, 0.8), md.glow, shield, 0.02, 0.15, 0, 0, 0.2, 0);
-    for (const y of [-0.6, 0.6]) m(K(0.06, 0.2, 4), A, shield, 0.1, y, 0, 0, 0, -HALF_PI);
-    m(B(0.1, 0.3, 0.5), A, r.head, 0, 0.5, -0.02);                        // helmet crest
-    m(B(0.5, 0.12, 0.5), A, r.head, 0, 0.38, 0);
+    m(B(0.16, 1.2, 0.08), Gm, shield, 0.02, 0, 0, 0, 0.2, 0);
+    m(B(0.16, 0.08, 0.8), Gm, shield, 0.02, 0.15, 0, 0, 0.2, 0);
+    m(S(0.16, 8, 6), md.boneMat, shield, 0.09, 0.15, 0.02);
+    for (const y of [-0.6, 0.6]) m(K(0.06, 0.24, 4), A, shield, 0.1, y, 0, 0, 0, -HP);
+    m(B(0.1, 0.32, 0.5), A, r.head, 0, 0.52, -0.02);
+    m(B(0.48, 0.14, 0.5), A, r.head, 0, 0.38, 0.04);
     md.root.scale.setScalar(1.6);
   } else if (kind === 'sweeper') {
     md = buildEnemyModel('heavy', 0x8a6a40);
-    const r = md.rig, A = md.mats[1];
-    const ham = pivot(r.elR, 0, -0.85, 0.2);
-    m(C(0.07, 0.07, 2.2, 6), A, ham, 0, 0, 0.6, HALF_PI);
-    m(B(1.1, 0.6, 0.6), A, ham, 0, 0, 1.75);
-    m(B(1.14, 0.08, 0.64), md.glow, ham, 0, 0, 1.75);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff3a6a);
+    const ham = pivot(r.elR, 'hammer', 0, -0.85, 0.2);
+    m(C(0.07, 0.07, 2.3, 6), A, ham, 0, 0, 0.6, HP);
+    m(B(1.2, 0.62, 0.62), A, ham, 0, 0, 1.8);
+    m(B(1.24, 0.08, 0.66), Gm, ham, 0, 0, 1.8);
+    for (const x of [-0.6, 0.6]) m(K(0.12, 0.3, 4), A, ham, x, 0, 1.8, 0, 0, Math.sign(x) * -HP);
     md.root.scale.setScalar(1.3);
   } else if (kind === 'roost') {
     md = buildEnemyModel('flyer', 0x6a5a7a);
-    const r = md.rig, A = md.mats[1];
-    for (let i = 0; i < 5; i++) m(K(0.03, 0.18, 3), md.glow, r.head, (i - 2) * 0.07, 0.25, -0.05, -0.4, 0, (i - 2) * 0.2);
-    m(O(0.14), md.glow, r.tail2, 0, 0, -0.55);
+    const r = md.rig, Gm = glowMat(0xc08aff);
+    for (let i = 0; i < 5; i++) m(K(0.03, 0.2, 3), Gm, r.head, (i - 2) * 0.07, 0.26, -0.05, -0.4, 0, (i - 2) * 0.2);
+    m(O(0.14), Gm, r.tail2, 0, 0, -0.55);
     md.root.scale.setScalar(2.4);
   } else {
     md = buildEnemyModel('heavy', 0x2e2622);
-    const r = md.rig, A = md.mats[1];
-    m(B(1.0, 0.7, 0.14), md.glow, r.torso, 0, 0.45, 0.47);                 // furnace belly
-    for (let i = 0; i < 4; i++) m(B(1.04, 0.05, 0.16), A, r.torso, 0, 0.18 + i * 0.18, 0.48);
-    for (const s of [-1, 1]) { m(C(0.16, 0.2, 1.4, 8), A, r.torso, s * 0.55, 2.0, -0.45); m(C(0.13, 0.13, 0.08, 8), md.glow, r.torso, s * 0.55, 2.72, -0.45); }
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff6a1a);
+    m(B(1.0, 0.72, 0.14), Gm, r.torso, 0, 0.42, 0.66);
+    for (let i = 0; i < 4; i++) m(B(1.04, 0.05, 0.16), A, r.torso, 0, 0.15 + i * 0.18, 0.7);
+    mirror((s) => { m(C(0.16, 0.2, 1.4, 8), A, r.torso, s * 0.55, 2.0, -0.45); m(C(0.13, 0.13, 0.08, 8), Gm, r.torso, s * 0.55, 2.72, -0.45); });
     md.root.scale.setScalar(1.6);
   }
   finishHit(md);
   return md;
 }
 
-// ---------------------------------------------------------------- THE FORGE (shop station)
+// ---------------------------------------------------------------- viewmodels
+export function buildViewmodels(GLOW) {
+  const f = { flatShading: true };
+  const steel = new THREE.MeshStandardMaterial({ color: 0xa8a8b4, metalness: 0.78, roughness: 0.26, ...f });
+  const dsteel = new THREE.MeshStandardMaterial({ color: 0x4a4a56, metalness: 0.72, roughness: 0.38, ...f });
+  const black = new THREE.MeshStandardMaterial({ color: 0x16161a, metalness: 0.4, roughness: 0.6, ...f });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7a4424, roughness: 0.55, ...f });
+  const woodDark = new THREE.MeshStandardMaterial({ color: 0x4a2814, roughness: 0.6, ...f });
+  const leather = new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.85, ...f });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xd0a24a, metalness: 0.88, roughness: 0.28, ...f });
+  const glove = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.85, ...f });
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3a1410, roughness: 0.75, metalness: 0.15, ...f });
+  const armorRed = new THREE.MeshStandardMaterial({ color: 0x8a2a1a, metalness: 0.6, roughness: 0.32, ...f });
+  const shell = new THREE.MeshStandardMaterial({ color: 0xa01a14, roughness: 0.5, ...f });
+  const chargeMat = new THREE.MeshStandardMaterial({ color: 0x113344, emissive: 0x3ac8ff, emissiveIntensity: 0.6 });
+  const coreGlow = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
+  const shotAccent = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
+  const keep = (o) => { o.userData.keep = true; return o; };
+
+  const flashSprite = (z, s = 0.38) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xffc070, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+    sp.position.set(0, 0.03, z); sp.scale.setScalar(s);
+    return sp;
+  };
+  const gripHand = (parent, x, y, z, tilt) => {
+    const h = pivot(parent, '', x, y, z);
+    h.rotation.x = tilt;
+    m(B(0.078, 0.09, 0.085), glove, h, 0.006, 0, 0.012);
+    for (let i = 0; i < 4; i++) { m(B(0.082, 0.021, 0.03), glove, h, -0.004, 0.032 - i * 0.022, -0.036); m(B(0.084, 0.008, 0.012), armorRed, h, -0.004, 0.04 - i * 0.022, -0.045); }
+    m(B(0.026, 0.026, 0.075), glove, h, 0.042, 0.036, -0.01, 0, 0.2, 0);
+    m(B(0.07, 0.05, 0.05), armorRed, h, 0.03, 0.03, 0.05);
+    m(C(0.05, 0.058, 0.08, 8), armorRed, h, 0.01, -0.02, 0.1, 1.15);
+    m(C(0.052, 0.052, 0.02, 8), brass, h, 0.01, -0.0, 0.06, 1.15);
+    m(C(0.048, 0.056, 0.3, 8), sleeve, h, 0.01, -0.07, 0.24, 1.15);
+  };
+
+  // ---- REVOLVER: brass-inlaid hand cannon
+  const revolver = new THREE.Group();
+  m(B(0.06, 0.09, 0.17), steel, revolver, 0, 0, 0);
+  mirror((s) => { m(B(0.004, 0.05, 0.1), brass, revolver, s * 0.031, 0.0, 0.0); m(C(0.006, 0.006, 0.004, 6), brass, revolver, s * 0.033, -0.02, 0.05, 0, 0, HP); });
+  m(B(0.05, 0.022, 0.24), steel, revolver, 0, 0.056, -0.05);
+  m(C(0.022, 0.025, 0.32, 8), steel, revolver, 0, 0.03, -0.27, HP);
+  m(B(0.05, 0.04, 0.24), dsteel, revolver, 0, 0.036, -0.25);
+  for (let i = 0; i < 4; i++) m(B(0.03, 0.006, 0.02), black, revolver, 0, 0.057, -0.17 - i * 0.05);
+  m(B(0.058, 0.048, 0.05), dsteel, revolver, 0, 0.032, -0.42);
+  mirror((s) => m(B(0.004, 0.02, 0.03), black, revolver, s * 0.03, 0.032, -0.42));
+  m(B(0.01, 0.024, 0.02), brass, revolver, 0, 0.07, -0.4);
+  m(B(0.024, 0.014, 0.02), black, revolver, 0, 0.074, 0.03);
+  const cyl = pivot(revolver, '', 0, 0.014, -0.065);
+  m(C(0.05, 0.05, 0.11, 6), dsteel, cyl, 0, 0, 0, HP);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    m(B(0.013, 0.013, 0.1), black, cyl, Math.cos(a) * 0.048, Math.sin(a) * 0.048, 0, 0, 0, a);
+    m(C(0.01, 0.01, 0.01, 6), brass, cyl, Math.cos(a) * 0.028, Math.sin(a) * 0.028, 0.055, HP);
+  }
+  const hammer = pivot(revolver, '', 0, 0.045, 0.075);
+  m(B(0.016, 0.05, 0.026), dsteel, hammer, 0, 0.022, 0, -0.3);
+  m(B(0.032, 0.012, 0.034), dsteel, hammer, 0, 0.05, 0.014, -0.3);
+  m(T(0.032, 0.006, 4, 10, Math.PI), dsteel, revolver, 0, -0.047, -0.01, 0, HP, Math.PI);
+  m(B(0.008, 0.032, 0.01), black, revolver, 0, -0.052, -0.005, 0.3);
+  m(B(0.05, 0.075, 0.07), wood, revolver, 0, -0.07, 0.078, -0.25);
+  m(B(0.052, 0.075, 0.075), wood, revolver, 0, -0.13, 0.098, -0.42);
+  m(B(0.055, 0.03, 0.08), brass, revolver, 0, -0.178, 0.115, -0.45);
+  mirror((s) => m(B(0.004, 0.08, 0.04), woodDark, revolver, s * 0.027, -0.1, 0.085, -0.35));
+  const coils = [];
+  for (const z of [-0.17, -0.24, -0.31]) coils.push(keep(m(T(0.031, 0.006, 6, 16), chargeMat, revolver, 0, 0.03, z)));
+  m(B(0.01, 0.014, 0.12), chargeMat, revolver, 0, 0.068, -0.05);
+  gripHand(revolver, 0, -0.09, 0.09, -0.35);
+  const revFlash = flashSprite(-0.47); revolver.add(revFlash);
+  revolver.userData.base = new THREE.Vector3(0.24, -0.24, -0.55);
+
+  // ---- SHOTGUN: lever-pump street sweeper
+  const shotgun = new THREE.Group();
+  for (const x of [-0.029, 0.029]) {
+    m(C(0.027, 0.027, 0.6, 10), steel, shotgun, x, 0.03, -0.37, HP);
+    m(C(0.032, 0.032, 0.05, 10), dsteel, shotgun, x, 0.03, -0.66, HP);
+    m(C(0.017, 0.017, 0.01, 10), black, shotgun, x, 0.03, -0.69, HP);
+  }
+  m(B(0.11, 0.03, 0.46), dsteel, shotgun, 0, 0.072, -0.36);
+  for (let i = 0; i < 6; i++) m(B(0.05, 0.008, 0.03), black, shotgun, 0, 0.088, -0.18 - i * 0.07);
+  for (const z of [-0.2, -0.5]) m(B(0.12, 0.08, 0.025), dsteel, shotgun, 0, 0.03, z);
+  m(B(0.012, 0.016, 0.012), brass, shotgun, 0, 0.096, -0.6);
+  m(B(0.11, 0.11, 0.24), dsteel, shotgun, 0, 0.0, 0.02);
+  mirror((s) => { m(B(0.004, 0.065, 0.14), brass, shotgun, s * 0.057, 0.005, 0.02); m(C(0.006, 0.006, 0.004, 6), brass, shotgun, s * 0.06, -0.02, -0.04, 0, 0, HP); });
+  m(B(0.05, 0.02, 0.06), black, shotgun, 0.045, 0.04, 0.0);
+  m(B(0.112, 0.028, 0.07), shotAccent, shotgun, 0, -0.014, -0.05);
+  mirror((sd) => m(B(0.012, 0.006, 0.16), shotAccent, shotgun, sd * 0.05, 0.056, 0.02));
+  m(T(0.04, 0.008, 4, 10), steel, shotgun, 0, -0.09, 0.09, 0, HP, 0);
+  m(B(0.012, 0.06, 0.012), steel, shotgun, 0, -0.06, 0.06);
+  const pump = pivot(shotgun, '', 0, -0.035, -0.3);
+  m(B(0.095, 0.075, 0.22), wood, pump);
+  for (let i = 0; i < 4; i++) m(B(0.097, 0.01, 0.012), woodDark, pump, 0, -0.038, -0.08 + i * 0.05);
+  m(C(0.012, 0.012, 0.3, 6), dsteel, shotgun, 0, -0.02, -0.18, HP);
+  m(B(0.07, 0.12, 0.3), wood, shotgun, 0, -0.05, 0.27, 0.14);
+  for (let i = 0; i < 3; i++) m(B(0.074, 0.124, 0.02), leather, shotgun, 0, -0.045, 0.18 + i * 0.05, 0.14);
+  m(B(0.078, 0.13, 0.03), black, shotgun, 0, -0.072, 0.43, 0.14);
+  for (let i = 0; i < 4; i++) { m(C(0.011, 0.011, 0.05, 8), shell, shotgun, 0.04, -0.03, 0.22 + i * 0.03, 0, 0, 0); m(C(0.012, 0.012, 0.012, 8), brass, shotgun, 0.04, -0.06, 0.22 + i * 0.03); }
+  gripHand(shotgun, 0, -0.07, 0.13, 0.1);
+  const shotFlash = flashSprite(-0.74, 0.5); shotgun.add(shotFlash);
+  shotgun.userData.base = new THREE.Vector3(0.27, -0.29, -0.56);
+  shotgun.visible = false;
+
+  // ---- GAUNTLET: piston-driven armored fist
+  const arm = new THREE.Group();
+  m(C(0.075, 0.082, 0.3, 8), sleeve, arm, 0, 0, 0.38, HP);
+  for (let i = 0; i < 4; i++) {
+    const sc = 1 - i * 0.06;
+    m(B(0.14 * sc, 0.13 * sc, 0.09), armorRed, arm, 0, 0.005, 0.25 - i * 0.075);
+    m(B(0.142 * sc, 0.012, 0.012), brass, arm, 0, 0.068 * sc, 0.21 - i * 0.075);
+  }
+  mirror((s) => { m(C(0.012, 0.012, 0.26, 6), steel, arm, s * 0.08, -0.02, 0.12, HP); m(C(0.02, 0.02, 0.06, 6), dsteel, arm, s * 0.08, -0.02, 0.24, HP); });
+  m(C(0.08, 0.08, 0.04, 8), brass, arm, 0, 0, -0.06, HP);
+  const fist = pivot(arm, '', 0, 0, -0.14);
+  m(B(0.135, 0.12, 0.1), glove, fist);
+  m(C(0.035, 0.035, 0.02, 6), coreGlow, fist, 0, 0.065, 0.0);
+  for (let i = 0; i < 4; i++) {
+    const x = -0.048 + i * 0.032;
+    m(B(0.03, 0.056, 0.05), glove, fist, x, 0.015, -0.066);
+    m(B(0.03, 0.032, 0.03), glove, fist, x, -0.026, -0.05);
+    m(B(0.032, 0.03, 0.04), armorRed, fist, x, 0.05, -0.07);
+    m(K(0.012, 0.04, 4), steel, fist, x, 0.08, -0.08, -0.3);
+  }
+  m(B(0.13, 0.01, 0.01), coreGlow, fist, 0, 0.046, -0.097);
+  m(B(0.036, 0.036, 0.08), glove, fist, 0.074, -0.02, -0.03, 0, 0, 0.3);
+  arm.userData.rest = new THREE.Vector3(-0.32, -0.8, -0.3);
+  arm.userData.hit = new THREE.Vector3(-0.1, -0.17, -0.6);
+  arm.position.copy(arm.userData.rest);
+
+  // ---- variant attachments
+  const lanceG = pivot(revolver, 'lance');
+  for (const c of coils) { revolver.remove(c); lanceG.add(c); }
+  m(B(0.03, 0.02, 0.05), chargeMat, lanceG, 0, 0.074, -0.33);
+  const chainG = pivot(revolver, 'chain');
+  for (let i = 0; i < 5; i++) m(T(0.029, 0.007, 4, 8), dsteel, chainG, 0, 0.03, -0.15 - i * 0.05, 0, i % 2 ? HP : 0, 0);
+  m(O(0.024), chargeMat, chainG, 0, 0.095, -0.1);
+  m(B(0.032, 0.02, 0.04), steel, chainG, 0, 0.072, -0.1);
+  const coinG = pivot(revolver, 'coin');
+  m(B(0.03, 0.065, 0.055), dsteel, coinG, 0.046, -0.01, 0.0);
+  for (let i = 0; i < 5; i++) m(C(0.022, 0.022, 0.006, 10), brass, coinG, 0.066, -0.032 + i * 0.008, 0.0, 0, 0, HP);
+  m(C(0.013, 0.015, 0.09, 8), black, coinG, 0, 0.086, -0.02, HP);
+  m(C(0.014, 0.014, 0.004, 8), chargeMat, coinG, 0, 0.086, -0.066, HP);
+  const revVariants = [lanceG, chainG, coinG];
+
+  const furnaceG = pivot(shotgun, 'furnace');
+  m(C(0.015, 0.015, 0.12, 6), shotAccent, furnaceG, 0, -0.062, 0.0, HP);
+  const overG = pivot(shotgun, 'over');
+  m(C(0.034, 0.034, 0.016, 12), dsteel, overG, 0.062, 0.02, 0.02, 0, 0, HP);
+  m(C(0.027, 0.027, 0.004, 12), new THREE.MeshBasicMaterial({ color: 0xe8e0c8 }), overG, 0.071, 0.02, 0.02, 0, 0, HP);
+  const needle = keep(m(B(0.002, 0.022, 0.003), black, overG, 0.074, 0.02, 0.02));
+  for (const y of [-0.01, 0.0]) m(C(0.006, 0.006, 0.3, 6), brass, overG, 0.057, y, -0.15, HP);
+  const pressureLights = [];
+  for (let i = 0; i < 3; i++) pressureLights.push(keep(m(B(0.016, 0.01, 0.02), new THREE.MeshBasicMaterial({ color: 0x331a10 }), overG, 0, 0.062, 0.07 + i * 0.026)));
+  const sawG = pivot(shotgun, 'sawg');
+  m(B(0.03, 0.03, 0.12), dsteel, sawG, 0, -0.045, -0.46);
+  const saw = pivot(sawG, 'saw', 0, -0.075, -0.52);
+  m(C(0.075, 0.075, 0.008, 16), steel, saw, 0, 0, 0, 0, 0, HP);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; m(K(0.012, 0.03, 3), steel, saw, 0, Math.cos(a) * 0.085, Math.sin(a) * 0.085, a, 0, 0); }
+  m(C(0.02, 0.02, 0.012, 8), shotAccent, saw, 0, 0, 0, 0, 0, HP);
+  const shotVariants = [furnaceG, overG, sawG];
+
+  for (const g of [revolver, shotgun, arm]) bake(g);
+  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw };
+}
+
+// ---------------------------------------------------------------- props
+const PROP = {
+  stone: new THREE.MeshStandardMaterial({ color: 0x6a625a, roughness: 0.9, flatShading: true }),
+  brick: new THREE.MeshStandardMaterial({ color: 0x7a3424, roughness: 0.85, flatShading: true }),
+  iron: new THREE.MeshStandardMaterial({ color: 0x2c2c32, metalness: 0.8, roughness: 0.35, flatShading: true }),
+  wood: new THREE.MeshStandardMaterial({ color: 0x5a3418, roughness: 0.8, flatShading: true }),
+  leather: new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 0.85, flatShading: true }),
+  water: new THREE.MeshStandardMaterial({ color: 0x1a3a40, roughness: 0.1, metalness: 0.3, emissive: 0x0a2228, emissiveIntensity: 0.5 }),
+  coal: glowMat(0xff6a1a), coal2: glowMat(0xffb03a), rune: glowMat(0x7ad8ff),
+};
 export function buildForge(GLOW) {
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: 0x6a625a, roughness: 0.9, flatShading: true });
-  const iron = new THREE.MeshStandardMaterial({ color: 0x2c2c32, metalness: 0.8, roughness: 0.35, flatShading: true });
-  const coal = new THREE.MeshBasicMaterial({ color: 0xff6a1a });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3418, roughness: 0.8, flatShading: true });
-  m(B(2.6, 0.9, 1.4), stone, g, 0, 0.45, 0);
-  m(B(2.2, 0.12, 1.1), coal, g, -0.3, 0.92, 0);
-  for (let i = 0; i < 9; i++) m(O(0.12), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffb03a : 0xff4a1a }), g, -1.1 + i * 0.22, 1.0, (i % 3 - 1) * 0.3);
-  // anvil
-  const an = pivot(g, 0.9, 0.9, 0);
-  m(B(0.35, 0.35, 0.3), iron, an, 0, 0.17, 0);
-  m(B(0.8, 0.22, 0.38), iron, an, 0, 0.45, 0);
-  m(K(0.11, 0.35, 4), iron, an, -0.55, 0.45, 0, 0, 0, HALF_PI);
-  // hood + chimney
-  m(B(1.6, 0.2, 1.2), iron, g, -0.4, 2.6, 0);
-  m(C(0.25, 0.3, 1.6, 8), iron, g, -0.4, 3.5, 0);
-  for (const x of [-1.15, 0.35]) m(B(0.12, 1.7, 0.12), iron, g, x, 1.75, 0.5);
-  // weapon rack + sign
-  m(B(2.4, 0.12, 0.12), wood, g, 0, 2.05, -0.62);
-  m(B(1.6, 0.55, 0.08), wood, g, 0, 3.0, 0.62);
-  const [c, cg] = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 96; return [c, c.getContext('2d')]; })();
+  const P = PROP;
+  // brick forge with an arched glowing mouth
+  m(B(2.0, 1.4, 1.4), P.brick, g, -0.4, 0.7, 0);
+  m(B(1.0, 0.6, 0.1), P.coal, g, -0.4, 0.75, 0.66);
+  m(T(0.5, 0.08, 4, 12, Math.PI), P.stone, g, -0.4, 1.05, 0.7);
+  for (let i = 0; i < 7; i++) m(O(0.12), i % 2 ? P.coal2 : P.coal, g, -0.85 + i * 0.15, 1.44, (i % 3 - 1) * 0.3);
+  m(B(2.2, 0.16, 1.6), P.stone, g, -0.4, 1.42, 0);
+  m(K(1.0, 0.9, 4), P.iron, g, -0.4, 2.05, 0, 0, Math.PI / 4, 0);
+  m(C(0.22, 0.28, 1.4, 8), P.iron, g, -0.4, 3.1, 0);
+  m(T(0.3, 0.04, 4, 10), P.iron, g, -0.4, 2.6, 0, HP);
+  // bellows
+  m(B(0.5, 0.18, 0.7), P.leather, g, -1.65, 0.9, 0.2, 0, 0, 0.3);
+  m(B(0.06, 0.06, 0.5), P.wood, g, -1.85, 1.0, 0.55, 0, 0, 0.3);
+  // anvil on a stump
+  m(C(0.35, 0.42, 0.7, 8), P.wood, g, 1.1, 0.35, 0);
+  const an = pivot(g, '', 1.1, 0.7, 0);
+  m(B(0.32, 0.25, 0.28), P.iron, an, 0, 0.12, 0);
+  m(B(0.85, 0.22, 0.38), P.iron, an, 0, 0.36, 0);
+  m(K(0.11, 0.4, 4), P.iron, an, -0.6, 0.36, 0, 0, 0, HP);
+  m(B(0.06, 0.06, 0.35), P.wood, an, 0.2, 0.5, 0.05, 0, 0.4, 0);               // hammer
+  m(B(0.14, 0.1, 0.1), P.iron, an, 0.27, 0.5, 0.2, 0, 0.4, 0);
+  // quench barrel
+  m(C(0.32, 0.3, 0.7, 10), P.wood, g, 1.1, 0.35, -0.95);
+  for (const y of [0.12, 0.58]) m(T(0.32, 0.02, 4, 12), P.iron, g, 1.1, y, -0.95, HP);
+  m(C(0.29, 0.29, 0.02, 10), P.water, g, 1.1, 0.68, -0.95);
+  // tool rack + sign
+  m(B(2.6, 0.1, 0.1), P.wood, g, 0.2, 2.1, -0.7);
+  for (const x of [-0.6, -0.2, 0.2, 0.6]) { m(B(0.04, 0.5, 0.04), P.iron, g, x, 1.82, -0.68); m(B(0.12, 0.1, 0.06), P.iron, g, x, 1.55, -0.68); }
+  m(B(1.7, 0.6, 0.08), P.wood, g, 0.4, 3.05, 0.66);
+  for (const x of [-0.4, 1.2]) m(C(0.01, 0.01, 0.4, 4), P.iron, g, x, 3.5, 0.66);
+  const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+  const cg = c.getContext('2d');
   cg.fillStyle = '#2a160a'; cg.fillRect(0, 0, 256, 96);
+  cg.strokeStyle = '#7a4a20'; cg.lineWidth = 6; cg.strokeRect(6, 6, 244, 84);
   cg.fillStyle = '#ffb35c'; cg.font = 'bold 54px Bungee, Impact, sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
   cg.fillText('FORGE', 128, 50);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  m(new THREE.PlaneGeometry(1.5, 0.5), new THREE.MeshBasicMaterial({ map: tex }), g, 0, 3.0, 0.665);
+  m(new THREE.PlaneGeometry(1.6, 0.55), new THREE.MeshBasicMaterial({ map: tex }), g, 0.4, 3.05, 0.705).userData.keep = true;
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff7a2a, blending: THREE.AdditiveBlending, depthWrite: false }));
-  glow.scale.setScalar(3.2); glow.position.set(-0.3, 1.2, 0);
+  glow.scale.setScalar(3.2); glow.position.set(-0.4, 1.1, 0.8);
   g.add(glow);
+  bake(g);
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
+}
+
+// exit portal: a ring of runed stones around a swirling disc
+export function buildPortal(GLOW) {
+  const g = new THREE.Group();
+  const ringG = pivot(g, 'ring');
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    m(B(0.5, 0.36, 0.4), PROP.stone, ringG, Math.cos(a) * 1.75, Math.sin(a) * 1.75, 0, 0, 0, a);
+    m(B(0.08, 0.2, 0.42), PROP.rune, ringG, Math.cos(a + 0.26) * 1.75, Math.sin(a + 0.26) * 1.75, 0, 0, 0, a + 0.26);
+  }
+  bake(ringG);
+  const ring = new THREE.Mesh(T(1.45, 0.06, 4, 6), glowMat(0x9ae8ff));
+  const ring2 = new THREE.Mesh(T(1.15, 0.04, 4, 5), glowMat(0xffffff));
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.55, 40), new THREE.MeshBasicMaterial({ color: 0x3ac8ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x6ad8ff, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.scale.setScalar(6);
+  g.add(ring, ring2, disc, glow);
+  return { g, ring, ring2, disc, stones: ringG };
 }
