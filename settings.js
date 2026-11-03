@@ -9,7 +9,7 @@ export const ACTIONS = [
   ['right', 'Strafe right', ['KeyD']],
   ['jump', 'Jump / wall jump', ['Space']],
   ['dash', 'Dash', ['ShiftLeft']],
-  ['slide', 'Slide / ground slam', ['KeyC', 'ControlLeft']],
+  ['slide', 'Slide / ground slam', ['KeyC']],
   ['fire', 'Fire', ['Mouse0']],
   ['alt', 'Alt fire', ['Mouse2']],
   ['punch', 'Punch / parry', ['KeyF']],
@@ -27,10 +27,11 @@ export const DIFFS = {
 const defaultBinds = () => Object.fromEntries(ACTIONS.map(([id, , b]) => [id, b.slice()]));
 export const DEFAULTS = {
   sens: 1, invertY: false, wheelSwap: true,
-  fov: 95, quality: 'high', shake: 1, viewBob: true,
+  fov: 95, quality: 'high', shake: 1, viewBob: true, fullscreen: true,
   master: 0.8, sfx: 0.8, music: 0.6,
   crosshair: 'cross', crossColor: '#ffffff', crossSize: 1, difficulty: 'normal', showFPS: false, hitmarkers: true,
   binds: defaultBinds(),
+  ctrlFix: true,
 };
 
 const KEY = 'rubblemaker-settings';
@@ -41,6 +42,11 @@ function load() {
     if (saved) {
       for (const k in saved) if (k !== 'binds' && k in s) s[k] = saved[k];
       if (saved.binds) for (const id in s.binds) if (Array.isArray(saved.binds[id])) s.binds[id] = saved.binds[id].slice(0, 2);
+      // one-time fix: Ctrl on slide made Ctrl+W close the tab
+      if (!saved.ctrlFix) {
+        s.binds.slide = s.binds.slide.map((c) => (c === 'ControlLeft' || c === 'ControlRight' ? null : c));
+        if (!s.binds.slide.some(Boolean)) s.binds.slide = ['KeyC', null];
+      }
     } else {
       const oldSens = Number(localStorage.getItem('rubblemaker-sens'));
       if (oldSens) s.sens = oldSens;
@@ -86,7 +92,7 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.back').addEventListener('click', () => { stopCapture(); onBack(); });
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
-      CONTROLS: ['binds'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob'],
+      CONTROLS: ['binds'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob', 'fullscreen'],
       AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers'],
     }[tab];
     for (const k of keysFor) { settings[k] = structuredClone(DEFAULTS[k]); onChange(k); }
@@ -146,6 +152,7 @@ export function initSettingsUI(root, onChange, onBack) {
       panel.appendChild(choice('Graphics quality', 'quality', [['low', 'LOW'], ['medium', 'MEDIUM'], ['high', 'HIGH']]));
       panel.appendChild(slider('Screen shake', 'shake', 0, 2, 0.05, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(toggle('View bob', 'viewBob'));
+      panel.appendChild(toggle('Fullscreen + key lock (stops Ctrl+W closing the tab)', 'fullscreen'));
     } else if (tab === 'AUDIO') {
       panel.appendChild(slider('Master volume', 'master', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(slider('Sound effects', 'sfx', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));

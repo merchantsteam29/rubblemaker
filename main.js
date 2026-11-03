@@ -505,7 +505,9 @@ const hit = (a) => bound(a).some((c) => c && pressed.has(c));
 const isBound = (code) => ACTIONS.some(([id]) => bound(id).includes(code));
 
 addEventListener('keydown', (e) => {
-  if (G.state === 'play' && (isBound(e.code) || e.code === 'Tab' || e.code === 'Space')) e.preventDefault();
+  if (G.state === 'play' && (isBound(e.code) || e.code === 'Tab' || e.code === 'Space' || e.ctrlKey || e.altKey || e.metaKey)) e.preventDefault();
+  // with keyboard lock on, Escape reaches the page instead of releasing the mouse, so pause manually
+  if (e.code === 'Escape' && G.state === 'play') { document.exitPointerLock?.(); if (G.state === 'play') { G.state = 'pause'; show('pause', true); } return; }
   if (e.code === 'Escape' && G.state === 'settings') { closeSettings(); return; }
   if (!e.repeat) pressed.add(e.code);
   keys.add(e.code);
@@ -1751,7 +1753,27 @@ function resetGame() {
   keys.clear();
   $('wave').textContent = 'GET READY';
 }
+// Fullscreen + Keyboard Lock lets the game receive Ctrl+W / Ctrl+T etc. instead of Chrome.
+function lockKeyboard() {
+  if (!settings.fullscreen) return;
+  try {
+    const go = () => { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {}); };
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(go).catch(() => {});
+    } else go();
+  } catch (_) {}
+}
+function unlockKeyboard() {
+  try { if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); } catch (_) {}
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+// last line of defence: ask before the tab closes mid-run
+addEventListener('beforeunload', (e) => {
+  const inRun = G.state === 'play' || G.state === 'pause' || (G.state === 'settings' && settingsFrom === 'pause');
+  if (inRun) { e.preventDefault(); e.returnValue = ''; }
+});
 function requestLock() {
+  lockKeyboard();
   try {
     const r = renderer.domElement.requestPointerLock();
     if (r && r.catch) r.catch(() => {});
@@ -1856,6 +1878,7 @@ function applySetting(k) {
   if (k.startsWith('cross')) applyCrosshair();
   if (k === 'showFPS') show('fps', settings.showFPS);
   if (k === 'binds') renderControls();
+  if (k === 'fullscreen' && !settings.fullscreen) unlockKeyboard();
 }
 let fpsFrames = 0, fpsLast = performance.now();
 function updateFPS(now) {
