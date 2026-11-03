@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // =====================================================================
 //  Detailed low-poly models: rigged enemies + first-person viewmodels
@@ -10,7 +11,11 @@ function cached(key, make) {
   if (!g) { g = make(); geoCache.set(key, g); }
   return g;
 }
-const B = (w, h, d) => cached(`b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d));
+// chamfered boxes give everything a chunky, sharp-beveled look
+const B = (w, h, d) => cached(`b${w},${h},${d}`, () => {
+  const r = Math.min(w, h, d) * 0.2;
+  return r > 0.006 ? new RoundedBoxGeometry(w, h, d, 1, r) : new THREE.BoxGeometry(w, h, d);
+});
 const C = (rt, rb, h, s = 8) => cached(`c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, s));
 const K = (r, h, s = 5) => cached(`k${r},${h},${s}`, () => new THREE.ConeGeometry(r, h, s));
 const T = (r, t, rs = 6, ts = 16, arc = Math.PI * 2) => cached(`t${r},${t},${rs},${ts},${arc}`, () => new THREE.TorusGeometry(r, t, rs, ts, arc));
@@ -35,11 +40,11 @@ const HALF_PI = Math.PI / 2;
 // ---------------------------------------------------------------- enemies
 // Every enemy faces local +Z. Returns { root, rig, mats, hit, orb, headPivot }.
 export function buildEnemyModel(type, color) {
-  const skin = new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, emissive: color, emissiveIntensity: 0.18 });
-  const armor = new THREE.MeshStandardMaterial({ color: type === 'heavy' ? 0x4a4038 : type === 'shooter' ? 0x2a2838 : 0x3a3a42, roughness: 0.45, metalness: 0.7, emissive: 0x000000, emissiveIntensity: 0 });
+  const skin = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, emissive: color, emissiveIntensity: 0.18, flatShading: true });
+  const armor = new THREE.MeshStandardMaterial({ color: type === 'heavy' ? 0x4a4038 : type === 'shooter' ? 0x2a2838 : 0x3a3a42, roughness: 0.38, metalness: 0.75, emissive: 0x000000, emissiveIntensity: 0, flatShading: true });
   const glowCol = type === 'shooter' ? 0xffd04a : type === 'heavy' ? 0xff5a1a : 0xffa02a;
   const glow = new THREE.MeshBasicMaterial({ color: glowCol });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x141218, roughness: 0.9 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x141218, roughness: 0.9, flatShading: true });
   for (const mt of [skin, armor]) { mt.userData.baseEmissive = mt.emissive.getHex(); mt.userData.baseIntensity = mt.emissiveIntensity; }
 
   const root = new THREE.Group();
@@ -225,6 +230,8 @@ export function buildEnemyModel(type, color) {
     }
   }
 
+  addDetails(type, rig, { skin, armor, glow, dark });
+
   // shadows + hit parts
   const hit = [];
   root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
@@ -299,15 +306,15 @@ export function animateEnemy(e, dt, moving, w, time) {
 
 // ---------------------------------------------------------------- viewmodels
 export function buildViewmodels(GLOW) {
-  const steel = new THREE.MeshStandardMaterial({ color: 0xa2a2ae, metalness: 0.75, roughness: 0.28 });
-  const dsteel = new THREE.MeshStandardMaterial({ color: 0x4a4a54, metalness: 0.7, roughness: 0.4 });
-  const black = new THREE.MeshStandardMaterial({ color: 0x18181c, metalness: 0.4, roughness: 0.6 });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x7a4424, roughness: 0.55 });
-  const woodDark = new THREE.MeshStandardMaterial({ color: 0x4a2814, roughness: 0.6 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xc89a44, metalness: 0.85, roughness: 0.3 });
-  const glove = new THREE.MeshStandardMaterial({ color: 0x2e2622, roughness: 0.85 });
-  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3a1410, roughness: 0.7, metalness: 0.2 });
-  const armorRed = new THREE.MeshStandardMaterial({ color: 0x7a2418, metalness: 0.55, roughness: 0.35 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xa2a2ae, metalness: 0.75, roughness: 0.28, flatShading: true });
+  const dsteel = new THREE.MeshStandardMaterial({ color: 0x4a4a54, metalness: 0.7, roughness: 0.4, flatShading: true });
+  const black = new THREE.MeshStandardMaterial({ color: 0x18181c, metalness: 0.4, roughness: 0.6, flatShading: true });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7a4424, roughness: 0.55, flatShading: true });
+  const woodDark = new THREE.MeshStandardMaterial({ color: 0x4a2814, roughness: 0.6, flatShading: true });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xc89a44, metalness: 0.85, roughness: 0.3, flatShading: true });
+  const glove = new THREE.MeshStandardMaterial({ color: 0x2e2622, roughness: 0.85, flatShading: true });
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3a1410, roughness: 0.7, metalness: 0.2, flatShading: true });
+  const armorRed = new THREE.MeshStandardMaterial({ color: 0x7a2418, metalness: 0.55, roughness: 0.35, flatShading: true });
   const chargeMat = new THREE.MeshStandardMaterial({ color: 0x113344, emissive: 0x3ac8ff, emissiveIntensity: 0.6 });
   const coreGlow = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
 
@@ -369,7 +376,9 @@ export function buildViewmodels(GLOW) {
   m(B(0.008, 0.012, 0.01), brass, shotgun, 0, 0.072, -0.67);
   m(B(0.1, 0.1, 0.22), dsteel, shotgun, 0, 0.0, 0.02);
   for (const s of [-1, 1]) m(B(0.004, 0.06, 0.13), brass, shotgun, s * 0.052, 0.005, 0.02);
-  m(B(0.104, 0.028, 0.07), coreGlow, shotgun, 0, -0.012, -0.05);
+  const shotAccent = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff7a2a, emissiveIntensity: 1.4 });
+  m(B(0.104, 0.028, 0.07), shotAccent, shotgun, 0, -0.012, -0.05);
+  m(B(0.104, 0.008, 0.16), shotAccent, shotgun, 0, 0.051, 0.02);
   for (const x of [-0.02, 0.02]) m(B(0.012, 0.03, 0.02), black, shotgun, x, 0.06, 0.1, -0.4);
   const pump = pivot(shotgun, 0, -0.035, -0.3);
   m(B(0.09, 0.07, 0.22), wood, pump);
@@ -409,7 +418,42 @@ export function buildViewmodels(GLOW) {
   arm.userData.hit = new THREE.Vector3(-0.1, -0.17, -0.6);
   arm.position.copy(arm.userData.rest);
 
-  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, coils, cyl, hammer, pump };
+  // ---- variant attachments (main toggles visibility)
+  const lanceG = pivot(revolver);
+  for (const c of coils) { revolver.remove(c); lanceG.add(c); }
+  m(B(0.03, 0.02, 0.05), chargeMat, lanceG, 0, 0.07, -0.33);
+  const chainG = pivot(revolver);
+  for (let i = 0; i < 5; i++) m(T(0.026, 0.007, 4, 8), dsteel, chainG, 0, 0.03, -0.15 - i * 0.05, 0, i % 2 ? HALF_PI : 0, 0);
+  m(O(0.022), chargeMat, chainG, 0, 0.09, -0.1);
+  m(B(0.03, 0.02, 0.04), steel, chainG, 0, 0.068, -0.1);
+  const coinG = pivot(revolver);
+  m(B(0.03, 0.06, 0.05), dsteel, coinG, 0.045, -0.01, 0.0);
+  for (let i = 0; i < 5; i++) m(C(0.021, 0.021, 0.006, 10), brass, coinG, 0.064, -0.03 + i * 0.008, 0.0, 0, 0, HALF_PI);
+  m(C(0.012, 0.014, 0.08, 8), black, coinG, 0, 0.082, -0.02, HALF_PI);
+  m(C(0.013, 0.013, 0.004, 8), chargeMat, coinG, 0, 0.082, -0.061, HALF_PI);
+  const revVariants = [lanceG, chainG, coinG];
+
+  const furnaceG = pivot(shotgun);
+  m(C(0.014, 0.014, 0.12, 6), shotAccent, furnaceG, 0, -0.06, 0.0, HALF_PI);
+  const overG = pivot(shotgun);
+  m(C(0.032, 0.032, 0.016, 12), dsteel, overG, 0.06, 0.02, 0.02, 0, 0, HALF_PI);
+  m(C(0.026, 0.026, 0.004, 12), new THREE.MeshBasicMaterial({ color: 0xe8e0c8 }), overG, 0.069, 0.02, 0.02, 0, 0, HALF_PI);
+  const needle = m(B(0.002, 0.022, 0.003), black, overG, 0.072, 0.02, 0.02);
+  for (const y of [-0.01, 0.0]) m(C(0.006, 0.006, 0.3, 6), brass, overG, 0.055, y, -0.15, HALF_PI);
+  const pressureLights = [];
+  for (let i = 0; i < 3; i++) pressureLights.push(m(B(0.016, 0.01, 0.02), new THREE.MeshBasicMaterial({ color: 0x331a10 }), overG, 0, 0.06, 0.07 + i * 0.026));
+  const sawG = pivot(shotgun);
+  m(B(0.03, 0.03, 0.12), dsteel, sawG, 0, -0.045, -0.46);
+  const saw = pivot(sawG, 0, -0.075, -0.52);
+  m(C(0.075, 0.075, 0.008, 16), steel, saw, 0, 0, 0, 0, 0, HALF_PI);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    m(K(0.012, 0.03, 3), steel, saw, 0, Math.cos(a) * 0.085, Math.sin(a) * 0.085, a, 0, 0);
+  }
+  m(C(0.02, 0.02, 0.012, 8), shotAccent, saw, 0, 0, 0, 0, 0, HALF_PI);
+  const shotVariants = [furnaceG, overG, sawG];
+
+  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw };
 }
 
 // ---------------------------------------------------------------- bosses
@@ -457,4 +501,121 @@ function finishHit(md) {
     if (!o.userData.part) o.userData.part = 'body';
     md.hit.push(o);
   });
+}
+
+// ---------------------------------------------------------------- extra detail pass (chunkier silhouettes)
+function addDetails(type, r, M) {
+  const { skin, armor, glow, dark } = M;
+  if (type === 'grunt') {
+    m(B(0.6, 0.42, 0.12), armor, r.torso, 0, 0.6, -0.27, 0.1);           // back plate
+    m(B(0.5, 0.03, 0.02), glow, r.torso, 0, 0.62, -0.335, 0.1);
+    for (const s of [-1, 1]) {
+      m(B(0.12, 0.14, 0.12), armor, r.hips, s * 0.3, 0.02, 0.2);          // belt pouches
+      const el = s < 0 ? r.elL : r.elR;
+      m(K(0.035, 0.32, 3), armor, el, s * 0.13, -0.2, -0.05, 0.3, 0, s * 0.25); // wrist blade
+      const kn = s < 0 ? r.kneeL : r.kneeR;
+      m(K(0.04, 0.14, 4), armor, kn, 0, 0.02, 0.17, HALF_PI);              // knee spike
+    }
+    m(B(0.16, 0.05, 0.05), glow, r.head, 0, 0.36, 0.12);                  // brow glow
+  } else if (type === 'shooter') {
+    for (const s of [-1, 1]) {
+      m(K(0.06, 0.26, 4), armor, r.torso, s * 0.4, 0.62, 0, 0, 0, -s * 0.6);
+      m(B(0.16, 0.06, 0.16), glow, r.torso, s * 0.36, 0.5, 0);
+    }
+    m(B(0.22, 0.6, 0.03), armor, r.hips, 0, 0.75, 0.42, -0.14);            // robe front panel
+    m(O(0.05), glow, r.hips, 0, 0.85, 0.445);
+    r.shards = pivot(r.head, 0, 0.25, 0);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const sh = m(O(0.05), glow, r.shards, Math.cos(a) * 0.45, Math.sin(i * 2.1) * 0.08, Math.sin(a) * 0.45);
+      sh.userData.noHit = true;
+    }
+  } else if (type === 'heavy') {
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 4; i++) m(C(0.03, 0.03, 0.04, 6), dark, r.torso, s * 0.9, 0.7 + i * 0.16, 0.58, HALF_PI); // rivet strips
+      const el = s < 0 ? r.elL : r.elR;
+      m(B(0.08, 0.3, 0.08), glow, el, s * 0.3, -0.25, 0.2);               // arm vents
+      const kn = s < 0 ? r.kneeL : r.kneeR;
+      m(K(0.07, 0.22, 4), armor, kn, 0, 0.05, 0.32, HALF_PI);
+    }
+    m(B(1.0, 0.18, 0.4), armor, r.torso, 0, 1.62, -0.2);                   // collar
+  } else if (type === 'flyer') {
+    m(B(0.24, 0.05, 0.3), glow, r.hips, 0, -0.2, 0.05);                    // glowing belly
+    for (const s of [-1, 1]) m(K(0.03, 0.12, 3), armor, s < 0 ? r.wL : r.wR, s * 0.82, 0.05, 0.08, 0, 0, -s * HALF_PI);
+  }
+}
+
+// ---------------------------------------------------------------- trainer mini-bosses
+export function buildTrainerModel(kind) {
+  let md;
+  if (kind === 'bulwark') {
+    md = buildEnemyModel('grunt', 0x6a7088);
+    const r = md.rig, A = md.mats[1];
+    const shield = pivot(r.elL, -0.05, -0.25, 0.25);
+    m(B(0.14, 1.5, 1.05), A, shield, 0, 0, 0, 0, 0.2, 0);
+    m(B(0.16, 1.2, 0.08), md.glow, shield, 0.02, 0, 0, 0, 0.2, 0);
+    m(B(0.16, 0.08, 0.8), md.glow, shield, 0.02, 0.15, 0, 0, 0.2, 0);
+    for (const y of [-0.6, 0.6]) m(K(0.06, 0.2, 4), A, shield, 0.1, y, 0, 0, 0, -HALF_PI);
+    m(B(0.1, 0.3, 0.5), A, r.head, 0, 0.5, -0.02);                        // helmet crest
+    m(B(0.5, 0.12, 0.5), A, r.head, 0, 0.38, 0);
+    md.root.scale.setScalar(1.6);
+  } else if (kind === 'sweeper') {
+    md = buildEnemyModel('heavy', 0x8a6a40);
+    const r = md.rig, A = md.mats[1];
+    const ham = pivot(r.elR, 0, -0.85, 0.2);
+    m(C(0.07, 0.07, 2.2, 6), A, ham, 0, 0, 0.6, HALF_PI);
+    m(B(1.1, 0.6, 0.6), A, ham, 0, 0, 1.75);
+    m(B(1.14, 0.08, 0.64), md.glow, ham, 0, 0, 1.75);
+    md.root.scale.setScalar(1.3);
+  } else if (kind === 'roost') {
+    md = buildEnemyModel('flyer', 0x6a5a7a);
+    const r = md.rig, A = md.mats[1];
+    for (let i = 0; i < 5; i++) m(K(0.03, 0.18, 3), md.glow, r.head, (i - 2) * 0.07, 0.25, -0.05, -0.4, 0, (i - 2) * 0.2);
+    m(O(0.14), md.glow, r.tail2, 0, 0, -0.55);
+    md.root.scale.setScalar(2.4);
+  } else {
+    md = buildEnemyModel('heavy', 0x2e2622);
+    const r = md.rig, A = md.mats[1];
+    m(B(1.0, 0.7, 0.14), md.glow, r.torso, 0, 0.45, 0.47);                 // furnace belly
+    for (let i = 0; i < 4; i++) m(B(1.04, 0.05, 0.16), A, r.torso, 0, 0.18 + i * 0.18, 0.48);
+    for (const s of [-1, 1]) { m(C(0.16, 0.2, 1.4, 8), A, r.torso, s * 0.55, 2.0, -0.45); m(C(0.13, 0.13, 0.08, 8), md.glow, r.torso, s * 0.55, 2.72, -0.45); }
+    md.root.scale.setScalar(1.6);
+  }
+  finishHit(md);
+  return md;
+}
+
+// ---------------------------------------------------------------- THE FORGE (shop station)
+export function buildForge(GLOW) {
+  const g = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: 0x6a625a, roughness: 0.9, flatShading: true });
+  const iron = new THREE.MeshStandardMaterial({ color: 0x2c2c32, metalness: 0.8, roughness: 0.35, flatShading: true });
+  const coal = new THREE.MeshBasicMaterial({ color: 0xff6a1a });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3418, roughness: 0.8, flatShading: true });
+  m(B(2.6, 0.9, 1.4), stone, g, 0, 0.45, 0);
+  m(B(2.2, 0.12, 1.1), coal, g, -0.3, 0.92, 0);
+  for (let i = 0; i < 9; i++) m(O(0.12), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffb03a : 0xff4a1a }), g, -1.1 + i * 0.22, 1.0, (i % 3 - 1) * 0.3);
+  // anvil
+  const an = pivot(g, 0.9, 0.9, 0);
+  m(B(0.35, 0.35, 0.3), iron, an, 0, 0.17, 0);
+  m(B(0.8, 0.22, 0.38), iron, an, 0, 0.45, 0);
+  m(K(0.11, 0.35, 4), iron, an, -0.55, 0.45, 0, 0, 0, HALF_PI);
+  // hood + chimney
+  m(B(1.6, 0.2, 1.2), iron, g, -0.4, 2.6, 0);
+  m(C(0.25, 0.3, 1.6, 8), iron, g, -0.4, 3.5, 0);
+  for (const x of [-1.15, 0.35]) m(B(0.12, 1.7, 0.12), iron, g, x, 1.75, 0.5);
+  // weapon rack + sign
+  m(B(2.4, 0.12, 0.12), wood, g, 0, 2.05, -0.62);
+  m(B(1.6, 0.55, 0.08), wood, g, 0, 3.0, 0.62);
+  const [c, cg] = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 96; return [c, c.getContext('2d')]; })();
+  cg.fillStyle = '#2a160a'; cg.fillRect(0, 0, 256, 96);
+  cg.fillStyle = '#ffb35c'; cg.font = 'bold 54px Bungee, Impact, sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
+  cg.fillText('FORGE', 128, 50);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  m(new THREE.PlaneGeometry(1.5, 0.5), new THREE.MeshBasicMaterial({ map: tex }), g, 0, 3.0, 0.665);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff7a2a, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.scale.setScalar(3.2); glow.position.set(-0.3, 1.2, 0);
+  g.add(glow);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
 }

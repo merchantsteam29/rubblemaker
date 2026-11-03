@@ -134,3 +134,26 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
 #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #8a0a0a, #ff3a1a); transition: width .1s; }
 #hint { position: absolute; left: 0; right: 0; bottom: 110px; text-align: center; font-weight: 900; font-size: 20px; color: #ffe0a0; text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity .4s; letter-spacing: 1px; }
 #hint.show { opacity: 1; }
+
+/* ---------- forge / shop ---------- */
+#altInfo { font-weight: 900; font-size: 15px; letter-spacing: 2px; color: #ffd9c4; min-height: 18px; }
+#weaponName span { font-size: 18px; }
+#prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-family: 'Bungee', sans-serif; font-size: 18px; color: #ffb35c; text-shadow: 2px 2px 0 #000; padding: 6px 14px; border: 2px solid #ffb35c; background: rgba(0,0,0,.5); opacity: 0; transition: opacity .2s; }
+#prompt.show { opacity: 1; }
+#shop { justify-content: flex-start; padding-top: 5vh; overflow-y: auto; }
+#scrapTotal, .scrapLine, .scrap { font-family: 'Bungee', sans-serif; color: #7ad8ff; }
+#scrapTotal { font-size: 26px; }
+.scrapLine { font-size: 15px; text-align: left; margin-bottom: -8px; }
+#shopList { width: min(760px, 100%); display: flex; flex-direction: column; gap: 10px; }
+#shopList .item { display: flex; gap: 14px; align-items: center; background: rgba(0,0,0,.5); border: 2px solid #3a1a10; padding: 12px 14px; text-align: left; }
+#shopList .item.have { border-color: #2a4a2a; }
+#shopList .sw { width: 10px; align-self: stretch; }
+#shopList .txt { flex: 1; }
+#shopList .txt b { font-family: 'Bungee', sans-serif; font-size: 18px; color: #ffd9c4; }
+#shopList .txt p { font-size: 13px; color: #c9a98a; margin-top: 4px; line-height: 1.4; }
+#shopList button { font-family: 'Bungee', sans-serif; font-size: 15px; padding: 8px 14px; min-width: 130px; border: 2px solid #7ad8ff; background: #0c1a22; color: #bdeeff; cursor: pointer; transform: none; }
+#shopList button:hover:not(:disabled) { background: #7ad8ff; color: #0c1a22; transform: none; }
+#shopList button:disabled { opacity: .45; cursor: not-allowed; border-color: #556; color: #889; }
+#shopList button.owned { opacity: .8; border-color: #4a8a4a; color: #8f8; }
+#shopList .hint { font-size: 13px; color: #a8907a; }
+#hint { bottom: 150px; left: 50%; right: auto; transform: translateX(-50%); width: min(760px, 70vw); }

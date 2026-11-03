@@ -16,6 +16,7 @@ export const ACTIONS = [
   ['weapon1', 'Revolver', ['Digit1']],
   ['weapon2', 'Shotgun', ['Digit2']],
   ['swap', 'Swap weapon', ['KeyQ']],
+  ['interact', 'Use (FORGE)', ['KeyE']],
 ];
 
 export const DIFFS = {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildEnemyModel, buildBossModel, animateEnemy, buildViewmodels } from './models.js';
+import { buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, animateEnemy, buildViewmodels } from './models.js';
 import { LEVELS, SCENES, buildLevel } from './levels.js';
 import { createMusic } from './music.js';
 import { settings, ACTIONS, DIFFS, keyLabel, initSettingsUI } from './settings.js';
@@ -492,6 +492,11 @@ const sfx = {
   bossRoar() { tone(90, 42, 1.2, 0.6, 'sawtooth'); noise(1.0, 500, 0.7, 'lowpass', 90); tone(140, 60, 1.0, 0.35, 'square'); },
   door() { noise(0.6, 320, 0.55, 'lowpass', 80); tone(70, 40, 0.5, 0.35, 'square'); },
   portal() { tone(400, 1600, 0.8, 0.22, 'sine'); tone(600, 2400, 0.8, 0.14, 'triangle', 0.1); },
+  coin() { tone(1800, 2600, 0.12, 0.12, 'triangle'); },
+  coinHit() { tone(2600, 3400, 0.1, 0.2, 'square'); tone(3400, 2200, 0.15, 0.12, 'triangle', 0.04); },
+  saw() { noise(0.5, 3500, 0.35, 'bandpass', 2000, 4); tone(900, 1400, 0.4, 0.08, 'sawtooth'); },
+  ting() { tone(2400, 1800, 0.07, 0.12, 'triangle'); },
+  buy() { tone(500, 1000, 0.12, 0.2, 'triangle'); tone(1000, 1500, 0.2, 0.2, 'triangle', 0.1); noise(0.2, 6000, 0.15, 'highpass'); },
   spawn(v) { noise(0.5, 300, 0.4 * v, 'lowpass', 2000); },
 };
 const distVol = (p) => clamp(1 - p.distanceTo(P.pos) / 55, 0.05, 1);
@@ -509,6 +514,7 @@ addEventListener('keydown', (e) => {
   // with keyboard lock on, Escape reaches the page instead of releasing the mouse, so pause manually
   if (e.code === 'Escape' && G.state === 'play') { document.exitPointerLock?.(); if (G.state === 'play') { G.state = 'pause'; show('pause', true); } return; }
   if (e.code === 'Escape' && G.state === 'settings') { closeSettings(); return; }
+  if (e.code === 'Escape' && G.state === 'shop') { closeShop(); return; }
   if (!e.repeat) pressed.add(e.code);
   keys.add(e.code);
 });
@@ -748,9 +754,10 @@ vmScene.add(revolver, shotgun, arm);
 const guns = [revolver, shotgun];
 const WNAMES = ['REVOLVER', 'SHOTGUN'];
 
-const W = { cur: 0, cd: 0, switchT: 0, lastSwitch: -9, charge: 0, charging: false, punchCD: 0, punchT: 0, kick: 0, coreCD: 0, flashT: 0 };
+const W = { variant: [0, 0], coins: 4, pump: 0, sawCD: 0, cur: 0, cd: 0, switchT: 0, lastSwitch: -9, charge: 0, charging: false, punchCD: 0, punchT: 0, kick: 0, coreCD: 0, flashT: 0 };
 function switchWeapon(i) {
-  if (i === W.cur) return;
+  if (i === 1 && !owns('shotgun')) { if (G.state === 'play') pushFeed('SHOTGUN LOCKED · visit the FORGE', 'bad'); return; }
+  if (i === W.cur) { cycleVariant(i); return; }
   W.cur = i; W.switchT = 0.18; W.lastSwitch = G.time; W.charging = false; W.charge = 0;
   W.cd = Math.max(W.cd, 0.12);
   guns.forEach((g, k) => (g.visible = k === i));
@@ -767,12 +774,16 @@ const DEFS = {
   flyer: { hp: 40, speed: 9, r: 0.6, h: 1.0, color: 0x7a7468, mass: 0.7, kill: 70, label: 'KILL', fly: true },
   boss1: { hp: 2600, speed: 4.2, r: 2.2, h: 6.8, color: 0x8c8478, mass: 60, kill: 600, label: 'BOSS KILL', boss: true, name: 'MORTIMER, WARDEN OF THE CELLAR', short: 'MORTIMER' },
   boss2: { hp: 3400, speed: 6, r: 1.6, h: 7.4, color: 0xd8c49a, mass: 60, kill: 800, label: 'BOSS KILL', boss: true, fly: true, name: 'THE HIGH MASON, ARCHITECT OF RUIN', short: 'THE HIGH MASON' },
+  bulwark: { hp: 480, speed: 2.8, r: 1.0, h: 3.5, color: 0x6a7088, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE BULWARK · TRAINER', short: 'THE BULWARK', hint: 'Bullets glance off THE BULWARK · PUNCH his big orb to PARRY it back into him', canHurt: (i) => !!i.parry, onHurt: (e) => { e.state = 'recover'; e.t = 1.2; banner('CRACKED!'); } },
+  sweeper: { hp: 650, speed: 3.4, r: 1.3, h: 4.2, color: 0x8a6a40, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE SWEEPER · TRAINER', short: 'THE SWEEPER', hint: 'His waves are too tall to jump · DASH straight through them' },
+  roost: { hp: 400, speed: 10, r: 1.4, h: 2.4, color: 0x6a5a7a, mass: 30, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, fly: true, name: 'THE ROOST · TRAINER', short: 'THE ROOST', hint: 'THE ROOST only flinches when you are AIRBORNE · jump and shoot, or GROUND SLAM her when she lands', canHurt: (i) => !P.grounded || i.weapon === 'slam' },
+  kiln: { hp: 560, speed: 2.6, r: 1.6, h: 5.2, color: 0x2e2622, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE KILN · TRAINER', short: 'THE KILN', hint: 'Only a COMBO BLAST cracks THE KILN · lob a core (shotgun ALT) and shoot it with the revolver', canHurt: (i) => !!i.combo || (!owns('shotgun') && !!i.parry) },
   heavy: { hp: 340, speed: 3.6, r: 1.0, h: 3.25, color: 0xa07a4a, mass: 3.5, kill: 160, label: 'BIG KILL' },
 };
 const enemies = [];
 function makeEnemy(type, x, z, y = 0) {
   const def = DEFS[type];
-  const model = def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
+  const model = def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
   const g = model.root;
   g.position.set(x, def.fly ? y : y - def.h, z);
   const baseScale = g.scale.x;
@@ -781,7 +792,7 @@ function makeEnemy(type, x, z, y = 0) {
   const e = {
     type, def, mesh: g, mats: model.mats, extraMats: model.extraMats, hit: model.hit, rig: model.rig, orb: model.orb,
     hp: def.hp, vel: new V3(), state: 'chase', t: 0, cd: rand(0.8, 2), flash: 0,
-    grounded: true, strafe: Math.random() < 0.5 ? -1 : 1, strafeT: rand(1, 3), spawnT: def.boss ? 1.6 : 0.7, spawnMax: def.boss ? 1.6 : 0.7, spawnY: y, baseScale, home: new V3(x, y + 1, z), animType: type === 'boss1' ? 'heavy' : type === 'boss2' ? 'shooter' : null, mv: new V3(), orbit: rand(0, 6.28), alt: rand(4, 6.5), dead: false, walk: rand(0, 6),
+    grounded: true, strafe: Math.random() < 0.5 ? -1 : 1, strafeT: rand(1, 3), spawnT: def.boss ? 1.6 : 0.7, spawnMax: def.boss ? 1.6 : 0.7, spawnY: y, baseScale, home: new V3(x, y + 1, z), animType: { boss1: 'heavy', boss2: 'shooter', bulwark: 'grunt', sweeper: 'heavy', roost: 'flyer', kiln: 'heavy' }[type] || null, mv: new V3(), orbit: rand(0, 6.28), alt: rand(4, 6.5), dead: false, walk: rand(0, 6),
   };
   for (const m of model.hit) m.userData.enemy = e;
   enemies.push(e);
@@ -865,6 +876,7 @@ function updateEnemies(dt) {
     if (e.type === 'flyer') { updateFlyer(e, dt); continue; }
     if (e.type === 'boss1') { updateBoss1(e, dt); continue; }
     if (e.type === 'boss2') { updateBoss2(e, dt); continue; }
+    if (e.def.trainer) { updateTrainer(e, dt); continue; }
     const dx = P.pos.x - p.x, dz = P.pos.z - p.z;
     const dist = Math.hypot(dx, dz) || 0.001;
     const nx = dx / dist, nz = dz / dist;
@@ -961,8 +973,10 @@ function updateEnemies(dt) {
 function damageEnemy(e, dmg, info) {
   if (e.dead || e.spawnT > 0) return false;
   if (e.state === 'stun') dmg *= 1.5;
+  if (e.def.canHurt && !e.def.canHurt(info)) { blockedFx(e, info.point); return false; }
   e.hp -= dmg;
   e.flash = 0.07;
+  if (e.def.onHurt) e.def.onHurt(e);
   const pt = info.point || e.mesh.position.clone().setY(e.mesh.position.y + e.def.h * 0.6);
   burst(pt, Math.min(12, 3 + (dmg / 8) | 0), 0x9a0e0a, 6, 0.1, 0.5, false, 1, 0.6);
   if (info.knock) e.vel.addScaledVector(info.knock, 1 / e.def.mass);
@@ -1044,6 +1058,7 @@ function rayTargets() {
   const t = worldMeshes.slice();
   for (const e of enemies) if (!e.dead && e.spawnT <= 0) t.push(...e.hit);
   for (const c of cores) t.push(c.m);
+  for (const c of coins) t.push(c.hit);
   return t;
 }
 function hitmarker(head) {
@@ -1075,6 +1090,7 @@ function fireRevolver() {
   if (!h) return;
   const o = h.object;
   if (o.userData.core) { detonateCore(o.userData.core, true); return; }
+  if (o.userData.coin) { coinShot(o.userData.coin, 70, 0); return; }
   const e = o.userData.enemy;
   if (e) {
     const head = o.userData.part === 'head';
@@ -1094,6 +1110,7 @@ function fireCharged() {
   for (const h of hits) {
     const o = h.object;
     if (o.userData.core) { detonateCore(o.userData.core, true); continue; }
+    if (o.userData.coin) { coinShot(o.userData.coin, 120, 0); continue; }
     const e = o.userData.enemy;
     if (e) {
       if (hitE.has(e)) continue;
@@ -1125,8 +1142,10 @@ function fireShotgun() {
   const targets = rayTargets();
   const dmgMap = new Map();
   const m = muzzle();
-  for (let i = 0; i < 11; i++) {
-    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.09;
+  const pumpN = W.cur === 1 && W.variant[1] === 1 ? W.pump : 0;
+  const pm = 1 + pumpN * 0.45;
+  for (let i = 0; i < 11 + pumpN * 3; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.09 * (1 + pumpN * 0.25);
     const d = dir.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
     ray.set(origin, d); ray.far = 80;
     const h = ray.intersectObjects(targets, false)[0];
@@ -1135,12 +1154,13 @@ function fireShotgun() {
     if (!h) continue;
     const o = h.object;
     if (o.userData.core) { detonateCore(o.userData.core, false); continue; }
+    if (o.userData.coin) { removeCoin(o.userData.coin); continue; }
     const e = o.userData.enemy;
     if (e) {
       const head = o.userData.part === 'head';
       const falloff = clamp(1.4 - h.distance / 20, 0.25, 1);
       const rec = dmgMap.get(e) || { dmg: 0, head: false, point: h.point };
-      rec.dmg += (head ? 13 : 9) * falloff;
+      rec.dmg += (head ? 13 : 9) * falloff * pm;
       rec.head ||= head;
       dmgMap.set(e, rec);
     } else if (i % 3 === 0) impactFx(h.point, null);
@@ -1151,9 +1171,12 @@ function fireShotgun() {
     damageEnemy(e, rec.dmg, { weapon: 'shotgun', head: rec.head && rec.dmg > 60, point: rec.point, knock: dir.clone().multiplyScalar(rec.dmg * 0.12).setY(1.5) });
   }
   if (dmgMap.size) { useWeapon('shotgun'); hitmarker(anyHead); }
+  if (pumpN === 3) { explode(origin.clone().addScaledVector(dir, 1.6), 5, 90, 'shotgun'); addStyle(80, 'OVERPRESSURE', 'shotgun', 'big'); }
+  else if (pumpN) P.vel.addScaledVector(dir, -4 * pumpN);
+  W.pump = 0;
   sfx.shotgun();
   setTimeout(() => sfx.pump(), 380);
-  W.kick = 2; W.flashT = 0.07; G.shake = Math.max(G.shake, 0.12);
+  W.kick = 2 + pumpN; W.flashT = 0.07; G.shake = Math.max(G.shake, 0.12);
 }
 
 // ---------------------------------------------------------------- shotgun cores
@@ -1224,7 +1247,7 @@ function explode(pos, radius, dmg, weapon) {
     if (d > radius) continue;
     const k = 1 - (d / radius) * 0.6;
     const away = c.clone().sub(pos).setY(0).normalize().multiplyScalar(9 * k).setY(9 * k);
-    damageEnemy(e, dmg * k, { weapon: weapon === 'combo' ? null : 'shotgun', point: c, knock: away });
+    damageEnemy(e, dmg * k, { weapon: weapon === 'combo' ? null : 'shotgun', combo: weapon === 'combo', point: c, knock: away });
     hitAny++;
   }
   if (hitAny && weapon !== 'combo') useWeapon('shotgun');
@@ -1256,7 +1279,7 @@ function punch() {
     const to = o.m.position.clone().sub(origin);
     const d = to.length();
     if (d < 3.6 && to.normalize().dot(dir) > 0.45) {
-      o.parried = true; o.dmg = 90; o.life = 4;
+      o.parried = true; o.dmg = o.big ? 170 : 90; o.life = 4;
       o.vel.copy(dir).multiplyScalar(42);
       o.m.material.color.set(0x9ae8ff); o.glow.material.color.set(0x3ac8ff);
       did = true;
@@ -1317,7 +1340,7 @@ function updateOrbs(dt) {
         if (e.dead || e.spawnT > 0) continue;
         const ep = e.mesh.position;
         if (Math.hypot(p.x - ep.x, p.z - ep.z) < e.def.r + 0.4 && p.y > ep.y && p.y < ep.y + e.def.h + 0.2) {
-          damageEnemy(e, o.dmg, { weapon: null, point: p.clone(), knock: o.vel.clone().normalize().multiplyScalar(8).setY(4) });
+          damageEnemy(e, o.dmg, { weapon: null, parry: true, point: p.clone(), knock: o.vel.clone().normalize().multiplyScalar(8).setY(4) });
           dead = true; break;
         }
       }
@@ -1477,22 +1500,35 @@ function startSlide(wish, fwd) {
 }
 
 function updateWeapons(dt) {
-  W.cd -= dt; W.punchCD -= dt; W.coreCD -= dt; W.switchT = Math.max(0, W.switchT - dt);
+  W.cd -= dt; W.punchCD -= dt; W.coreCD -= dt; W.sawCD -= dt; W.switchT = Math.max(0, W.switchT - dt);
+  W.coins = Math.min(4, W.coins + dt / 1.6);
   if (hit('weapon1')) switchWeapon(0);
   if (hit('weapon2')) switchWeapon(1);
   if (hit('swap')) switchWeapon(W.cur === 0 ? 1 : 0);
   if (hit('punch') && W.punchCD <= 0) punch();
 
   if (W.cur === 0) {
-    if (down('alt') && W.cd <= 0) { W.charging = true; W.charge = Math.min(1, W.charge + dt / 0.9); }
-    if (!down('alt') && W.charging) {
-      if (W.charge >= 1) { fireCharged(); W.cd = 0.5; }
-      W.charging = false; W.charge = 0;
+    const v = W.variant[0];
+    if (v === 2) {
+      if (hit('alt') && W.coins >= 1) tossCoin();
+    } else {
+      const need = v === 0 ? 0.9 : 0.6;
+      if (down('alt') && W.cd <= 0) { W.charging = true; W.charge = Math.min(1, W.charge + dt / need); }
+      if (!down('alt') && W.charging) {
+        if (W.charge >= 1) { if (v === 0) fireCharged(); else fireChain(); W.cd = 0.5; }
+        W.charging = false; W.charge = 0;
+      }
     }
     if (down('fire') && !W.charging && W.cd <= 0) { fireRevolver(); W.cd = 0.36; W.revSpin = 1; }
   } else {
+    const v = W.variant[1];
     if (down('fire') && W.cd <= 0) { fireShotgun(); W.cd = 0.9; }
-    if (hit('alt') && W.coreCD <= 0 && W.cd <= 0.3) { throwCore(); W.coreCD = 1.1; W.cd = Math.max(W.cd, 0.35); }
+    if (v === 0 && hit('alt') && W.coreCD <= 0 && W.cd <= 0.3) { throwCore(); W.coreCD = 1.1; W.cd = Math.max(W.cd, 0.35); }
+    if (v === 1 && hit('alt') && W.cd <= 0.2 && W.pump < 3) {
+      W.pump++; sfx.pump(); W.kick = 0.6; W.cd = Math.max(W.cd, 0.22);
+      if (W.pump === 3) pushFeed('OVERPRESSURE READY', 'bad');
+    }
+    if (v === 2 && hit('alt') && W.sawCD <= 0) { launchSaw(); W.sawCD = 1.2; W.cd = Math.max(W.cd, 0.3); }
   }
 }
 
@@ -1515,6 +1551,12 @@ function updateViewmodel(dt) {
     g.position.y += rand(-1, 1) * 0.003 * W.charge;
   }
   chargeMat.emissiveIntensity = 0.6 + W.charge * 5 + (W.charge >= 1 ? Math.sin(G.time * 30) * 1.5 : 0);
+  VM.revVariants.forEach((g, i) => (g.visible = i === W.variant[0]));
+  VM.shotVariants.forEach((g, i) => (g.visible = i === W.variant[1]));
+  VM.pressureLights.forEach((l, i) => l.material.color.setHex(W.pump > i ? 0xff3a1a : 0x331a10));
+  VM.needle.rotation.x = -0.8 + W.pump * 0.6 + (W.pump === 3 ? Math.sin(G.time * 40) * 0.1 : 0);
+  VM.saw.rotation.x += dt * (W.sawCD > 0 ? 2 : 14);
+  VM.shotAccent.emissiveIntensity = 1.4 + W.pump * 0.8;
   VM.coils.forEach((c, i) => { c.scale.setScalar(1 + (W.charge > i / 3 ? 0.25 : 0) * W.charge); });
   if (W.revSpin > 0) { const st = Math.min(W.revSpin, dt * 8); W.revSpin -= st; VM.cyl.rotation.z += st * Math.PI / 3; }
   VM.hammer.rotation.x = W.cur === 0 ? (W.cd > 0.2 ? 0.5 : W.charging ? 0.6 * W.charge : 0) : 0;
@@ -1636,7 +1678,16 @@ function updateHUD() {
   $('styleFill').style.width = `${clamp(frac, 0, 1) * 100}%`;
   $('style').style.opacity = ST.points > 1 || feedEl.children.length ? 1 : 0;
   // weapon + freshness
-  if (W.cur !== ui.weapon) { ui.weapon = W.cur; $('weaponName').textContent = WNAMES[W.cur]; }
+  if (W.cur !== ui.weapon || W.variant[W.cur] !== ui.variant) {
+    ui.weapon = W.cur; ui.variant = W.variant[W.cur];
+    const vd = VARIANTS[W.cur][W.variant[W.cur]];
+    $('weaponName').innerHTML = `${WNAMES[W.cur]} <span style="color:${vd.css}">${vd.name}</span>`;
+  }
+  let alt = '';
+  if (W.cur === 0 && W.variant[0] === 2) { const n = Math.floor(W.coins); alt = 'COINS ' + '●'.repeat(n) + '○'.repeat(4 - n); }
+  else if (W.cur === 1 && W.variant[1] === 1) alt = 'PRESSURE ' + '▮'.repeat(W.pump) + '▯'.repeat(3 - W.pump);
+  else if (W.cur === 1 && W.variant[1] === 2) alt = W.sawCD > 0 ? 'SAW ··· ' : 'SAW READY';
+  if (alt !== ui.alt) { ui.alt = alt; $('altInfo').textContent = alt; }
   const fi = freshInfo(fresh[W.cur === 0 ? 'revolver' : 'shotgun']);
   if (fi.name !== ui.fresh) { ui.fresh = fi.name; const f = $('fresh'); f.textContent = fi.name; f.className = fi.name; }
   // charge bar
@@ -1665,6 +1716,9 @@ function update(dt) {
   updateEnemies(dt);
   updateOrbs(dt);
   updateCores(dt);
+  updateCoins(dt);
+  updateSaws(dt);
+  updateForge();
   if (G.mode === 'endless') updateWaves(dt); else updateCampaign(dt);
   updateShockwaves(dt);
   updateDoors(dt);
@@ -1744,12 +1798,15 @@ function resetGame() {
   Object.assign(G, { styleTotal: 0, dmgTaken: 0, levelTime: 0, boss: null, portal: null });
   for (const s of shocks) { scene.remove(s.m); s.m.material.dispose(); }
   shocks.length = 0;
+  clearProjectiles();
+  forge = null; promptShown = false; $('prompt').classList.remove('show');
   hideBeam();
   show('bossBar', false);
   $('hint').classList.remove('show');
   for (const k in fresh) fresh[k] = 1;
   ui.rank = -1; ui.hp = -1;
   W.cur = 1; switchWeapon(0);
+  normalizeLoadout();
   keys.clear();
   $('wave').textContent = 'GET READY';
 }
@@ -1769,7 +1826,7 @@ function unlockKeyboard() {
 }
 // last line of defence: ask before the tab closes mid-run
 addEventListener('beforeunload', (e) => {
-  const inRun = G.state === 'play' || G.state === 'pause' || (G.state === 'settings' && settingsFrom === 'pause');
+  const inRun = G.state === 'play' || G.state === 'pause' || G.state === 'shop' || (G.state === 'settings' && settingsFrom === 'pause');
   if (inRun) { e.preventDefault(); e.returnValue = ''; }
 });
 function requestLock() {
@@ -1804,6 +1861,8 @@ function gameOver() {
     const isBest = !best || score > best.score;
     if (isBest) saveBest({ score, wave: G.wave, rank: G.bestRank });
     $('overStats').innerHTML = `RUBBLE PIT<br>SCORE ${score.toLocaleString()}${isBest ? ' — NEW BEST!' : ''}<br>WAVE ${G.wave} · ${G.kills} KILLS<br>HIGHEST STYLE: ${RANKS[G.bestRank].l}`;
+    const earned = Math.floor(score / 40);
+    if (earned) { awardScrap(earned); $('overStats').innerHTML += `<br><span class="scrap">+${earned} ◆ SCRAP</span>`; }
     $('againBtn').textContent = 'TRY AGAIN';
   } else {
     $('overStats').innerHTML = `${G.level.id} · ${G.level.name}<br>${G.kills} KILLS · ${fmtTime(G.levelTime)}<br>HIGHEST STYLE: ${RANKS[G.bestRank].l}`;
@@ -1998,21 +2057,22 @@ function updateFlyer(e, dt) {
 // ================================================================ BOSSES
 const shocks = [];
 const shockGeo = new THREE.CylinderGeometry(1, 1, 0.9, 48, 1, true);
-function shockwave(pos, speed, max, dmg) {
+function shockwave(pos, speed, max, dmg, tall = false) {
   const m = new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-  m.position.set(pos.x, pos.y + 0.45, pos.z);
+  m.position.set(pos.x, pos.y + (tall ? 2.25 : 0.45), pos.z);
+  if (tall) m.material.color.setHex(0xff3a6a);
   scene.add(m);
-  shocks.push({ m, x: pos.x, z: pos.z, y: pos.y, r: 1, speed, max, dmg, hit: false });
+  shocks.push({ m, x: pos.x, z: pos.z, y: pos.y, r: 1, speed, max, dmg, hit: false, tall });
 }
 function updateShockwaves(dt) {
   for (let i = shocks.length - 1; i >= 0; i--) {
     const s = shocks[i];
     s.r += s.speed * dt;
-    s.m.scale.set(s.r, 1, s.r);
+    s.m.scale.set(s.r, s.tall ? 5 : 1, s.r);
     s.m.material.opacity = 0.85 * (1 - s.r / s.max);
     if (!s.hit) {
       const d = Math.hypot(P.pos.x - s.x, P.pos.z - s.z);
-      if (Math.abs(d - s.r) < 0.8 && P.pos.y - s.y < 0.8) {
+      if (Math.abs(d - s.r) < 0.8 && P.pos.y - s.y < (s.tall ? 4.5 : 0.8)) {
         s.hit = true;
         const away = new V3(P.pos.x - s.x, 0, P.pos.z - s.z).normalize();
         if (P.dashT > 0 || P.invuln > 0) addStyle(40, 'DODGE', null, 'cool');
@@ -2253,12 +2313,13 @@ function updateBoss2(e, dt) {
 function spawnBoss(room) {
   const type = room.boss;
   const def = DEFS[type];
-  const e = makeEnemy(type, room.cx, room.cz, def.fly ? 2.2 : 0);
+  const e = makeEnemy(type, room.cx, room.cz, def.fly ? (def.trainer ? 5 : 2.2) : 0);
   e.room = room;
   G.boss = e;
   $('bossName').textContent = def.name;
   show('bossBar', true);
   banner(def.short);
+  if (def.hint) showHint(def.hint);
   sfx.bossRoar();
   G.shake = Math.max(G.shake, 0.6);
 }
@@ -2318,7 +2379,7 @@ function clearRoom(r) {
   r.state = 'clear';
   for (const d of r.doorObjs) d.target = 1;
   sfx.door();
-  if (r.boss) {
+  if (r.boss && !G.layout.rooms.some((x) => x.kind === 'exit')) {
     spawnPortal(r.cx, r.cz);
   } else {
     addStyle(120, 'ROOM CLEAR', null, 'big');
@@ -2390,7 +2451,7 @@ function spawnPortal(x, z) {
 function loadProgress() {
   try { return Object.assign({ unlocked: 0, best: {} }, JSON.parse(localStorage.getItem('rubblemaker-progress') || '{}')); } catch (_) { return { unlocked: 0, best: {} }; }
 }
-function saveProgress(p) { try { localStorage.setItem('rubblemaker-progress', JSON.stringify(p)); } catch (_) {} }
+function saveProgress(p) { PROGC = p; try { localStorage.setItem('rubblemaker-progress', JSON.stringify(p)); } catch (_) {} }
 
 function completeLevel() {
   if (G.state !== 'play') return;
@@ -2412,6 +2473,8 @@ function completeLevel() {
   const best = prog.best[lv.id];
   const newBest = !best || overall > best.rank || (overall === best.rank && t < best.time);
   if (newBest) prog.best[lv.id] = { rank: overall, time: t };
+  const earned = 100 + Math.floor(G.styleTotal / 10) + [0, 25, 50, 100, 150, 300][overall];
+  prog.scrap = (prog.scrap || 0) + earned;
   saveProgress(prog);
   const g = (i) => `<span class="g g${GRADE_SHORT[i]}">${GRADE_SHORT[i]}</span>`;
   $('completeLevel').textContent = `${lv.scene.name} · ${lv.id} · ${lv.name}`;
@@ -2419,7 +2482,8 @@ function completeLevel() {
     `<span>TIME</span><span>${fmtTime(t)} <small style="opacity:.5">/ ${fmtTime(lv.par)}</small></span>${g(gTime)}` +
     `<span>STYLE</span><span>${Math.floor(G.styleTotal).toLocaleString()}</span>${g(gStyle)}` +
     `<span>DAMAGE TAKEN</span><span>${dmg}</span>${g(gDmg)}` +
-    `<span>KILLS</span><span>${G.kills}</span><span></span>`;
+    `<span>KILLS</span><span>${G.kills}</span><span></span>` +
+    `<span>SCRAP EARNED</span><span class="scrap">+${earned} ◆</span><span></span>`;
   const rk = $('completeRank');
   rk.textContent = GRADES[overall] + (newBest ? '' : '');
   rk.className = `g${GRADE_SHORT[overall]}${overall === 5 ? ' top' : ''}`;
@@ -2431,7 +2495,7 @@ function completeLevel() {
 
 function renderLevels() {
   const prog = loadProgress();
-  $('sceneList').innerHTML = SCENES.map((sc) => `
+  $('sceneList').innerHTML = `<div class="scrapLine">◆ ${prog.scrap || 0} SCRAP · spend it at the FORGE in any level's start room</div>` + SCENES.map((sc) => `
     <div class="scene"><h3><span>SCENE ${sc.id}</span>${sc.name}</h3><div class="grid">${sc.levels.map((l) => {
       const idx = LEVELS.findIndex((x) => x.id === l.id);
       const locked = idx > prog.unlocked;
@@ -2466,6 +2530,7 @@ function startLevel(idx) {
   G.layout = layout;
   G.ceil = layout.theme.wallH - 0.8;
   for (const r of layout.rooms) if (r.kind === 'exit') spawnPortal(r.cx, r.cz);
+  placeForgeInStart(layout);
   P.pos.set(layout.start.x, 0, layout.start.z);
   P.yaw = layout.start.yaw;
   G.spawn = P.pos.clone();
@@ -2480,6 +2545,7 @@ function startEndless() {
   resetGame();
   clearLevelGeometry();
   buildArena();
+  placeForge(0, 19.5, Math.PI);
   setLook('pit');
   G.ceil = 11;
   G.spawn = new V3(0, 0, 12);
@@ -2491,6 +2557,7 @@ function toMenu() {
   G.layout = null; G.level = null; G.mode = 'endless';
   clearLevelGeometry();
   buildArena();
+  placeForge(0, 19.5, Math.PI);
   setLook('pit');
   G.state = 'menu';
   for (const id of ['pause', 'hud', 'over', 'complete', 'levels', 'settings']) show(id, false);
@@ -2524,7 +2591,7 @@ function ensureMusic() {
 function updateMusic() {
   if (!music) return;
   let theme = 'menu', int = 0;
-  const inGame = G.state === 'play' || G.state === 'pause' || (G.state === 'settings' && settingsFrom === 'pause');
+  const inGame = G.state === 'play' || G.state === 'pause' || G.state === 'shop' || (G.state === 'settings' && settingsFrom === 'pause');
   if (inGame) {
     theme = G.boss ? 'boss' : G.mode === 'endless' ? 'pit' : G.level ? G.level.theme : 'cellar';
     const fighting = enemies.length > 0 || !!G.boss;
@@ -2538,3 +2605,473 @@ function updateMusic() {
   music.setIntensity(int);
   music.update();
 }
+
+// ================================================================ LOADOUT, SHOP & ECONOMY
+const VARIANTS = [
+  [{ name: 'LANCE', hex: 0x3ac8ff, css: '#6ad8ff' }, { name: 'CHAINLINK', hex: 0x4aff6a, css: '#6dff8f' }, { name: 'COINSHOT', hex: 0xff4a3a, css: '#ff6a5a' }],
+  [{ name: 'FURNACE', hex: 0xff7a2a, css: '#ffa04a' }, { name: 'OVERPRESSURE', hex: 0x4aff6a, css: '#6dff8f' }, { name: 'SAWBLADE', hex: 0xff3a4a, css: '#ff6a5a' }],
+];
+const SHOP = [
+  { id: 'shotgun', gun: 1, v: 0, price: 250, desc: 'Unlocks the SHOTGUN. FURNACE alt-fire lobs an explosive core: shoot it with the revolver for a COMBO BLAST.' },
+  { id: 'rev1', gun: 0, v: 1, price: 450, desc: 'Revolver variant. Charge ALT to fire a shot that CHAINS between up to 5 enemies and BANKS off walls.' },
+  { id: 'shot1', gun: 1, v: 1, price: 550, req: 'shotgun', desc: 'Shotgun variant. Tap ALT to PUMP up to 3 times for a bigger blast. Three pumps detonates in your face (worth it).' },
+  { id: 'rev2', gun: 0, v: 2, price: 700, desc: 'Revolver variant. ALT flips a COIN. Shoot it and the bullet redirects into the nearest head. Coins chain.' },
+  { id: 'shot2', gun: 1, v: 2, price: 800, req: 'shotgun', desc: 'Shotgun variant. ALT launches a SAWBLADE that grinds through enemies and bounces off walls.' },
+];
+let PROGC = null;
+function prog() { return PROGC || (PROGC = loadProgress()); }
+function owns(id) { return (prog().owned || []).includes(id); }
+function ownsVariant(gun, v) { return v === 0 ? gun === 0 || owns('shotgun') : owns((gun ? 'shot' : 'rev') + v); }
+function applyVariantLook() {
+  chargeMat.emissive.setHex(VARIANTS[0][W.variant[0]].hex);
+  VM.shotAccent.emissive.setHex(VARIANTS[1][W.variant[1]].hex);
+  const slot = document.querySelector('#weaponSlots span[data-w="1"]');
+  if (slot) slot.textContent = owns('shotgun') ? '2 SHOTGUN' : '2 LOCKED';
+}
+function normalizeLoadout() {
+  for (const g of [0, 1]) if (!ownsVariant(g, W.variant[g])) W.variant[g] = 0;
+  W.pump = 0; W.coins = 4; W.sawCD = 0;
+  applyVariantLook();
+}
+function cycleVariant(gun) {
+  if (gun === 1 && !owns('shotgun')) return;
+  for (let k = 1; k <= 3; k++) {
+    const v = (W.variant[gun] + k) % 3;
+    if (ownsVariant(gun, v)) {
+      if (v === W.variant[gun]) { pushFeed('More variants at the FORGE', ''); return; }
+      W.variant[gun] = v;
+      W.charging = false; W.charge = 0; W.pump = 0;
+      W.switchT = 0.14;
+      applyVariantLook();
+      sfx.pump();
+      pushFeed(VARIANTS[gun][v].name, 'cool');
+      return;
+    }
+  }
+}
+
+// ---- THE FORGE station
+let forge = null;
+function placeForge(x, z, yaw) {
+  const g = buildForge(GLOW);
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw;
+  levelGroup.add(g);
+  solids.push({ min: new V3(x - 1.4, 0, z - 1.4), max: new V3(x + 1.4, 1.0, z + 1.4), active: true });
+  torches.push({ pos: new V3(x, 1.6, z), flame: new THREE.Object3D(), ph: 3, small: false });
+  forge = { x, z };
+}
+function placeForgeInStart(layout) {
+  const first = layout.rooms[0];
+  const side = first.doors[0] ? first.doors[0].side : 'N';
+  const D = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[side];
+  const half = (D[0] ? first.w : first.d) / 2 - 2.2;
+  placeForge(first.cx - D[0] * half, first.cz - D[1] * half, Math.atan2(D[0], D[1]));
+}
+let promptShown = false;
+function updateForge() {
+  if (!forge) return;
+  const near = Math.hypot(P.pos.x - forge.x, P.pos.z - forge.z) < 3.4;
+  if (near !== promptShown) {
+    promptShown = near;
+    const k = settings.binds.interact.filter(Boolean).map(keyLabel)[0] || 'E';
+    $('prompt').textContent = `[${k}] OPEN THE FORGE`;
+    $('prompt').classList.toggle('show', near);
+  }
+  if (near && hit('interact')) openShop();
+}
+function openShop() {
+  G.state = 'shop';
+  keys.clear();
+  document.exitPointerLock?.();
+  renderShop();
+  show('shop', true);
+  sfx.door();
+}
+function closeShop() {
+  if (G.state !== 'shop') return;
+  show('shop', false);
+  G.state = 'play';
+  last = performance.now();
+  requestLock();
+}
+function renderShop() {
+  const p = prog();
+  $('scrapTotal').textContent = `◆ ${p.scrap || 0} SCRAP`;
+  $('shopList').innerHTML = SHOP.map((it) => {
+    const vd = VARIANTS[it.gun][it.v];
+    const have = owns(it.id);
+    const blocked = it.req && !owns(it.req);
+    const afford = (p.scrap || 0) >= it.price;
+    const btn = have ? '<button disabled class="owned">OWNED</button>'
+      : blocked ? '<button disabled>NEEDS SHOTGUN</button>'
+      : `<button data-buy="${it.id}" ${afford ? '' : 'disabled'}>◆ ${it.price}</button>`;
+    return `<div class="item ${have ? 'have' : ''}"><div class="sw" style="background:${vd.css}"></div><div class="txt"><b>${it.gun ? 'SHOTGUN' : 'REVOLVER'} · <span style="color:${vd.css}">${vd.name}</span></b><p>${it.desc}</p></div>${btn}</div>`;
+  }).join('') + `<p class="hint">Swap variants in a fight by pressing the gun's number key again. Earn SCRAP by finishing levels (better rank = more) and in the RUBBLE PIT.</p>`;
+  $('shopList').querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => buy(b.dataset.buy)));
+}
+function buy(id) {
+  const it = SHOP.find((x) => x.id === id);
+  const p = prog();
+  if (!it || owns(id) || (p.scrap || 0) < it.price) return;
+  p.scrap -= it.price;
+  p.owned = [...(p.owned || []), id];
+  saveProgress(p);
+  sfx.buy();
+  W.variant[it.gun] = it.v;
+  applyVariantLook();
+  renderShop();
+}
+function awardScrap(n) {
+  const p = loadProgress();
+  p.scrap = (p.scrap || 0) + n;
+  saveProgress(p);
+}
+$('shopClose').addEventListener('click', closeShop);
+
+// ================================================================ REVOLVER VARIANTS
+// ---- COINSHOT
+const coins = [];
+const coinGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.03, 14);
+const coinMat = new THREE.MeshStandardMaterial({ color: 0xe8b040, metalness: 0.9, roughness: 0.25, emissive: 0x5a3a00, emissiveIntensity: 0.7 });
+const coinHitGeo = new THREE.SphereGeometry(0.6, 8, 6);
+const coinHitMat = new THREE.MeshBasicMaterial({ visible: false });
+function tossCoin() {
+  W.coins -= 1;
+  const { origin, dir } = aim();
+  const m = new THREE.Mesh(coinGeo, coinMat);
+  const hm = new THREE.Mesh(coinHitGeo, coinHitMat);
+  m.position.copy(origin).addScaledVector(dir, 0.7).add(new V3(0, -0.2, 0));
+  hm.position.copy(m.position);
+  scene.add(m, hm);
+  const c = { m, hit: hm, vel: dir.clone().multiplyScalar(7).add(new V3(0, 9, 0)).addScaledVector(P.vel, 0.5), life: 3.2 };
+  hm.userData.coin = c;
+  coins.push(c);
+  sfx.coin();
+  W.kick = 0.4;
+}
+function removeCoin(c) {
+  const i = coins.indexOf(c);
+  if (i >= 0) coins.splice(i, 1);
+  scene.remove(c.m, c.hit);
+}
+function updateCoins(dt) {
+  for (const c of coins.slice()) {
+    c.life -= dt;
+    c.vel.y -= 16 * dt;
+    c.m.position.addScaledVector(c.vel, dt);
+    c.hit.position.copy(c.m.position);
+    c.m.rotation.x += dt * 25;
+    const p = c.m.position;
+    if (c.life <= 0 || overlapBox(p.x - 0.1, p.y - 0.1, p.z - 0.1, p.x + 0.1, p.y + 0.1, p.z + 0.1)) removeCoin(c);
+  }
+}
+function coinShot(c, dmg, depth) {
+  const from = c.m.position.clone();
+  removeCoin(c);
+  sfx.coinHit();
+  burst(from, 8, 0xffd04a, 6, 0.06, 0.3, true, 0.2);
+  let best = null, bd = 30;
+  for (const o of coins) { const d = o.m.position.distanceTo(from); if (d < bd && lineOfSight(from, o.m.position)) { bd = d; best = o; } }
+  if (best) {
+    tracer(from, best.m.position.clone(), 0xffd04a, 0.04, 0.22);
+    addStyle(40 + depth * 20, 'COIN CHAIN', 'revolver', 'cool');
+    coinShot(best, dmg * 1.5, depth + 1);
+    return;
+  }
+  let target = null, td = 60, tp = null;
+  for (const e of enemies) {
+    if (e.dead || e.spawnT > 0) continue;
+    const hp = new V3();
+    e.rig.head.getWorldPosition(hp);
+    const d = hp.distanceTo(from);
+    if (d < td && lineOfSight(from, hp)) { td = d; target = e; tp = hp; }
+  }
+  if (!target) { tracer(from, from.clone().add(new V3(rand(-1, 1), 1, rand(-1, 1)).normalize().multiplyScalar(30)), 0xffd04a, 0.03, 0.2); return; }
+  tracer(from, tp, 0xffd04a, 0.05, 0.25);
+  useWeapon('revolver');
+  addStyle(60 + depth * 30, 'COINSHOT', 'revolver', 'big');
+  damageEnemy(target, dmg, { weapon: 'revolver', head: true, point: tp, knock: tp.clone().sub(from).normalize().multiplyScalar(4) });
+  hitmarker(true);
+}
+
+// ---- CHAINLINK
+function fireChain() {
+  const { origin, dir } = aim();
+  const targets = rayTargets();
+  const col = 0x6dff8f;
+  ray.set(origin, dir); ray.far = 200;
+  let h = ray.intersectObjects(targets, false)[0];
+  let start = muzzle(), banked = false;
+  sfx.charged(); W.kick = 1.8; W.flashT = 0.08;
+  if (h && h.object.userData.solid && h.face) {
+    const n = h.face.normal.clone().transformDirection(h.object.matrixWorld);
+    tracer(start, h.point, col, 0.06, 0.25);
+    impactFx(h.point, n);
+    const rd = dir.clone().reflect(n);
+    start = h.point.clone().addScaledVector(n, 0.05);
+    ray.set(start, rd); ray.far = 120;
+    h = ray.intersectObjects(targets, false)[0];
+    banked = true;
+    if (!h) { tracer(start, start.clone().addScaledVector(rd, 60), col, 0.06, 0.25); return; }
+  }
+  if (!h) { tracer(start, start.clone().addScaledVector(dir, 100), col, 0.06, 0.25); return; }
+  tracer(start, h.point, col, 0.06, 0.25);
+  const o = h.object;
+  if (o.userData.core) { detonateCore(o.userData.core, true); return; }
+  if (o.userData.coin) { coinShot(o.userData.coin, 90, 0); return; }
+  const e = o.userData.enemy;
+  if (!e) { impactFx(h.point, null); return; }
+  if (banked) addStyle(50, 'BANKSHOT', 'revolver', 'cool');
+  const head = o.userData.part === 'head';
+  const hitSet = new Set([e]);
+  let pt = h.point.clone();
+  damageEnemy(e, head ? 70 : 45, { weapon: 'revolver', head, point: pt, knock: dir.clone().multiplyScalar(4) });
+  hitmarker(head);
+  useWeapon('revolver');
+  let n = 1;
+  for (let k = 0; k < 4; k++) {
+    let best = null, bd = 16;
+    for (const o2 of enemies) {
+      if (o2.dead || o2.spawnT > 0 || hitSet.has(o2)) continue;
+      const c = o2.mesh.position.clone(); c.y += o2.def.h * 0.55;
+      const d = c.distanceTo(pt);
+      if (d < bd && lineOfSight(pt, c)) { bd = d; best = { e: o2, c }; }
+    }
+    if (!best) break;
+    tracer(pt, best.c, col, 0.04, 0.25);
+    hitSet.add(best.e);
+    damageEnemy(best.e, 40, { weapon: 'revolver', point: best.c });
+    pt = best.c; n++;
+  }
+  if (n >= 2) addStyle(35 * n, `CHAINLINK x${n}`, 'revolver', 'cool');
+}
+
+// ================================================================ SHOTGUN: SAWBLADE
+const saws = [];
+const sawMat = new THREE.MeshStandardMaterial({ color: 0xc8c8d0, metalness: 0.9, roughness: 0.25, flatShading: true });
+const sawGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.04, 16);
+const toothGeo = new THREE.ConeGeometry(0.06, 0.14, 3);
+function launchSaw() {
+  const { origin, dir } = aim();
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(sawGeo, sawMat));
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const t = new THREE.Mesh(toothGeo, sawMat);
+    t.position.set(Math.cos(a) * 0.46, 0, Math.sin(a) * 0.46);
+    t.rotation.set(0, -a, -Math.PI / 2);
+    g.add(t);
+  }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0xff3a4a, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.scale.setScalar(1.4);
+  g.add(glow);
+  g.position.copy(origin).addScaledVector(dir, 1.0);
+  scene.add(g);
+  saws.push({ g, glow, vel: dir.clone().multiplyScalar(30), life: 2.6, bounces: 3, ticks: new Map(), scored: false });
+  sfx.saw();
+  W.kick = 1;
+}
+function removeSaw(s) {
+  const i = saws.indexOf(s);
+  if (i >= 0) saws.splice(i, 1);
+  scene.remove(s.g);
+  s.glow.material.dispose();
+}
+function updateSaws(dt) {
+  for (const s of saws.slice()) {
+    s.life -= dt;
+    const p = s.g.position;
+    for (const ax of ['x', 'y', 'z']) {
+      p[ax] += s.vel[ax] * dt;
+      if (overlapBox(p.x - 0.3, p.y - 0.05, p.z - 0.3, p.x + 0.3, p.y + 0.05, p.z + 0.3)) {
+        p[ax] -= s.vel[ax] * dt;
+        s.vel[ax] *= -1;
+        s.bounces--;
+        burst(p, 6, 0xffd090, 6, 0.05, 0.25, true, 0.3);
+        sfx.ting();
+      }
+    }
+    s.g.rotation.y += dt * 30;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0) continue;
+      const ep = e.mesh.position;
+      if (Math.hypot(p.x - ep.x, p.z - ep.z) < e.def.r + 0.5 && p.y > ep.y - 0.2 && p.y < ep.y + e.def.h + 0.3) {
+        if (G.time >= (s.ticks.get(e) || 0)) {
+          s.ticks.set(e, G.time + 0.12);
+          damageEnemy(e, 14, { weapon: 'shotgun', point: p.clone(), knock: s.vel.clone().normalize().multiplyScalar(0.6) });
+          if (!s.scored) { s.scored = true; useWeapon('shotgun'); addStyle(25, 'SAWED', 'shotgun', 'cool'); }
+        }
+      }
+    }
+    if (s.life <= 0 || s.bounces < 0) removeSaw(s);
+  }
+}
+function clearProjectiles() {
+  for (const c of coins.slice()) removeCoin(c);
+  for (const s of saws.slice()) removeSaw(s);
+}
+
+// ================================================================ TRAINERS
+function blockedFx(e, point) {
+  const pt = point || e.mesh.position.clone().setY(e.mesh.position.y + e.def.h * 0.5);
+  burst(pt, 6, 0xdfe8ff, 6, 0.06, 0.25, true, 0.2);
+  sfx.ting();
+  if (G.time - (e.blockHintT || -99) > 5) {
+    e.blockHintT = G.time;
+    pushFeed('BLOCKED', 'bad');
+    if (e.def.hint) showHint(e.def.hint);
+  }
+}
+function updateTrainer(e, dt) {
+  if (e.type === 'roost') { updateRoost(e, dt); return; }
+  const p = e.mesh.position, def = e.def, k = e.type;
+  const dx = P.pos.x - p.x, dz = P.pos.z - p.z, dist = Math.hypot(dx, dz) || 0.001, nx = dx / dist, nz = dz / dist;
+  e.cd -= dt; e.t -= dt;
+  let mx = 0, mz = 0, w = 0;
+  e.mesh.rotation.y = Math.atan2(dx, dz);
+  if (e.state === 'chase') {
+    let want = 1;
+    if (k === 'sweeper') {
+      want = dist > 14 ? 1 : dist < 9 ? -1 : 0;
+      e.strafeT -= dt;
+      if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = rand(2, 4); }
+    }
+    const sp = def.speed * DIFF().speed;
+    mx = nx * sp * want; mz = nz * sp * want;
+    if (k === 'sweeper') { mx += -nz * e.strafe * sp * 0.6; mz += nx * e.strafe * sp * 0.6; }
+    if (e.cd <= 0) {
+      if (k === 'bulwark') e.atk = dist < def.r + 2.4 ? 'bash' : 'throw';
+      else if (k === 'sweeper') e.atk = dist < 5 ? 'stomp' : 'sweep';
+      else e.atk = dist < 6 || Math.random() < 0.5 ? 'stomp' : 'spit';
+      e.wt = { bash: 0.5, throw: 0.8, sweep: 0.9, stomp: 0.8, spit: 0.7 }[e.atk];
+      e.state = 'windup'; e.t = e.wt;
+      sfx.windup(1);
+    }
+  } else if (e.state === 'windup') {
+    w = 1 - e.t / e.wt;
+    if (e.t <= 0) {
+      const head = new V3();
+      e.rig.head.getWorldPosition(head);
+      const eye = playerEye();
+      if (e.atk === 'throw') {
+        const v = eye.clone().setY(eye.y - 0.3).sub(head).normalize().multiplyScalar(10);
+        spawnOrb(head.clone().addScaledVector(v, 0.15), v, 25);
+        const o = orbs[orbs.length - 1];
+        o.big = true;
+        o.m.scale.setScalar(2.2);
+        o.glow.material.color.setHex(0xff5a1a);
+        sfx.orb(1);
+      } else if (e.atk === 'bash') {
+        ringFx(p.clone().addScaledVector(new V3(nx, 0, nz), 1.5), 3, 0xdfe8ff);
+        sfx.punch();
+        if (dist < def.r + 2.8) hurtPlayer(20, new V3(nx * 15, 6, nz * 15));
+      } else if (e.atk === 'sweep') {
+        const c = p.clone();
+        shockwave(c, 12, 40, 25, true);
+        if (e.hp < def.hp * 0.5) setTimeout(() => G.boss === e && shockwave(c, 12, 40, 25, true), 700);
+        sfx.heavySlam(1);
+        G.shake = Math.max(G.shake, 0.5);
+      } else if (e.atk === 'stomp') {
+        const c = p.clone();
+        shockwave(c, 14, 26, 20, false);
+        ringFx(c, 5, 0xff6a2a);
+        burst(c.clone().setY(0.3), 18, 0x8a7a6a, 9, 0.25, 0.8);
+        sfx.heavySlam(1);
+        G.shake = Math.max(G.shake, 0.5);
+        if (dist < 4.5 && P.pos.y - p.y < 1.6) hurtPlayer(25, new V3(nx * 10, 8, nz * 10));
+      } else if (e.atk === 'spit') {
+        const base = Math.atan2(eye.x - head.x, eye.z - head.z);
+        const dy = (eye.y - 0.4 - head.y) / Math.max(1, dist);
+        for (let i = 0; i < 3; i++) {
+          const a = base + (i - 1) * 0.2;
+          const v = new V3(Math.sin(a), dy, Math.cos(a)).normalize().multiplyScalar(15);
+          spawnOrb(head.clone().addScaledVector(v, 0.2), v, 15);
+        }
+        sfx.orb(1);
+      }
+      e.state = 'recover'; e.t = 0.9;
+    }
+  } else if (e.t <= 0) {
+    e.state = 'chase';
+    e.cd = ({ bulwark: 2.2, sweeper: 2.4, kiln: 2.2 }[k] || 2.2) * DIFF().fire;
+  }
+  enemyPhysics(e, mx, mz, dt);
+  const moving = Math.hypot(mx, mz) > 0.5;
+  if (moving) e.walk += dt * 4;
+  animateEnemy(e, dt, moving, w, G.time);
+  applyFlash(e, w);
+}
+function updateRoost(e, dt) {
+  const p = e.mesh.position, def = e.def, room = e.room;
+  const cx = room ? room.cx : 0, cz = room ? room.cz : 0;
+  const eye = playerEye();
+  e.cd -= dt; e.t -= dt;
+  let w = 0;
+  const top = Math.min(G.ceil - 1, 6.5);
+  const moveTo = (tx, ty, tz, sp) => {
+    const d = new V3(tx - p.x, ty - p.y, tz - p.z);
+    const l = d.length();
+    if (l > 0.01) p.addScaledVector(d, Math.min(1, (sp * dt) / l));
+  };
+  if (e.state === 'chase') {
+    e.orbit += dt * 0.6;
+    moveTo(cx + Math.cos(e.orbit) * 8, top, cz + Math.sin(e.orbit) * 8, def.speed);
+    if (e.cd <= 0) {
+      e.atk = Math.random() < 0.45 ? 'land' : 'rain';
+      e.wt = e.atk === 'land' ? 0.6 : 0.7;
+      e.state = 'windup'; e.t = e.wt;
+      sfx.screech(1);
+    }
+  } else if (e.state === 'windup') {
+    w = 1 - e.t / e.wt;
+    if (e.t <= 0) {
+      if (e.atk === 'rain') {
+        for (let i = -1; i <= 1; i++) {
+          const tgt = eye.clone().add(new V3(i * 1.6, -0.4, 0));
+          const v = tgt.sub(p).normalize().multiplyScalar(14);
+          spawnOrb(p.clone().addScaledVector(v, 0.2), v, 15);
+        }
+        sfx.orb(1);
+        e.state = 'recover'; e.t = 0.6;
+      } else {
+        e.state = 'dive';
+        e.diveTarget = new V3(P.pos.x + rand(-2.5, 2.5), 0, P.pos.z + rand(-2.5, 2.5));
+        e.hitDone = false;
+      }
+    }
+  } else if (e.state === 'dive') {
+    moveTo(e.diveTarget.x, 0, e.diveTarget.z, 20);
+    if (!e.hitDone && p.distanceTo(new V3(P.pos.x, P.pos.y + 0.8, P.pos.z)) < 2.2) {
+      e.hitDone = true;
+      if (P.dashT > 0 || P.invuln > 0) addStyle(40, 'DODGE', null, 'cool');
+      else hurtPlayer(15, new V3(P.pos.x - p.x, 0, P.pos.z - p.z).normalize().multiplyScalar(10).setY(6));
+    }
+    if (p.y <= 0.05) {
+      p.y = 0;
+      e.state = 'perch'; e.t = 2.6;
+      shockwave(p.clone(), 10, 12, 15, false);
+      sfx.heavySlam(0.7);
+      G.shake = Math.max(G.shake, 0.4);
+    }
+  } else if (e.state === 'perch') {
+    if (e.t <= 0) { e.state = 'recover'; e.t = 1.0; }
+  } else {
+    moveTo(p.x, top, p.z, 6);
+    if (e.t <= 0) { e.state = 'chase'; e.cd = rand(1.8, 2.8) * DIFF().fire; }
+  }
+  e.vel.multiplyScalar(Math.exp(-dt * 3));
+  p.addScaledVector(e.vel, dt);
+  if (p.y < 0) p.y = 0;
+  enemyCollide(e);
+  e.grounded = p.y < 0.3;
+  e.mesh.rotation.y = Math.atan2(P.pos.x - p.x, P.pos.z - p.z);
+  e.walk += dt;
+  const real = e.state;
+  if (real === 'perch') e.state = 'recover';
+  animateEnemy(e, dt, true, w, G.time);
+  e.state = real;
+  applyFlash(e, w);
+}
+
+applyVariantLook();

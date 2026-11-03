@@ -9,23 +9,27 @@ export const SCENES = [
   {
     id: 0, name: 'THE CELLAR', theme: 'cellar',
     levels: [
-      { id: '0-1', name: 'DAMP WELCOME', par: 120, startHint: 'WASD to move · MOUSE to aim · FIRE to shoot', rooms: [
+      { id: '0-1', name: 'DAMP WELCOME', par: 120, startHint: 'WASD to move · MOUSE to aim · FIRE to shoot · Walk to the FORGE to spend SCRAP', rooms: [
         R(18, 18, ['crates'], ['g2', 'g3'], 'Hit enemies up close to heal'),
         R(22, 20, ['pillars', 'water'], ['g3', 's1 g2'], 'PUNCH the yellow orbs to PARRY them'),
+        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'bulwark', hint: 'TRAINER: parry his big orb back into him' },
       ] },
       { id: '0-2', name: 'DRAINAGE', par: 150, startHint: 'DASH through attacks · SLIDE to keep your speed', rooms: [
         R(20, 24, ['water', 'ruins'], ['g4', 's2 g2']),
         R(26, 18, ['platforms'], ['g3 s1', 'g4 s2'], 'JUMP against a wall to WALL JUMP'),
+        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'sweeper', hint: 'TRAINER: his waves are too tall to jump — DASH through' },
       ] },
       { id: '0-3', name: 'ROOT CELLAR', par: 170, startHint: 'Shoot gargoyles out of the air for AIRSHOTS', rooms: [
         R(22, 22, ['pillars'], ['f2', 'f2 g3']),
         R(18, 28, ['crates', 'water'], ['s2 g2', 'f3 s1'], 'SLIDE in mid-air to GROUND SLAM'),
         R(24, 24, ['platforms'], ['g5 f2']),
+        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'roost', hint: 'TRAINER: get AIRBORNE or GROUND SLAM to hurt her' },
       ] },
-      { id: '0-4', name: 'THE SUMP', par: 200, startHint: 'Shotgun ALT lobs a core. Shoot it with the revolver: COMBO BLAST', rooms: [
+      { id: '0-4', name: 'THE SUMP', par: 200, startHint: 'Need the SHOTGUN? Buy it at the FORGE. Lob a core (ALT) and shoot it: COMBO BLAST', rooms: [
         R(24, 24, ['ruins', 'water'], ['g5', 'h1 g2']),
         R(20, 30, ['pillars'], ['s3 f2', 'g4 s2']),
         R(30, 26, ['platforms', 'crates'], ['h1 g3 f2', 'h1 s3']),
+        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'kiln', hint: 'TRAINER: only a COMBO BLAST cracks the KILN' },
       ] },
       { id: '0-5', name: "WARDEN'S VAULT", par: 260, startHint: 'Something heavy stirs below...', boss: true, rooms: [
         R(22, 22, ['crates'], ['g4 s2', 'f3 g3']),
