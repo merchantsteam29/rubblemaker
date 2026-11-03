@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RUBBLEMAKER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud" class="hidden">
+  <div id="crosshair"><span></span><span></span><span></span><span></span></div>
+  <div id="hitmarker"></div>
+  <div id="charge"><div id="chargeFill"></div></div>
+
+  <div id="topbar">
+    <div id="wave">WAVE 1</div>
+    <div id="score">0</div>
+  </div>
+
+  <div id="style">
+    <div id="rankRow"><div id="rank">D</div><div id="rankName">DESTRUCTIVE</div></div>
+    <div id="styleBar"><div id="styleFill"></div></div>
+    <div id="feed"></div>
+  </div>
+
+  <div id="bottomLeft">
+    <div id="hpWrap"><div id="hpFill"></div><div id="hpText">100</div></div>
+    <div id="pips"><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+  </div>
+
+  <div id="bottomRight">
+    <div id="weaponName">REVOLVER</div>
+    <div id="fresh" class="FRESH">FRESH</div>
+    <div id="weaponSlots"><span data-w="0" class="on">1 REVOLVER</span><span data-w="1">2 SHOTGUN</span><span>F PUNCH</span></div>
+  </div>
+
+  <div id="banner"></div>
+  <div id="hurt"></div>
+</div>
+
+<div id="menu" class="screen">
+  <h1>RUBBLEMAKER</h1>
+  <p class="tag">brick. cobblestone. carnage.</p>
+  <button id="startBtn">CLICK TO START</button>
+  <div class="controls">
+    <div><b>WASD</b> move</div><div><b>MOUSE</b> aim</div>
+    <div><b>LMB</b> fire</div><div><b>RMB</b> alt fire</div>
+    <div><b>1 / 2 / wheel</b> swap</div><div><b>F</b> punch / parry</div>
+    <div><b>SPACE</b> jump / wall jump</div><div><b>SHIFT</b> dash</div>
+    <div><b>CTRL / C</b> slide &middot; in air: slam</div><div><b>ESC</b> pause</div>
+  </div>
+  <div class="tips">
+    Revolver RMB: hold to charge a piercing shot. Shotgun RMB: lob a core &mdash; shoot it with the revolver for a <b>COMBO BLAST</b>.<br>
+    Punch glowing orbs to <b>PARRY</b> them back. Hitting enemies up close heals you. Mix your weapons &mdash; stale moves earn less style.
+  </div>
+  <div id="best"></div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <h1>PAUSED</h1>
+  <button id="resumeBtn">CLICK TO RESUME</button>
+  <label class="sens">Mouse sensitivity <input id="sens" type="range" min="0.2" max="3" step="0.05" value="1"></label>
+</div>
+
+<div id="over" class="screen hidden">
+  <h1>YOU WERE RUBBLED</h1>
+  <div id="overStats"></div>
+  <button id="againBtn">CLICK TO TRY AGAIN</button>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

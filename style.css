@@ -1,0 +1,75 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; color: #f2e6d8; font-family: 'Rubik', sans-serif; user-select: none; }
+#game canvas { display: block; }
+.hidden { display: none !important; }
+
+/* ---------- screens ---------- */
+.screen {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(ellipse at center, rgba(40,18,10,.75), rgba(5,3,2,.95)); z-index: 20; text-align: center; padding: 16px;
+}
+.screen h1 { font-family: 'Bungee', sans-serif; font-size: clamp(42px, 9vw, 120px); letter-spacing: 2px; color: #ff4a1c;
+  text-shadow: 0 0 30px rgba(255,74,28,.55), 6px 6px 0 #3a120a; transform: skew(-6deg); }
+.tag { font-weight: 700; letter-spacing: 6px; text-transform: uppercase; color: #c9a98a; }
+.screen button { font-family: 'Bungee', sans-serif; font-size: 24px; padding: 14px 34px; border: 3px solid #ff4a1c; background: #1c0d08; color: #ffd9c4;
+  cursor: pointer; transform: skew(-6deg); transition: transform .1s, background .1s; }
+.screen button:hover { background: #ff4a1c; color: #1c0d08; transform: skew(-6deg) scale(1.05); }
+.controls { display: grid; grid-template-columns: repeat(2, minmax(150px, 260px)); gap: 6px 26px; text-align: left; font-size: 15px; color: #d8c4b0; }
+.controls b { color: #ffb35c; }
+.tips { max-width: 640px; font-size: 14px; line-height: 1.5; color: #a8907a; }
+.tips b { color: #ffb35c; }
+#best, #overStats { font-family: 'Bungee', sans-serif; color: #ffcf8a; font-size: 20px; line-height: 1.6; }
+.sens { display: flex; gap: 12px; align-items: center; color: #d8c4b0; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#crosshair span { position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+#crosshair span:nth-child(1) { left: -1px; top: -12px; width: 2px; height: 7px; }
+#crosshair span:nth-child(2) { left: -1px; top: 5px; width: 2px; height: 7px; }
+#crosshair span:nth-child(3) { left: -12px; top: -1px; width: 7px; height: 2px; }
+#crosshair span:nth-child(4) { left: 5px; top: -1px; width: 7px; height: 2px; }
+#hitmarker { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0;
+  background: linear-gradient(45deg, transparent 45%, #ff3b1c 45%, #ff3b1c 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #ff3b1c 45%, #ff3b1c 55%, transparent 55%); }
+#hitmarker.head { background: linear-gradient(45deg, transparent 42%, #ffe14a 42%, #ffe14a 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, #ffe14a 42%, #ffe14a 58%, transparent 58%); }
+#charge { position: absolute; left: 50%; top: calc(50% + 22px); width: 60px; height: 4px; margin-left: -30px; background: rgba(0,0,0,.5); opacity: 0; }
+#chargeFill { height: 100%; width: 0; background: #6ad8ff; box-shadow: 0 0 8px #6ad8ff; }
+
+#topbar { position: absolute; top: 16px; left: 0; right: 0; display: flex; justify-content: center; gap: 40px; font-family: 'Bungee', sans-serif; font-size: 22px; text-shadow: 2px 2px 0 #000; }
+#wave { color: #ff8a4a; }
+#score { color: #fff1d6; min-width: 120px; }
+
+#style { position: absolute; right: 22px; top: 70px; width: 330px; padding: 12px 14px; background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.55)); }
+#rankRow { display: flex; align-items: baseline; gap: 12px; justify-content: flex-end; }
+#rank { font-family: 'Bungee', sans-serif; font-size: 64px; line-height: 1; transform: skew(-8deg); text-shadow: 4px 4px 0 #000; transition: color .2s; }
+#rank.top { font-size: 38px; }
+#rank.pop { animation: pop .35s ease-out; }
+@keyframes pop { 0% { transform: skew(-8deg) scale(1.8); } 100% { transform: skew(-8deg) scale(1); } }
+#rankName { font-family: 'Bungee', sans-serif; font-size: 15px; letter-spacing: 1px; opacity: .9; text-shadow: 2px 2px 0 #000; }
+#styleBar { height: 6px; background: rgba(255,255,255,.12); margin: 6px 0 8px; }
+#styleFill { height: 100%; width: 0; background: currentColor; }
+#feed { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-weight: 900; font-size: 16px; text-shadow: 2px 2px 0 #000; }
+#feed div { animation: feedIn .18s ease-out; }
+#feed div.fade { opacity: 0; transition: opacity .5s; }
+#feed .big { color: #ffd23a; } #feed .heal { color: #6dff8f; } #feed .bad { color: #ff4a4a; } #feed .cool { color: #6ad8ff; }
+@keyframes feedIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+#bottomLeft { position: absolute; left: 24px; bottom: 24px; width: 300px; }
+#hpWrap { position: relative; height: 26px; background: rgba(0,0,0,.6); border: 2px solid #5a2a1a; transform: skew(-10deg); }
+#hpFill { height: 100%; width: 100%; background: linear-gradient(90deg, #b3150c, #ff4a1c); transition: width .12s; }
+#hpText { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 10px; font-family: 'Bungee', sans-serif; font-size: 16px; text-shadow: 1px 1px 0 #000; }
+#pips { display: flex; gap: 6px; margin-top: 8px; }
+.pip { width: 60px; height: 8px; background: rgba(0,0,0,.6); border: 1px solid #355; transform: skew(-10deg); overflow: hidden; position: relative; }
+.pip i { position: absolute; left: 0; top: 0; bottom: 0; background: #6ad8ff; box-shadow: 0 0 6px #6ad8ff; }
+
+#bottomRight { position: absolute; right: 24px; bottom: 24px; text-align: right; text-shadow: 2px 2px 0 #000; }
+#weaponName { font-family: 'Bungee', sans-serif; font-size: 28px; }
+#fresh { font-weight: 900; font-size: 15px; letter-spacing: 2px; }
+#fresh.FRESH { color: #6dff8f; } #fresh.USED { color: #ffe14a; } #fresh.STALE { color: #ff9a3a; } #fresh.DULL { color: #ff4a4a; }
+#weaponSlots { display: flex; gap: 12px; justify-content: flex-end; margin-top: 6px; font-size: 13px; font-weight: 700; color: #887; }
+#weaponSlots .on { color: #ffd9c4; }
+
+#banner { position: absolute; left: 0; right: 0; top: 28%; text-align: center; font-family: 'Bungee', sans-serif; font-size: 64px; color: #ff4a1c;
+  text-shadow: 0 0 24px rgba(255,74,28,.6), 4px 4px 0 #000; opacity: 0; transition: opacity .3s; }
+#banner.show { opacity: 1; }
+#hurt { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(200,0,0,.7)); opacity: 0; transition: opacity .25s; }
