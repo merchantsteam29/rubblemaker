@@ -169,7 +169,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
 @keyframes logoShake { 0%,100% { transform: skew(-6deg); } 25% { transform: skew(-6deg) translate(6px, 4px); } 50% { transform: skew(-6deg) translate(-5px, -3px); } 75% { transform: skew(-6deg) translate(3px, 2px); } }
 #menu .ver { font-size: 12px; letter-spacing: 3px; color: #776; margin-top: -12px; }
 #menu > button { animation: menuIn .5s both; animation-delay: 1.2s; }
-#menu > button:nth-of-type(2) { animation-delay: 1.3s; } #menu > button:nth-of-type(3) { animation-delay: 1.4s; }
+#menu > button:nth-of-type(2) { animation-delay: 1.3s; } #menu > .row-buttons { animation: menuIn .5s both; animation-delay: 1.4s; } #menu > button:nth-of-type(3) { animation-delay: 1.4s; }
 @keyframes menuIn { from { opacity: 0; transform: skew(-6deg) translateX(-40px); } to { opacity: 1; transform: skew(-6deg); } }
 
 /* ---------- boss intro card ---------- */
@@ -220,3 +220,54 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
 #cheats .tog { font-family: 'Bungee', sans-serif; padding: 6px 14px; border: 2px solid #5a2a1a; background: #1c0d08; color: #ffd9c4; cursor: pointer; transform: none; }
 #cheats .tog.on { background: #ffd04a; color: #1c0d08; }
 #cheats .hint { font-size: 12px; color: #a8907a; }
+
+/* ---------- controller focus ---------- */
+.padfocus { outline: 3px solid #ffe14a !important; outline-offset: 3px; }
+.screen button.padfocus { background: #ff4a1c; color: #1c0d08; }
+#settings .opt button.padfocus, #settings input.padfocus { outline: 3px solid #ffe14a !important; }
+
+/* ---------- touch controls ---------- */
+#touchUI { position: fixed; inset: 0; z-index: 15; --top: .55; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#tLook { position: absolute; inset: 0; }
+#tStick { position: absolute; width: 24vh; height: 24vh; margin: -12vh 0 0 -12vh; border-radius: 50%; border: 2px solid rgba(255,217,196,.35); background: rgba(0,0,0,.22); display: none; pointer-events: none; }
+#tStick.on { display: block; }
+#tStick i { position: absolute; left: 50%; top: 50%; width: 10vh; height: 10vh; margin: -5vh 0 0 -5vh; border-radius: 50%; background: rgba(255,122,60,.65); }
+#touchUI .tb { position: absolute; border-radius: 50%; border: 2px solid rgba(255,140,90,.85); background: rgba(28,13,8,.6); color: #ffd9c4; font-family: 'Bungee', sans-serif; font-size: 2.6vh; opacity: var(--top); padding: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#touchUI .tb.on { background: rgba(255,74,28,.8); color: #1c0d08; opacity: 1; }
+#touchUI .fire { right: 3vh; bottom: 15vh; width: 21vh; height: 21vh; font-size: 3.6vh; }
+#touchUI .alt { right: 6vh; bottom: 39vh; width: 13vh; height: 13vh; }
+#touchUI .jump { right: 26vh; bottom: 3vh; width: 15vh; height: 15vh; }
+#touchUI .slide { right: 43vh; bottom: 3vh; width: 12.5vh; height: 12.5vh; }
+#touchUI .dash { right: 27vh; bottom: 21vh; width: 13vh; height: 13vh; }
+#touchUI .punch { right: 42vh; bottom: 18vh; width: 12.5vh; height: 12.5vh; }
+#touchUI .swap { right: 22vh; bottom: 37vh; width: 10vh; height: 10vh; font-size: 2vh; }
+#touchUI .arm { right: 34vh; bottom: 34vh; width: 10vh; height: 10vh; font-size: 2vh; }
+#touchUI .use { right: 7vh; bottom: 55vh; width: 11vh; height: 11vh; font-size: 2.2vh; }
+#touchUI .pause { right: 2vh; top: 2vh; width: 9vh; height: 9vh; border-radius: 12px; }
+#touchUI .w { top: 2vh; width: 11vh; height: 7vh; border-radius: 10px; font-size: 1.8vh; }
+#touchUI .w1 { right: 38vh; } #touchUI .w2 { right: 26vh; } #touchUI .w3 { right: 14vh; }
+body.touch #bottomRight { right: auto; left: 50%; transform: translateX(-50%) scale(.62); transform-origin: bottom center; bottom: 4px; text-align: center; }
+body.touch #weaponSlots { justify-content: center; }
+body.touch #bottomLeft { left: 12px; bottom: auto; top: 12px; transform: scale(.8); transform-origin: top left; }
+body.touch #style { transform: scale(.62); transform-origin: top right; top: 12vh; }
+body.touch #topbar { font-size: 15px; top: 8px; }
+body.touch .controls, body.touch .tips { display: none; }
+body.touch #prompt { top: 40%; }
+#rotate { position: fixed; inset: 0; z-index: 40; background: #0b0908; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; font-family: 'Bungee', sans-serif; color: #ff4a1c; font-size: 26px; text-align: center; padding: 20px; }
+#rotate b { font-size: 80px; animation: spinr 2s ease-in-out infinite; }
+#rotate small { font-family: 'Rubik', sans-serif; color: #c9a98a; font-size: 14px; letter-spacing: 2px; }
+@keyframes spinr { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
+
+/* ---------- short screens (phones in landscape) ---------- */
+@media (max-height: 540px) {
+  .screen { gap: 8px; justify-content: flex-start; overflow-y: auto; padding: 10px; }
+  .screen h1 { font-size: 46px; }
+  .screen h2.title { font-size: 30px; }
+  .screen button { font-size: 16px; padding: 8px 20px; }
+  .screen button.sub { font-size: 13px; padding: 6px 14px; }
+  .tips, .controls { display: none; }
+  #settings { padding-top: 8px; }
+  #settings h2 { font-size: 26px; }
+  #settings .panel { max-height: 56vh; }
+  #best, #overStats { font-size: 15px; }
+}
