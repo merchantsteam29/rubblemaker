@@ -380,6 +380,7 @@ export function animateEnemy(e, dt, moving, w, time) {
     r.tail.rotation.x = Math.sin(time * 4 + e.walk) * 0.3;
     r.tail2.rotation.x = Math.sin(time * 4 + e.walk - 0.8) * 0.4;
     r.head.rotation.x = e.state === 'windup' ? -0.3 * w : 0;
+    if (e.flinch) { r.hips.rotation.z = Math.sin(time * 60) * e.flinch * 0.3; e.flinch *= Math.exp(-dt * 7); }
     return;
   }
   if (type === 'grunt') {
@@ -416,6 +417,14 @@ export function animateEnemy(e, dt, moving, w, time) {
     lerp(r.elL, 'x', elx); lerp(r.elR, 'x', elx);
     lerp(r.torso, 'x', tor);
     r.torso.rotation.z = moving ? Math.sin(ph) * 0.05 : 0;
+  }
+  // idle head look + hit flinch (shared by every walker)
+  if (r.head && e.state !== 'windup') r.head.rotation.y = Math.sin(time * 0.8 + e.walk) * 0.18;
+  if (e.flinch) {
+    r.torso.rotation.x -= e.flinch * 0.5;
+    if (r.head) r.head.rotation.x = -e.flinch * 0.5;
+    e.flinch *= Math.exp(-dt * 7);
+    if (e.flinch < 0.01) { e.flinch = 0; if (r.head) r.head.rotation.x = 0; }
   }
 }
 

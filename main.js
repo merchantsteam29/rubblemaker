@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, buildPortal, animateEnemy, buildViewmodels } from './models.js';
 import { LEVELS, SCENES, buildLevel } from './levels.js';
 import { createMusic } from './music.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { settings, ACTIONS, DIFFS, keyLabel, initSettingsUI } from './settings.js';
 
 // =====================================================================
@@ -48,6 +52,7 @@ addEventListener('resize', () => {
   camera.aspect = vmCam.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   vmCam.updateProjectionMatrix();
+  resizeFX();
 });
 
 // ---------------------------------------------------------------- textures
@@ -547,7 +552,7 @@ addEventListener('mousemove', (e) => {
 addEventListener('wheel', () => { if (G.state === 'play' && settings.wheelSwap) switchWeapon(W.cur === 0 ? 1 : 0); });
 
 // ---------------------------------------------------------------- game state
-const G = { mode: 'endless', level: null, levelIdx: 0, layout: null, portal: null, boss: null, styleTotal: 0, dmgTaken: 0, levelTime: 0, styleTarget: 1, spawn: new V3(0, 0, 12), ceil: 11, state: 'menu', wave: 0, toSpawn: [], spawnT: 0, breakT: 0, score: 0, time: 0, kills: 0, hitstop: 0, shake: 0, bestRank: 0, waveActive: false };
+const G = { slow: { t: 0, scale: 1 }, mode: 'endless', level: null, levelIdx: 0, layout: null, portal: null, boss: null, styleTotal: 0, dmgTaken: 0, levelTime: 0, styleTarget: 1, spawn: new V3(0, 0, 12), ceil: 11, state: 'menu', wave: 0, toSpawn: [], spawnT: 0, breakT: 0, score: 0, time: 0, kills: 0, hitstop: 0, shake: 0, bestRank: 0, waveActive: false };
 const P = {
   pos: new V3(0, 0, 12), vel: new V3(), yaw: 0, pitch: 0, hp: 100, grounded: false,
   wallJumps: 3, pips: 3, dashT: 0, dashDir: new V3(), sliding: false, slideDir: new V3(),
@@ -989,6 +994,8 @@ function damageEnemy(e, dmg, info) {
   if (e.def.canHurt && !e.def.canHurt(info)) { blockedFx(e, info.point); return false; }
   e.hp -= dmg;
   e.flash = 0.07;
+  e.flinch = Math.min(1.2, (e.flinch || 0) + dmg / 35);
+  if (settings.gore && info.point && Math.random() < 0.6) bloodSpray(info.point);
   if (e.def.onHurt) e.def.onHurt(e);
   const pt = info.point || e.mesh.position.clone().setY(e.mesh.position.y + e.def.h * 0.6);
   burst(pt, Math.min(12, 3 + (dmg / 8) | 0), 0x9a0e0a, 6, 0.1, 0.5, false, 1, 0.6);
@@ -1011,8 +1018,9 @@ function killEnemy(e, info) {
   burst(c, e.type === 'heavy' ? 34 : 18, e.def.color, 10, 0.3, 1.4, false, 1, 0.6);
   burst(c, 16, 0x8a0a0a, 9, 0.16, 1.0, false, 1, 0.5);
   burst(c, 8, 0xffa04a, 6, 0.08, 0.4, true, 0.2);
-  scene.remove(e.mesh);
-  for (const mt of [...e.mats, ...e.extraMats]) mt.dispose();
+  if (settings.gore) gibEnemy(e, info);
+  else { scene.remove(e.mesh); for (const mt of [...e.mats, ...e.extraMats]) mt.dispose(); }
+  fxFlash(0xffffff, info && info.head ? 0.2 : 0.1);
   sfx.kill();
   G.shake = Math.max(G.shake, e.type === 'heavy' ? 0.35 : 0.15);
 
@@ -1042,6 +1050,7 @@ function hurtPlayer(dmg, knock) {
   G.dmgTaken += dmg;
   P.invuln = 0.15;
   P.hurtFlash = 1;
+  fxShift(0.016); fxFlash(0xff2010, 0.18);
   if (knock) { P.vel.add(knock); if (knock.y > 1) P.grounded = false; }
   loseStyle(110 + dmg * 3);
   pushFeed('-OUCH', 'bad');
@@ -1084,6 +1093,7 @@ function hitmarker(head) {
   head ? sfx.head() : sfx.hit();
 }
 function impactFx(point, normal) {
+  if (normal && settings.gore) decal(point, normal, rand(0.12, 0.2), holeMat);
   const n = normal || UP;
   for (let i = 0; i < 6; i++) {
     const v = n.clone().multiplyScalar(4).add(new V3(rand(-2, 2), rand(0, 3), rand(-2, 2)));
@@ -1247,6 +1257,8 @@ function detonateCore(c, combo) {
 }
 
 function explode(pos, radius, dmg, weapon) {
+  rubble(pos, weapon === 'combo' ? 12 : 7);
+  if (camera.position.distanceTo(pos) < radius * 2.5) fxShift(weapon === 'combo' ? 0.02 : 0.01);
   blastFx(pos, radius, weapon === 'combo' ? 0xffd04a : 0xff7a2a);
   burst(pos, 26, 0xff8a3a, 14, 0.18, 0.6, true, 0.4);
   burst(pos, 16, 0x5a5048, 10, 0.25, 1.2);
@@ -1300,6 +1312,7 @@ function punch() {
       G.hitstop = 0.11;
       heal(25);
       addStyle(100, 'PARRY', null, 'big');
+      fxFlash(0x6ad8ff, 0.3); fxShift(0.01);
       pushFeed('+25 HP', 'heal');
     }
   }
@@ -1369,6 +1382,9 @@ function updateOrbs(dt) {
 
 // ---------------------------------------------------------------- player
 function slamImpact() {
+  rubble(P.pos, 6, 4);
+  fxShift(0.012);
+  P.landDip = 1;
   const fall = P.slamFall;
   const radius = 5 + Math.min(3, fall * 2);
   const dmg = 30 + Math.min(40, fall * 30);
@@ -1474,6 +1490,7 @@ function updatePlayer(dt) {
 
   // move with substeps
   const wasGrounded = P.grounded;
+  const vyBefore = P.vel.y;
   const dx = P.vel.x * dt, dy = P.vel.y * dt, dz = P.vel.z * dt;
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.25));
   let landed = false;
@@ -1492,6 +1509,7 @@ function updatePlayer(dt) {
     P.pos.y = oy;
   }
   P.grounded = landed;
+  if (landed && !wasGrounded && vyBefore < -8) P.landDip = Math.min(1, -vyBefore / 30);
   P.landedT = P.grounded ? (wasGrounded ? (P.landedT || 0) + dt : 0) : 0;
   if (P.grounded) {
     P.wallJumps = 3;
@@ -1519,6 +1537,8 @@ function updateWeapons(dt) {
   if (hit('weapon2')) switchWeapon(1);
   if (hit('swap')) switchWeapon(W.cur === 0 ? 1 : 0);
   if (hit('punch') && W.punchCD <= 0) punch();
+  if (hit('inspect') && !(W.inspectT > 0)) { W.inspectT = 1.6; if (W.cur === 0) W.revSpin = 3; sfx.pump(); }
+  if (down('fire') || down('alt')) W.inspectT = 0;
 
   if (W.cur === 0) {
     const v = W.variant[0];
@@ -1553,12 +1573,22 @@ function updateViewmodel(dt) {
   const b = g.userData.base;
   const bb = settings.viewBob ? 1 : 0;
   const bobX = Math.sin(P.bob) * 0.012 * bb, bobY = Math.abs(Math.cos(P.bob)) * 0.014 * bb;
+  W.inspectT = Math.max(0, (W.inspectT || 0) - dt);
+  const ip = W.inspectT > 0 ? Math.sin((1 - W.inspectT / 1.6) * Math.PI) : 0;
+  const eq = clamp(W.switchT / 0.18, 0, 1);
+  const pk = W.punchT > 0 ? Math.sin((1 - W.punchT / 0.26) * Math.PI) : 0;
+  const breathe = Math.sin(G.time * 1.7) * 0.004;
+  const dip = (P.landDip || 0);
   g.position.set(
-    b.x + bobX - swayX * 0.0004,
-    b.y - bobY - W.switchT * 2 + swayY * 0.0004 - (P.sliding ? 0.03 : 0),
-    b.z + W.kick * 0.06,
+    b.x + bobX - swayX * 0.0004 - ip * 0.12 + pk * 0.03,
+    b.y - bobY - eq * 0.38 + swayY * 0.0004 - (P.sliding ? 0.03 : 0) + breathe - dip * 0.07 + ip * 0.05 - pk * 0.06,
+    b.z + W.kick * 0.06 + ip * 0.06,
   );
-  g.rotation.set(W.kick * 0.18, -swayX * 0.0006, P.sliding ? 0.15 : 0);
+  g.rotation.set(
+    W.kick * 0.18 + eq * 1.1 - ip * 0.25 + dip * 0.15,
+    -swayX * 0.0006 + ip * 1.3,
+    (P.sliding ? 0.15 : 0) + eq * 0.7 + W.kick * (W.cur === 0 ? 0.09 : 0.03) + (P.dashT > 0 ? 0.22 : 0) + ip * 0.5 - pk * 0.25,
+  );
   if (W.cur === 0 && W.charging) {
     g.position.x += rand(-1, 1) * 0.003 * W.charge;
     g.position.y += rand(-1, 1) * 0.003 * W.charge;
@@ -1583,7 +1613,7 @@ function updateViewmodel(dt) {
   W.punchT -= dt;
   const k = W.punchT > 0 ? Math.sin((1 - W.punchT / 0.26) * Math.PI) : 0;
   arm.position.lerpVectors(arm.userData.rest, arm.userData.hit, k);
-  arm.rotation.set(k * 0.2, k * 0.25, 0);
+  arm.rotation.set(k * 0.25, k * 0.35, -k * 0.55);
   arm.visible = k > 0.01;
 }
 
@@ -1635,6 +1665,7 @@ function updateWaves(dt) {
     addStyle(100, 'WAVE CLEAR', null, 'big');
     pushFeed('+30 HP', 'heal');
     banner('WAVE CLEAR');
+    killCam(0.6, 0.3);
   }
 }
 let bannerT = 0;
@@ -1722,7 +1753,10 @@ function update(dt) {
   G.shake *= Math.exp(-dt * 7);
   const sh = G.shake * 0.25 * settings.shake;
   camera.position.x += rand(-sh, sh); camera.position.y += rand(-sh, sh); camera.position.z += rand(-sh, sh);
-  camera.rotation.set(P.pitch, P.yaw, P.roll);
+  P.landDip = (P.landDip || 0) * Math.exp(-dt * 7);
+  camera.position.y -= P.landDip * 0.28;
+  camera.rotation.set(P.pitch - P.landDip * 0.05, P.yaw, P.roll);
+  updateFov(dt);
   camera.updateMatrixWorld();
 
   updateWeapons(dt);
@@ -1768,26 +1802,21 @@ function frame(now) {
   if (G.state === 'play') {
     let gdt = dt;
     if (G.hitstop > 0) { G.hitstop -= dt; gdt = dt * 0.05; }
+    if (G.slow.t > 0) { G.slow.t -= dt; gdt *= G.slow.scale; }
     update(gdt);
     updateParts(gdt);
+    updateDebris(gdt);
     updateTracers(dt);
     updateBlasts(gdt);
     updateViewmodel(dt);
     updateHUD();
   } else if (menuish()) {
-    const t = now / 1000;
-    camera.position.set(Math.sin(t * 0.1) * 22, 7, Math.cos(t * 0.1) * 22);
-    camera.lookAt(0, 2, 0);
+    updateMenuScene(dt, now / 1000);
   }
   updateAmbient(dt, now / 1000);
   pressed.clear(); released.clear();
   updateFPS(now);
-  renderer.clear();
-  renderer.render(scene, camera);
-  if (!menuish()) {
-    renderer.clearDepth();
-    renderer.render(vmScene, vmCam);
-  }
+  renderFrame(dt);
 }
 requestAnimationFrame(frame);
 
@@ -1817,6 +1846,10 @@ function resetGame() {
   show('bossBar', false);
   $('hint').classList.remove('show');
   for (const k in fresh) fresh[k] = 1;
+  clearGore();
+  clearMenuCrowd();
+  G.slow = { t: 0, scale: 1 };
+  $('intro').classList.add('hidden');
   ui.rank = -1; ui.hp = -1;
   W.cur = 1; switchWeapon(0);
   normalizeLoadout();
@@ -1947,7 +1980,7 @@ function applyCrosshair() {
 }
 function applySetting(k) {
   if (k === 'fov') { camera.fov = settings.fov; camera.updateProjectionMatrix(); }
-  if (k === 'quality') applyQuality();
+  if (k === 'quality') { applyQuality(); resizeFX(); }
   if (k === 'master' || k === 'sfx') { initAudio(); applyVolume(); sfx.hit(); }
   if (k.startsWith('cross')) applyCrosshair();
   if (k === 'showFPS') show('fps', settings.showFPS);
@@ -2333,8 +2366,8 @@ function spawnBoss(room) {
   G.boss = e;
   $('bossName').textContent = def.name;
   show('bossBar', true);
-  banner(def.short);
-  if (def.hint) showHint(def.hint);
+  showIntro(type);
+  setTimeout(() => { if (def.hint && G.boss === e) showHint(def.hint); }, 2400);
   sfx.bossRoar();
   G.shake = Math.max(G.shake, 0.6);
 }
@@ -2343,6 +2376,8 @@ function updateBossBar() {
   $('bossFill').style.width = `${clamp(G.boss.hp / G.boss.def.hp, 0, 1) * 100}%`;
 }
 function bossDefeated(e) {
+  killCam(1.8, 0.12);
+  fxShift(0.03);
   G.boss = null;
   hideBeam();
   show('bossBar', false);
@@ -2399,6 +2434,7 @@ function clearRoom(r) {
     spawnPortal(r.cx, r.cz);
   } else {
     addStyle(120, 'ROOM CLEAR', null, 'big');
+    killCam(0.8, 0.22);
     heal(20);
     pushFeed('+20 HP', 'heal');
     banner('ROOM CLEAR');
@@ -2577,6 +2613,7 @@ function toMenu() {
   for (const id of ['pause', 'hud', 'over', 'complete', 'levels', 'settings']) show(id, false);
   show('menu', true);
   renderBest();
+  spawnMenuCrowd();
 }
 function menuish() {
   return G.state === 'menu' || G.state === 'levels' || (G.state === 'settings' && settingsFrom === 'menu');
@@ -3129,3 +3166,290 @@ function respawnCheckpoint() {
   enterPlay();
   banner('CHECKPOINT');
 }
+
+// ================================================================ POST FX (chromatic shake, flashes, kill-cam grade)
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+const mainPass = new RenderPass(scene, camera);
+const vmPass = new RenderPass(vmScene, vmCam);
+vmPass.clear = false; vmPass.clearDepth = true;
+const FXPass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uShift: { value: 0 }, uFlash: { value: new THREE.Vector4(1, 1, 1, 0) }, uDesat: { value: 0 }, uVig: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uShift, uDesat, uVig; uniform vec4 uFlash; varying vec2 vUv;
+    void main(){
+      vec2 d = vUv - 0.5; vec2 off = d * uShift;
+      vec3 c = vec3(texture2D(tDiffuse, vUv + off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - off).b);
+      c = min(c, vec3(1.15));
+      float l = dot(c, vec3(0.299, 0.587, 0.114));
+      c = mix(c, vec3(l) * vec3(1.05, 0.95, 0.85), uDesat);
+      c *= 1.0 - uVig * smoothstep(0.2, 0.75, length(d));
+      c = mix(c, uFlash.rgb, uFlash.a);
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+composer.addPass(mainPass); composer.addPass(vmPass); composer.addPass(FXPass); composer.addPass(new OutputPass());
+const FXS = { shift: 0, flash: new THREE.Vector4(1, 1, 1, 0), desat: 0, vig: 0 };
+function resizeFX() { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight); }
+resizeFX();
+function fxShift(v) { if (settings.effects) FXS.shift = Math.max(FXS.shift, v); }
+function fxFlash(hex, a) {
+  if (!settings.effects) return;
+  const c = new THREE.Color(hex);
+  if (a >= FXS.flash.w) FXS.flash.set(c.r, c.g, c.b, a);
+}
+function renderFrame(dt) {
+  FXS.shift *= Math.exp(-dt * 9);
+  FXS.flash.w *= Math.exp(-dt * 9);
+  const slow = G.slow.t > 0;
+  FXS.desat += ((slow ? 0.6 : 0) - FXS.desat) * (1 - Math.exp(-dt * 10));
+  FXS.vig += ((slow ? 0.7 : P.hp < 30 && G.state === 'play' ? 0.35 : 0.15) - FXS.vig) * (1 - Math.exp(-dt * 6));
+  const showVM = !menuish();
+  if (!settings.effects || settings.quality === 'low') {
+    renderer.clear();
+    renderer.render(scene, camera);
+    if (showVM) { renderer.clearDepth(); renderer.render(vmScene, vmCam); }
+    return;
+  }
+  vmPass.enabled = showVM;
+  FXPass.uniforms.uShift.value = FXS.shift;
+  FXPass.uniforms.uFlash.value.copy(FXS.flash);
+  FXPass.uniforms.uDesat.value = FXS.desat;
+  FXPass.uniforms.uVig.value = FXS.vig;
+  composer.render();
+}
+function killCam(t, scale) {
+  if (!settings.killcam) return;
+  G.slow = { t, scale };
+  fxFlash(0xffffff, 0.22);
+}
+function updateFov(dt) {
+  const target = settings.fov + (P.dashT > 0 ? 10 : 0) + (P.sliding ? 6 : 0) + (G.slow.t > 0 ? -10 : 0);
+  const nf = camera.fov + (target - camera.fov) * (1 - Math.exp(-dt * 10));
+  if (Math.abs(nf - camera.fov) > 0.01) { camera.fov = nf; camera.updateProjectionMatrix(); }
+}
+
+// ================================================================ GORE, RUBBLE & DECALS
+function splatTexture(kind) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  if (kind === 'hole') {
+    const gr = g.createRadialGradient(64, 64, 4, 64, 64, 60);
+    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.35, 'rgba(20,16,14,.9)'); gr.addColorStop(1, 'rgba(20,16,14,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  } else {
+    g.fillStyle = 'rgba(90,6,6,0.95)';
+    g.beginPath(); g.arc(64, 64, 26 + Math.random() * 10, 0, 7); g.fill();
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * 7, d = 20 + Math.random() * 38, r = 3 + Math.random() * 9;
+      g.fillStyle = `rgba(${70 + Math.random() * 40},4,4,${0.7 + Math.random() * 0.3})`;
+      g.beginPath(); g.arc(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, r, 0, 7); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const decalGeo = new THREE.PlaneGeometry(1, 1);
+const mkDecal = (tex) => new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.4, metalness: 0.1 });
+const bloodMats = [0, 1, 2].map(() => mkDecal(splatTexture('blood')));
+const holeMat = mkDecal(splatTexture('hole'));
+const decals = [];
+function decal(point, normal, size, mat) {
+  const m = new THREE.Mesh(decalGeo, mat);
+  m.position.copy(point).addScaledVector(normal, 0.02 + decals.length * 0.00005);
+  m.lookAt(tmpV.copy(point).add(normal));
+  m.rotateZ(Math.random() * 6.28);
+  m.scale.setScalar(size);
+  m.receiveShadow = true;
+  scene.add(m);
+  decals.push(m);
+  if (decals.length > 220) scene.remove(decals.shift());
+}
+function bloodSpray(point, from) {
+  const dir = point.clone().sub(from || camera.position).normalize();
+  ray.set(point.clone().addScaledVector(dir, 0.3), dir); ray.far = 5;
+  const h = ray.intersectObjects(worldMeshes, false)[0];
+  if (h && h.face) decal(h.point, h.face.normal.clone().transformDirection(h.object.matrixWorld), rand(0.5, 1.2), bloodMats[(Math.random() * 3) | 0]);
+}
+function bloodPool(center, n, size) {
+  for (let i = 0; i < n; i++) {
+    const p = center.clone().add(new V3(rand(-1.2, 1.2), 0.5, rand(-1.2, 1.2)));
+    ray.set(p, new V3(0, -1, 0)); ray.far = 12;
+    const h = ray.intersectObjects(worldMeshes, false)[0];
+    if (h) decal(h.point, UP, size * rand(0.6, 1.3), bloodMats[(Math.random() * 3) | 0]);
+  }
+}
+
+// physics debris: detached enemy limbs, toppling bodies, and rubble chunks that stay on the floor
+const debris = [];
+const rubbleGeo = new THREE.DodecahedronGeometry(1, 0);
+const rubbleMats = [0x6a625a, 0x7a3424, 0x4a4440].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, flatShading: true }));
+function floorAt(x, z, y) {
+  let fy = -50;
+  for (const s of solids) {
+    if (!s.active) continue;
+    if (x > s.min.x && x < s.max.x && z > s.min.z && z < s.max.z && s.max.y <= y + 0.4) fy = Math.max(fy, s.max.y);
+  }
+  return fy;
+}
+function addDebris(obj, vel, spin, owner, kind = 'piece', rad = 0.15) {
+  scene.attach(obj);
+  debris.push({ obj, vel, spin, owner, kind, rad, rest: false, tip: 0, tipDir: Math.random() < 0.5 ? -1 : 1 });
+  if (owner) owner.refs++;
+  while (debris.length > 90) removeDebris(debris[0]);
+}
+function removeDebris(d) {
+  const i = debris.indexOf(d);
+  if (i >= 0) debris.splice(i, 1);
+  scene.remove(d.obj);
+  if (d.owner && --d.owner.refs <= 0) for (const mt of d.owner.mats) mt.dispose();
+}
+function updateDebris(dt) {
+  for (const d of debris) {
+    if (d.rest) continue;
+    const o = d.obj;
+    if (d.kind === 'body') {
+      // a corpse: slides with its knockback and topples over around its feet
+      d.vel.y -= 25 * dt;
+      o.position.addScaledVector(d.vel, dt);
+      const fy = floorAt(o.position.x, o.position.z, o.position.y);
+      if (o.position.y <= fy) { o.position.y = fy; d.vel.y = 0; d.vel.x *= Math.exp(-dt * 5); d.vel.z *= Math.exp(-dt * 5); }
+      d.tip = Math.min(1, d.tip + dt * (1.2 + d.tip * 3));
+      o.rotation.x = d.baseX + d.tipDir * d.tip * Math.PI / 2;
+      if (d.tip >= 1 && Math.hypot(d.vel.x, d.vel.z) < 0.3) { d.rest = true; burst(o.position.clone().setY(o.position.y + 0.2), 6, 0x6a625a, 3, 0.12, 0.6); }
+      continue;
+    }
+    d.vel.y -= 25 * dt;
+    o.position.addScaledVector(d.vel, dt);
+    o.rotation.x += d.spin.x * dt; o.rotation.y += d.spin.y * dt; o.rotation.z += d.spin.z * dt;
+    const p = o.position;
+    if (overlapBox(p.x - 0.05, p.y + 0.05, p.z - 0.05, p.x + 0.05, p.y + 0.2, p.z + 0.05)) { d.vel.x *= -0.3; d.vel.z *= -0.3; }
+    const fy = floorAt(p.x, p.z, p.y) + d.rad;
+    if (p.y < fy) {
+      p.y = fy;
+      d.vel.y *= -0.3; d.vel.x *= 0.6; d.vel.z *= 0.6; d.spin.multiplyScalar(0.6);
+      if (Math.abs(d.vel.y) < 1 && Math.hypot(d.vel.x, d.vel.z) < 0.4) d.rest = true;
+    }
+    if (p.y < -30) removeDebris(d);
+  }
+}
+function rubble(pos, n, spread = 6) {
+  if (!settings.gore) return;
+  for (let i = 0; i < n; i++) {
+    const s = rand(0.08, 0.26);
+    const m = new THREE.Mesh(rubbleGeo, rubbleMats[(Math.random() * 3) | 0]);
+    m.scale.setScalar(s);
+    m.castShadow = true;
+    m.position.copy(pos).add(new V3(rand(-0.6, 0.6), rand(0.2, 0.8), rand(-0.6, 0.6)));
+    scene.add(m);
+    addDebris(m, new V3(rand(-1, 1) * spread, rand(3, 9), rand(-1, 1) * spread), new V3(rand(-8, 8), rand(-8, 8), rand(-8, 8)), null, 'piece', s * 0.7);
+  }
+}
+function gibEnemy(e, info) {
+  const owner = { mats: [...e.mats, ...e.extraMats], refs: 0 };
+  for (const mt of e.mats) { mt.emissiveIntensity = 0.05; mt.color.multiplyScalar(0.6); }
+  const knock = info && info.knock ? info.knock.clone() : new V3();
+  const kd = knock.lengthSq() > 0 ? knock.normalize() : new V3();
+  e.mesh.updateMatrixWorld(true);
+  const r = e.rig;
+  const pieces = ['head', 'elL', 'elR', 'kneeL', 'kneeR', 'w2L', 'w2R', 'tail2'].map((k) => r[k]).filter((p) => p && p.parent);
+  const violent = info && (info.combo || info.weapon === 'shotgun' || info.weapon === 'slam' || e.hp < -e.def.hp * 0.5);
+  const sc = e.baseScale || 1;
+  for (const p of pieces) {
+    if (!violent && Math.random() < 0.5 && p !== r.head) continue;
+    const v = kd.clone().multiplyScalar(rand(3, 8)).add(new V3(rand(-3, 3), rand(4, 9), rand(-3, 3)));
+    addDebris(p, v, new V3(rand(-12, 12), rand(-12, 12), rand(-12, 12)), owner, 'piece', 0.12 * sc);
+  }
+  const body = e.mesh;
+  addDebris(body, kd.clone().multiplyScalar(4).setY(e.def.fly ? 0 : 2), new V3(), owner, 'body');
+  const d = debris[debris.length - 1];
+  d.baseX = body.rotation.x;
+  if (e.def.fly) d.vel.y = 0;
+  const c = body.position.clone(); c.y += e.def.h * 0.5;
+  bloodPool(c, 3 + (violent ? 3 : 0), e.def.boss ? 3 : 1.4);
+  for (let i = 0; i < 4; i++) bloodSpray(c, c.clone().add(new V3(rand(-1, 1), rand(-0.5, 0.5), rand(-1, 1))));
+}
+function clearGore() {
+  for (const d of debris.slice()) removeDebris(d);
+  for (const m of decals) scene.remove(m);
+  decals.length = 0;
+}
+
+// ================================================================ BOSS INTRO CARDS
+const EPITHETS = {
+  boss1: ['SCENE 0 BOSS', 'WARDEN OF THE CELLAR'],
+  boss2: ['SCENE 1 BOSS', 'ARCHITECT OF RUIN'],
+  bulwark: ['TRAINER', 'LESSON I · THE PARRY'],
+  sweeper: ['TRAINER', 'LESSON II · THE DASH'],
+  roost: ['TRAINER', 'LESSON III · THE AIR'],
+  kiln: ['TRAINER', 'LESSON IV · THE COMBO BLAST'],
+};
+let introT = 0;
+function showIntro(type) {
+  const def = DEFS[type];
+  const [kind, epi] = EPITHETS[type] || ['', ''];
+  const el = $('intro');
+  el.querySelector('.kind').textContent = kind;
+  el.querySelector('.name').textContent = def.short;
+  el.querySelector('.epi').textContent = epi;
+  el.classList.remove('hidden', 'play');
+  void el.offsetWidth;
+  el.classList.add('play');
+  G.slow = { t: 2.0, scale: 0.15 };
+  clearTimeout(introT);
+  introT = setTimeout(() => el.classList.add('hidden'), 2600);
+}
+
+// ================================================================ TITLE SCREEN: logo + live attract scene
+function buildLogo() {
+  const h = document.querySelector('#menu h1');
+  const text = h.textContent;
+  h.innerHTML = [...text].map((ch, i) => `<span style="--i:${i}">${ch}</span>`).join('');
+  h.classList.add('logo');
+}
+const menuCrowd = [];
+function clearMenuCrowd() {
+  for (const c of menuCrowd) { scene.remove(c.mesh); for (const mt of c.mats) mt.dispose(); }
+  menuCrowd.length = 0;
+}
+function spawnMenuCrowd() {
+  clearMenuCrowd();
+  ['grunt', 'grunt', 'shooter', 'heavy', 'flyer', 'flyer', 'grunt', 'shooter'].forEach((t, i) => {
+    const md = buildEnemyModel(t, DEFS[t].color);
+    const a = (i / 8) * Math.PI * 2;
+    md.root.position.set(Math.cos(a) * 15, t === 'flyer' ? 5 : 0, Math.sin(a) * 15);
+    scene.add(md.root);
+    menuCrowd.push({ type: t, def: DEFS[t], mesh: md.root, rig: md.rig, mats: md.mats, orb: md.orb, walk: rand(0, 6), state: 'chase', t: rand(0, 2), wt: 0, target: new V3(rand(-20, 20), 0, rand(-20, 20)), animType: null, alt: rand(4, 7) });
+  });
+}
+function updateMenuScene(dt, t) {
+  camera.position.set(Math.sin(t * 0.06) * 25, 6 + Math.sin(t * 0.2) * 1.2, Math.cos(t * 0.06) * 25);
+  camera.lookAt(Math.sin(t * 0.05) * 5, 2.4, Math.cos(t * 0.04) * 3);
+  for (const c of menuCrowd) {
+    c.t -= dt;
+    if (c.t <= 0) {
+      c.target.set(rand(-26, 26), 0, rand(-26, 26));
+      c.t = rand(3, 7);
+      if (Math.random() < 0.35) { c.state = 'windup'; c.wt = 0.8; }
+    }
+    let w = 0, moving = false;
+    if (c.state === 'windup') { c.wt -= dt; w = 1 - c.wt / 0.8; if (c.wt <= 0) { c.state = 'recover'; c.wt = 0.5; } }
+    else if (c.state === 'recover') { c.wt -= dt; if (c.wt <= 0) c.state = 'chase'; }
+    else {
+      const p = c.mesh.position;
+      const dx = c.target.x - p.x, dz = c.target.z - p.z, d = Math.hypot(dx, dz);
+      if (d > 0.5) {
+        const sp = c.def.speed * 0.35;
+        p.x += (dx / d) * sp * dt; p.z += (dz / d) * sp * dt;
+        c.mesh.rotation.y = Math.atan2(dx, dz);
+        moving = true;
+      }
+      if (c.def.fly) p.y = c.alt + Math.sin(t * 1.5 + c.walk) * 0.5;
+    }
+    c.walk += dt * c.def.speed * (moving ? 1.6 : 0.2);
+    if (c.orb) c.orb.scale.setScalar(0.08 + w * 0.2);
+    animateEnemy(c, dt, moving, w, t);
+  }
+}
+
+buildLogo();
+spawnMenuCrowd();

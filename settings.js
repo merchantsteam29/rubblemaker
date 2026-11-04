@@ -17,6 +17,7 @@ export const ACTIONS = [
   ['weapon2', 'Shotgun', ['Digit2']],
   ['swap', 'Swap weapon', ['KeyQ']],
   ['interact', 'Use (FORGE)', ['KeyE']],
+  ['inspect', 'Inspect weapon', ['KeyR']],
 ];
 
 export const DIFFS = {
@@ -28,7 +29,7 @@ export const DIFFS = {
 const defaultBinds = () => Object.fromEntries(ACTIONS.map(([id, , b]) => [id, b.slice()]));
 export const DEFAULTS = {
   sens: 1, invertY: false, wheelSwap: true,
-  fov: 95, quality: 'high', shake: 1, viewBob: true, fullscreen: true,
+  fov: 95, quality: 'high', shake: 1, viewBob: true, fullscreen: true, effects: true, killcam: true, gore: true,
   master: 0.8, sfx: 0.8, music: 0.6,
   crosshair: 'cross', crossColor: '#ffffff', crossSize: 1, difficulty: 'normal', showFPS: false, hitmarkers: true,
   binds: defaultBinds(),
@@ -93,8 +94,8 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.back').addEventListener('click', () => { stopCapture(); onBack(); });
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
-      CONTROLS: ['binds'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob', 'fullscreen'],
-      AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers'],
+      CONTROLS: ['binds'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
+      AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers', 'gore'],
     }[tab];
     for (const k of keysFor) { settings[k] = structuredClone(DEFAULTS[k]); onChange(k); }
     saveSettings(); render();
@@ -154,6 +155,8 @@ export function initSettingsUI(root, onChange, onBack) {
       panel.appendChild(slider('Screen shake', 'shake', 0, 2, 0.05, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(toggle('View bob', 'viewBob'));
       panel.appendChild(toggle('Fullscreen + key lock (stops Ctrl+W closing the tab)', 'fullscreen'));
+      panel.appendChild(toggle('Screen effects (flashes, chromatic shake)', 'effects'));
+      panel.appendChild(toggle('Slow-mo kill-cam', 'killcam'));
     } else if (tab === 'AUDIO') {
       panel.appendChild(slider('Master volume', 'master', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(slider('Sound effects', 'sfx', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
@@ -165,6 +168,7 @@ export function initSettingsUI(root, onChange, onBack) {
       panel.appendChild(slider('Crosshair size', 'crossSize', 0.5, 2.5, 0.05, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(toggle('Hitmarkers', 'hitmarkers'));
       panel.appendChild(toggle('Show FPS', 'showFPS'));
+      panel.appendChild(toggle('Gore, blood & rubble', 'gore'));
     }
   }
 
