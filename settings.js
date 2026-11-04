@@ -15,15 +15,18 @@ export const ACTIONS = [
   ['punch', 'Punch / parry', ['KeyF']],
   ['weapon1', 'Revolver', ['Digit1']],
   ['weapon2', 'Shotgun', ['Digit2']],
+  ['weapon3', 'Nailgun', ['Digit3']],
   ['swap', 'Swap weapon', ['KeyQ']],
+  ['arm', 'Switch arm', ['KeyG']],
   ['interact', 'Use (FORGE)', ['KeyE']],
   ['inspect', 'Inspect weapon', ['KeyR']],
 ];
 
 export const DIFFS = {
-  easy: { label: 'EASY', dmg: 0.6, speed: 0.9, fire: 1.3 },
-  normal: { label: 'NORMAL', dmg: 1, speed: 1, fire: 1 },
-  hard: { label: 'HARD', dmg: 1.5, speed: 1.15, fire: 0.8 },
+  easy: { label: 'EASY', dmg: 0.6, speed: 0.9, fire: 1.3, hp: 0.8, scrap: 0.75 },
+  normal: { label: 'NORMAL', dmg: 1, speed: 1, fire: 1, hp: 1, scrap: 1 },
+  hard: { label: 'HARD', dmg: 1.5, speed: 1.15, fire: 0.8, hp: 1.15, scrap: 1.25 },
+  brutal: { label: 'BRUTAL', dmg: 2.1, speed: 1.28, fire: 0.62, hp: 1.35, scrap: 1.6 },
 };
 
 const defaultBinds = () => Object.fromEntries(ACTIONS.map(([id, , b]) => [id, b.slice()]));

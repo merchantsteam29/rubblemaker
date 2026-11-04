@@ -678,8 +678,74 @@ export function buildViewmodels(GLOW) {
   m(C(0.02, 0.02, 0.012, 8), shotAccent, saw, 0, 0, 0, 0, 0, HP);
   const shotVariants = [furnaceG, overG, sawG];
 
-  for (const g of [revolver, shotgun, arm]) bake(g);
-  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw };
+  // ---- NAILGUN: triple-barrel rotary with a drum and heat vents
+  const nailAccent = new THREE.MeshStandardMaterial({ color: 0x221a10, emissive: 0xffb02a, emissiveIntensity: 1.2 });
+  const nailgun = new THREE.Group();
+  m(B(0.1, 0.11, 0.26), dsteel, nailgun, 0, 0.0, 0.0);
+  m(B(0.08, 0.03, 0.3), steel, nailgun, 0, 0.068, -0.04);
+  for (let i = 0; i < 3; i++) m(B(0.104, 0.012, 0.03), nailAccent, nailgun, 0, 0.02 - i * 0.025, 0.06);
+  m(C(0.06, 0.06, 0.06, 10), dsteel, nailgun, 0, 0.01, -0.15, HP);
+  const nailSpin = pivot(nailgun, 'spin', 0, 0.01, -0.3);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    m(C(0.016, 0.016, 0.3, 8), steel, nailSpin, Math.cos(a) * 0.03, Math.sin(a) * 0.03, 0, HP);
+    m(C(0.02, 0.02, 0.02, 8), black, nailSpin, Math.cos(a) * 0.03, Math.sin(a) * 0.03, -0.15, HP);
+  }
+  m(C(0.05, 0.05, 0.02, 10), dsteel, nailSpin, 0, 0, -0.1, HP);
+  m(C(0.07, 0.07, 0.07, 12), brass, nailgun, 0, -0.08, -0.05, 0, 0, HP);             // drum
+  m(C(0.072, 0.072, 0.02, 12), dsteel, nailgun, 0, -0.08, -0.05, 0, 0, HP);
+  m(B(0.05, 0.13, 0.07), wood, nailgun, 0, -0.1, 0.1, -0.3);
+  m(B(0.06, 0.08, 0.18), dsteel, nailgun, 0, 0.0, 0.2, 0.1);
+  gripHand(nailgun, 0, -0.1, 0.11, -0.3);
+  const nailFlash = flashSprite(-0.48, 0.3); nailgun.add(nailFlash);
+  const lodeG = pivot(nailgun, 'lode');
+  const red = new THREE.MeshStandardMaterial({ color: 0xc81e1e, roughness: 0.4, metalness: 0.4 });
+  m(T(0.035, 0.012, 6, 12, Math.PI), red, lodeG, 0, 0.1, -0.02, 0, HP, 0);
+  mirror((sd) => m(B(0.024, 0.02, 0.024), steel, lodeG, 0, 0.088, -0.02 + sd * 0.035));
+  const scorchG = pivot(nailgun, 'scorch');
+  for (let i = 0; i < 5; i++) m(B(0.13, 0.04, 0.006), dsteel, scorchG, 0, 0.0, -0.12 - i * 0.018);
+  m(T(0.06, 0.008, 4, 12), nailAccent, scorchG, 0, 0.01, -0.2);
+  const skipG = pivot(nailgun, 'skip');
+  mirror((sd) => m(B(0.008, 0.08, 0.18), steel, skipG, sd * 0.065, 0.02, -0.1, 0, sd * 0.15, 0));
+  const nailVariants = [lodeG, scorchG, skipG];
+  nailgun.userData.base = new THREE.Vector3(0.25, -0.26, -0.52);
+  nailgun.visible = false;
+
+  // ---- ARM VARIANTS (same rest / hit poses as the gauntlet)
+  const glass = new THREE.MeshStandardMaterial({ color: 0x9ae8ff, emissive: 0x2a8ac0, emissiveIntensity: 0.8, transparent: true, opacity: 0.8, metalness: 0.2, roughness: 0.1 });
+  const shockGlow = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xff8a2a, emissiveIntensity: 1.5 });
+  const mkArmBase = () => {
+    const g = new THREE.Group();
+    m(C(0.075, 0.082, 0.3, 8), sleeve, g, 0, 0, 0.38, HP);
+    for (let i = 0; i < 3; i++) m(B(0.14, 0.13, 0.09), armorRed, g, 0, 0.005, 0.25 - i * 0.08);
+    m(C(0.08, 0.08, 0.04, 8), brass, g, 0, 0, -0.03, HP);
+    g.userData.rest = arm.userData.rest.clone(); g.userData.hit = arm.userData.hit.clone();
+    g.position.copy(g.userData.rest);
+    g.visible = false;
+    return g;
+  };
+  const armBlade = mkArmBase();
+  m(B(0.12, 0.1, 0.1), glove, armBlade, 0, 0, -0.1);
+  m(B(0.03, 0.03, 0.12), brass, armBlade, 0, 0.06, -0.12);
+  m(B(0.018, 0.07, 0.6), glass, armBlade, 0, 0.06, -0.45);
+  m(K(0.035, 0.12, 4), glass, armBlade, 0, 0.06, -0.8, -HP, 0, Math.PI / 4);
+  const armShock = mkArmBase();
+  m(B(0.22, 0.2, 0.2), dsteel, armShock, 0, 0, -0.12);
+  m(B(0.24, 0.06, 0.06), shockGlow, armShock, 0, 0.08, -0.2);
+  for (let i = 0; i < 4; i++) m(B(0.05, 0.05, 0.06), armorRed, armShock, -0.075 + i * 0.05, 0.02, -0.24);
+  m(C(0.05, 0.05, 0.03, 6), shockGlow, armShock, 0, 0.11, -0.08);
+  mirror((sd) => m(C(0.02, 0.02, 0.2, 6), steel, armShock, sd * 0.11, -0.04, 0.05, HP));
+  const armGrapple = mkArmBase();
+  m(B(0.12, 0.1, 0.1), glove, armGrapple, 0, 0, -0.08);
+  m(C(0.03, 0.035, 0.22, 8), dsteel, armGrapple, 0, 0.07, -0.08, HP);
+  const hook = pivot(armGrapple, 'hook', 0, 0.07, -0.22);
+  m(C(0.012, 0.012, 0.06, 6), steel, hook, 0, 0, 0, HP);
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; m(K(0.012, 0.06, 3), steel, hook, Math.cos(a) * 0.02, Math.sin(a) * 0.02, -0.03, HP + 0.6, 0, a); }
+  m(C(0.04, 0.04, 0.05, 10), leather, armGrapple, 0.06, 0.02, 0.05, 0, 0, HP);
+  const arms = { fist: arm, blade: armBlade, shock: armShock, grapple: armGrapple };
+
+  for (const g of [revolver, shotgun, arm, nailgun, armBlade, armShock, armGrapple]) bake(g);
+  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw, nailgun, nailSpin, nailAccent, nailFlash, nailVariants, arms, shockGlow };
 }
 
 // ---------------------------------------------------------------- props
@@ -757,4 +823,104 @@ export function buildPortal(GLOW) {
   glow.scale.setScalar(6);
   g.add(ring, ring2, disc, glow);
   return { g, ring, ring2, disc, stones: ringG };
+}
+
+// ---------------------------------------------------------------- new enemy variants (batch 2)
+export function buildVariantModel(kind) {
+  let md;
+  if (kind === 'shield') {
+    md = buildEnemyModel('grunt', 0x8a5a3a);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xffd04a);
+    const sh = pivot(r.elL, 'shield', -0.02, -0.3, 0.32);
+    m(B(0.12, 1.4, 0.95), A, sh, 0, 0, 0, 0, 0.15, 0);
+    m(B(0.14, 0.9, 0.12), md.boneMat, sh, 0.02, 0, 0, 0, 0.15, 0);
+    m(B(0.14, 0.12, 0.6), md.boneMat, sh, 0.02, 0.18, 0, 0, 0.15, 0);
+    m(S(0.08, 6, 5), Gm, sh, 0.08, 0.18, 0.02);
+    for (const y of [-0.55, 0.55]) for (const z of [-0.35, 0.35]) m(K(0.04, 0.14, 4), A, sh, 0.08, y, z, 0, 0, -HP);
+    m(B(0.4, 0.14, 0.5), A, r.head, 0, 0.38, 0.06);
+    md.rig.shield = sh;
+  } else if (kind === 'sniper') {
+    md = buildEnemyModel('shooter', 0x3a4a3a);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff3030);
+    const rifle = pivot(r.elR, 'rifle', 0, -0.4, 0.1);
+    m(C(0.03, 0.035, 1.3, 6), A, rifle, 0, 0, 0.45, HP);
+    m(B(0.08, 0.12, 0.4), A, rifle, 0, -0.02, -0.05);
+    m(C(0.04, 0.04, 0.25, 8), DARK, rifle, 0, 0.08, 0.15, HP);
+    m(C(0.03, 0.03, 0.01, 8), Gm, rifle, 0, 0.08, 0.28, HP);
+    md.rig.muzzle = pivot(rifle, 'muzzle', 0, 0, 1.1);
+    m(B(0.3, 0.06, 0.04), Gm, r.head, 0, 0.2, 0.24);
+    if (md.orb) md.orb.visible = false;
+  } else if (kind === 'bomber') {
+    md = buildEnemyModel('grunt', 0x8a6a2a);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff3a1a);
+    const bomb = pivot(r.torso, 'bomb', 0, 0.6, -0.42);
+    m(C(0.28, 0.28, 0.55, 10), A, bomb, 0, 0, 0);
+    for (const y of [-0.18, 0.18]) m(T(0.285, 0.025, 4, 12), DARK, bomb, 0, y, 0, HP);
+    m(B(0.2, 0.2, 0.04), Gm, bomb, 0, 0, 0.27);
+    m(C(0.015, 0.015, 0.25, 4), DARK, bomb, 0, 0.38, 0);
+    const fuse = m(S(0.06, 6, 5), Gm, bomb, 0, 0.52, 0); fuse.userData.keep = true;
+    md.rig.bomb = bomb; md.rig.fuse = fuse;
+    md.root.scale.setScalar(0.8);
+  } else {
+    md = buildEnemyModel('shooter', 0xe8e0d0);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0x6ad8ff);
+    const censer = pivot(r.elL, 'censer', 0, -0.45, 0.05);
+    m(C(0.006, 0.006, 0.4, 4), DARK, censer, 0, -0.2, 0);
+    m(S(0.11, 8, 6), A, censer, 0, -0.45, 0);
+    m(S(0.07, 6, 5), Gm, censer, 0, -0.45, 0);
+    m(K(0.16, 0.4, 4), A, r.head, 0, 0.72, 0);
+    m(B(0.03, 0.18, 0.02), Gm, r.head, 0, 0.7, 0.12);
+    if (md.orb) md.orb.visible = false;
+  }
+  finishHit(md);
+  return md;
+}
+
+// ---------------------------------------------------------------- duelists (batch 2)
+export function buildDuelistModel(kind) {
+  let md;
+  if (kind === 'shard') {
+    md = buildEnemyModel('grunt', 0x9ad8ff);
+    const r = md.rig, Gm = glowMat(0xbff0ff);
+    const glass = new THREE.MeshStandardMaterial({ color: 0xbfefff, emissive: 0x3a9ad0, emissiveIntensity: 0.9, transparent: true, opacity: 0.75, roughness: 0.05 });
+    md.extraMats.push(glass);
+    m(K(0.34, 0.8, 7), md.mats[3], r.head, 0, 0.18, -0.12, 0.25);                 // veil
+    m(T(0.3, 0.02, 4, 20), Gm, r.head, 0, 0.42, -0.24);
+    const sword = pivot(r.elR, 'sword', 0, -0.4, 0.05);
+    m(B(0.05, 0.16, 0.05), md.armorMat, sword, 0, 0, 0);
+    m(B(0.3, 0.04, 0.06), md.armorMat, sword, 0, -0.1, 0);
+    m(B(0.03, 1.3, 0.14), glass, sword, 0, -0.78, 0);
+    m(K(0.08, 0.2, 4), glass, sword, 0, -1.52, 0, Math.PI, Math.PI / 4, 0);
+    mirror((s) => m(B(0.2, 0.32, 0.36), glass, r.torso, s * 0.52, 0.78, 0, 0, 0, -s * 0.3));
+    m(B(0.5, 0.5, 0.05), glass, r.torso, 0, 0.55, 0.26);
+    md.rig.sword = sword;
+    md.root.scale.setScalar(1.35);
+  } else if (kind === 'bertha') {
+    md = buildEnemyModel('heavy', 0xc8784a);
+    const r = md.rig, gold = glowMat(0xffd04a);
+    m(T(0.68, 0.08, 4, 20), gold, r.hips, 0, 0.12, 0, HP);
+    m(B(0.6, 0.4, 0.1), gold, r.hips, 0, 0.12, 0.6);
+    m(S(0.12, 8, 6), glowMat(0xff3a3a), r.hips, 0, 0.12, 0.67);
+    const mask = m(B(0.62, 0.36, 0.12), glowMat(0x2a4ac8), r.head, 0, 0.2, 0.32);
+    mask.userData.part = 'head';
+    mirror((s) => m(B(0.14, 0.06, 0.02), glowMat(0xffffff), r.head, s * 0.13, 0.24, 0.39));
+    m(B(0.06, 0.3, 0.02), glowMat(0xffd04a), r.head, 0, 0.24, 0.39);
+    md.root.scale.setScalar(1.2);
+  } else {
+    md = buildEnemyModel('grunt', 0x5a5a62);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff8a2a);
+    m(C(0.2, 0.22, 0.04, 10), DARK, r.head, 0, 0.42, 0.02);
+    m(C(0.14, 0.14, 0.34, 10), DARK, r.head, 0, 0.6, 0.02);
+    m(B(0.3, 0.04, 0.3), Gm, r.head, 0, 0.47, 0.02);
+    m(B(0.4, 0.1, 0.12), glowMat(0xc81e1e), r.torso, 0, 0.82, 0.2);
+    m(B(0.1, 0.5, 0.06), glowMat(0xc81e1e), r.torso, 0.12, 0.55, 0.26, 0, 0, 0.2);
+    const brush = pivot(r.torso, 'brush', 0, 0.6, -0.35);
+    m(C(0.025, 0.025, 1.3, 5), md.mats[3], brush, 0, 0.2, 0, 0.3);
+    m(S(0.18, 8, 6), DARK, brush, 0, 0.85, 0.2);
+    const hook = pivot(r.elL, 'hook', 0, -0.45, 0);
+    m(T(0.08, 0.02, 4, 10, Math.PI * 1.3), A, hook, 0, -0.06, 0, 0, HP, 0);
+    md.root.scale.setScalar(0.85);
+  }
+  finishHit(md);
+  return md;
 }

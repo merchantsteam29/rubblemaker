@@ -27,7 +27,7 @@ export const SCENES = [
       ] },
       { id: '0-4', name: 'THE SUMP', par: 200, startHint: 'Need the SHOTGUN? Buy it at the FORGE. Lob a core (ALT) and shoot it: COMBO BLAST', rooms: [
         R(24, 24, ['ruins', 'water'], ['g5', 'h1 g2']),
-        R(20, 30, ['pillars'], ['s3 f2', 'g4 s2']),
+        R(20, 30, ['pillars'], ['s3 f2', 'g4 s2 x2'], 'BOMBERS blow up near you · shoot them at range'),
         R(30, 26, ['platforms', 'crates'], ['h1 g3 f2', 'h1 s3']),
         { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'kiln', hint: 'TRAINER: only a COMBO BLAST cracks the KILN' },
       ] },
@@ -41,60 +41,60 @@ export const SCENES = [
     id: 1, name: 'THE CATHEDRAL', theme: 'cathedral',
     levels: [
       { id: '1-1', name: 'NAVE OF ASH', par: 180, rooms: [
-        R(24, 34, ['colonnade', 'pews'], ['g5 s2', 'f3 g3']),
+        R(24, 34, ['colonnade', 'pews'], ['g4 s2 k2', 'f3 g3'], 'SHIELDBEARERS block from the front · flank them or break the shield'),
         R(26, 26, ['altar'], ['s3 g4', 'h1 f2']),
       ] },
       { id: '1-2', name: 'PEWS OF THE PENITENT', par: 200, rooms: [
-        R(22, 30, ['pews'], ['g6', 's3 g3']),
+        R(22, 30, ['pews'], ['g4 k2', 's3 g3 x2']),
         R(20, 20, ['balcony'], ['f4', 'h1 g3']),
         R(28, 24, ['pews', 'altar'], ['s4 f2', 'g6 h1']),
       ] },
       { id: '1-3', name: 'BELL ROPE', par: 210, rooms: [
         R(20, 20, ['balcony'], ['f3 g2', 'f4']),
-        R(18, 32, ['colonnade'], ['g5 s2', 'h1 s2']),
+        R(18, 32, ['colonnade'], ['g5 n1', 'h1 s2 n1'], 'SNIPERS lock on with a red line · dash, or PUNCH right as it flashes'),
         R(26, 26, ['balcony'], ['f5 s2', 'h1 f3 g2']),
       ] },
       { id: '1-4', name: 'CLOISTER', par: 230, rooms: [
         R(18, 18, ['colonnade'], ['g4 s1']),
         R(18, 18, ['pews'], ['f3 g3']),
-        R(18, 18, ['altar'], ['h1 s2']),
+        R(18, 18, ['altar'], ['h1 s2 p1'], 'PRIESTS heal and ward their allies · kill them first'),
         R(22, 22, ['colonnade'], ['g6 f2', 's3 h1']),
       ] },
       { id: '1-5', name: 'CHOIR OF STONE', par: 220, rooms: [
         R(24, 24, ['pews'], ['s4 g2', 's3 f3']),
-        R(28, 22, ['balcony'], ['s4 h1', 'g6 s2']),
+        R(28, 22, ['balcony'], ['s4 h1 p1', 'g6 k2 n1']),
         R(24, 30, ['altar'], ['h2', 's3 f3 g2']),
       ] },
       { id: '1-6', name: 'RELIQUARY', par: 230, rooms: [
         R(26, 26, ['colonnade'], ['h1 g4', 'h2']),
         R(22, 22, ['altar'], ['s3 f3', 'h1 s2 g3']),
-        R(30, 30, ['balcony'], ['h2 g4', 'h1 s3 f3']),
+        R(30, 30, ['balcony'], ['h2 g4 p1', 'h1 s3 f3 x3']),
       ] },
       { id: '1-7', name: 'THE TRANSEPT', par: 250, rooms: [
-        R(36, 24, ['colonnade', 'pews'], ['g8 s2', 'f4 s3', 'h2 g4']),
+        R(36, 24, ['colonnade', 'pews'], ['g8 s2', 'f4 s3 n2', 'h2 g4 k2']),
         R(24, 36, ['colonnade'], ['s4 f4', 'h2 s2 g4']),
       ] },
       { id: '1-8', name: 'STAINED GLASS', par: 240, rooms: [
         R(26, 26, ['balcony'], ['f6', 'f4 g4']),
-        R(30, 24, ['pews'], ['f5 s3', 'h1 f4']),
+        R(30, 24, ['pews'], ['f5 s3 p1', 'h1 f4 x3']),
         R(26, 30, ['colonnade'], ['f6 s2', 'h2 f4']),
       ] },
       { id: '1-9', name: 'CATACOMB DESCENT', par: 250, theme: 'cellar', rooms: [
         R(20, 26, ['pillars', 'water'], ['g7', 's3 f3']),
-        R(24, 24, ['crates'], ['h1 g5', 's3 f3']),
+        R(24, 24, ['crates'], ['h1 g3 x4', 's3 f3 k2']),
         R(28, 28, ['platforms'], ['h2 s2', 'g6 f4']),
       ] },
       { id: '1-10', name: 'BUTTRESS', par: 260, rooms: [
         R(28, 28, ['balcony'], ['s5 g4', 'h2 f3']),
-        R(24, 34, ['colonnade'], ['h2 s3', 'g8 f3']),
+        R(24, 34, ['colonnade'], ['h2 s3 n2', 'g6 k3 p1']),
         R(30, 26, ['altar'], ['h3', 's4 f4 g3']),
       ] },
       { id: '1-11', name: 'THE SPIRE', par: 320, rooms: [
         R(20, 20, ['pews'], ['g6 s2']),
         R(22, 22, ['balcony'], ['f5 s2']),
         R(24, 24, ['colonnade'], ['h2 g4']),
-        R(26, 26, ['altar'], ['s5 f4']),
-        R(30, 30, ['balcony'], ['h2 s3 f4', 'g8 h1']),
+        R(26, 26, ['altar'], ['s5 f4 n2 p1']),
+        R(30, 30, ['balcony'], ['h2 s3 f4', 'g6 k2 x3 h1']),
       ] },
       { id: '1-12', name: 'THE HIGH MASON', par: 300, boss: true, rooms: [
         R(24, 24, ['pews'], ['g6 s3', 'f4 h1']),
@@ -103,14 +103,20 @@ export const SCENES = [
     ],
   },
 ];
-export const LEVELS = SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme })));
+export const DUEL_SCENE = { id: 'S', name: 'DUELS', theme: 'cathedral' };
+export const DUELS = [
+  { id: '0-S', name: 'SISTER SHARD', duel: 'blade', unlockAfter: '0-5', theme: 'cathedral', par: 150, boss: true, startHint: 'A duel of honor. Win it, and the BLADE ARM is yours.', rooms: [{ w: 32, d: 32, props: ['colonnade'], waves: [], boss: 'shard' }] },
+  { id: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '1-6', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
+  { id: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '1-11', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
+];
+export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE }))];
 
 export const THEMES = {
   cellar: { wallH: 8, corrH: 6, doorH: 5, fog: 0x10140f, fogNear: 8, fogFar: 75, sky: 0x0b0e0b },
   cathedral: { wallH: 18, corrH: 10, doorH: 7, fog: 0x1d1210, fogNear: 20, fogFar: 130, sky: 0x150c0a },
 };
 
-const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer' };
+const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer', k: 'shield', n: 'sniper', x: 'bomber', p: 'priest' };
 export function parseWave(str) {
   const out = [];
   for (const tok of str.trim().split(/\s+/)) {
