@@ -430,6 +430,21 @@ export function animateEnemy(e, dt, moving, w, time) {
 
 // ---------------------------------------------------------------- bosses
 export function buildBossModel(kind) {
+  if (kind === 'boss3') {
+    const md = buildEnemyModel('heavy', 0x4a2216);
+    const r = md.rig, A = md.armorMat, lava = glowMat(0xff6a10), hot = glowMat(0xffc040);
+    for (let i = 0; i < 10; i++) m(B(0.06 + (i % 3) * 0.02, 0.4 + (i % 4) * 0.12, 0.04), i % 2 ? lava : hot, r.torso, -0.8 + i * 0.18, 0.6 + (i % 5) * 0.18, 0.62, 0, 0, ((i % 5) - 2) * 0.3);
+    const kiln = pivot(r.torso, 'kiln', 0, 1.6, -0.8);
+    m(B(1.4, 1.2, 0.9), md.mats[0], kiln, 0, 0, 0);
+    m(T(0.4, 0.08, 4, 12, Math.PI), A, kiln, 0, -0.1, 0.46);
+    m(B(0.7, 0.5, 0.06), lava, kiln, 0, -0.25, 0.46);
+    for (const x of [-0.45, 0.45]) { m(C(0.16, 0.2, 1.2, 8), A, kiln, x, 1.0, 0); m(C(0.13, 0.13, 0.06, 8), hot, kiln, x, 1.62, 0); }
+    mirror((s2) => { for (let i = 0; i < 3; i++) m(K(0.05, 0.3, 4), lava, s2 < 0 ? r.elL : r.elR, s2 * 0.2 - 0.1 + i * 0.1, -1.15, 0.2, Math.PI); });
+    m(B(0.5, 0.12, 0.04), hot, r.head, 0, 0.2, 0.36);
+    md.root.scale.setScalar(2.4);
+    finishHit(md);
+    return md;
+  }
   if (kind === 'boss1') {
     const md = buildEnemyModel('heavy', 0x8c8478);
     const r = md.rig, A = md.armorMat, Gm = glowMat(0xffc040);
@@ -506,6 +521,43 @@ export function buildTrainerModel(kind) {
     for (let i = 0; i < 5; i++) m(K(0.03, 0.2, 3), Gm, r.head, (i - 2) * 0.07, 0.26, -0.05, -0.4, 0, (i - 2) * 0.2);
     m(O(0.14), Gm, r.tail2, 0, 0, -0.55);
     md.root.scale.setScalar(2.4);
+  } else if (kind === 'mirror') {
+    md = buildEnemyModel('grunt', 0xb8d8f0);
+    const r = md.rig, Gm = glowMat(0xdff6ff);
+    const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, metalness: 1, roughness: 0.05, flatShading: true });
+    md.extraMats.push(mirrorMat);
+    const sh = pivot(r.elL, 'shield', -0.05, -0.25, 0.25);
+    m(B(0.12, 1.4, 1.0), mirrorMat, sh, 0, 0, 0, 0, 0.2, 0);
+    m(B(0.14, 1.44, 0.06), Gm, sh, 0.01, 0, 0.5, 0, 0.2, 0);
+    m(B(0.14, 1.44, 0.06), Gm, sh, 0.01, 0, -0.5, 0, 0.2, 0);
+    mirror((s2) => m(B(0.26, 0.36, 0.4), mirrorMat, r.torso, s2 * 0.5, 0.78, 0, 0, 0, -s2 * 0.3));
+    m(B(0.44, 0.16, 0.5), mirrorMat, r.head, 0, 0.38, 0.04);
+    m(B(0.06, 0.4, 0.06), Gm, r.head, 0, 0.6, 0);
+    md.root.scale.setScalar(1.6);
+  } else if (kind === 'marksman') {
+    md = buildVariantModel('sniper');
+    const r = md.rig;
+    m(B(0.7, 1.1, 0.04), md.mats[3], r.torso, 0, 0.0, -0.22, 0.15);
+    m(K(0.22, 0.4, 4), md.mats[3], r.head, 0, 0.62, -0.02);
+    m(B(0.5, 0.05, 0.04), glowMat(0xff3030), r.head, 0, 0.2, 0.26);
+    md.root.scale.setScalar(1.4);
+  } else if (kind === 'fortress') {
+    md = buildEnemyModel('heavy', 0x5a5a6a);
+    const r = md.rig, Gm = glowMat(0x7ad8ff);
+    r.layerMeshes = [];
+    for (let i = 0; i < 3; i++) {
+      const ring = m(T(1.5 + i * 0.25, 0.06, 4, 28), Gm, md.root, 0, 1.2 + i * 0.7, 0, HP);
+      ring.userData.noHit = true;
+      r.layerMeshes.push(ring);
+    }
+    mirror((s2) => m(B(0.3, 1.6, 1.2), md.armorMat, s2 < 0 ? r.elL : r.elR, s2 * 0.35, -0.6, 0.3));
+    md.root.scale.setScalar(1.4);
+  } else if (kind === 'queen') {
+    md = buildEnemyModel('flyer', 0x7a3a5a);
+    const r = md.rig, Gm = glowMat(0xff5ac8);
+    for (let i = 0; i < 7; i++) m(K(0.03, 0.24, 3), Gm, r.head, (i - 3) * 0.06, 0.28, -0.05, -0.3, 0, (i - 3) * 0.18);
+    m(S(0.18, 8, 6), Gm, r.hips, 0, -0.1, -0.2);
+    md.root.scale.setScalar(2.6);
   } else {
     md = buildEnemyModel('heavy', 0x2e2622);
     const r = md.rig, A = md.armorMat, Gm = glowMat(0xff6a1a);
@@ -745,7 +797,7 @@ export function buildViewmodels(GLOW) {
   const arms = { fist: arm, blade: armBlade, shock: armShock, grapple: armGrapple };
 
   for (const g of [revolver, shotgun, arm, nailgun, armBlade, armShock, armGrapple]) bake(g);
-  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw, nailgun, nailSpin, nailAccent, nailFlash, nailVariants, arms, shockGlow };
+  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw, nailgun, nailSpin, nailAccent, nailFlash, nailVariants, arms, shockGlow, skinMats: { steel, dsteel, brass } };
 }
 
 // ---------------------------------------------------------------- props
@@ -906,6 +958,16 @@ export function buildDuelistModel(kind) {
     mirror((s) => m(B(0.14, 0.06, 0.02), glowMat(0xffffff), r.head, s * 0.13, 0.24, 0.39));
     m(B(0.06, 0.3, 0.02), glowMat(0xffd04a), r.head, 0, 0.24, 0.39);
     md.root.scale.setScalar(1.2);
+  } else if (kind === 'gilded') {
+    md = buildEnemyModel('grunt', 0xffc040);
+    const r = md.rig, gold = glowMat(0xffe08a);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; m(K(0.04, 0.22, 4), gold, r.head, Math.sin(a) * 0.2, 0.5, Math.cos(a) * 0.2 + 0.05); }
+    const sword = pivot(r.elR, 'sword', 0, -0.4, 0.05);
+    m(B(0.3, 0.05, 0.06), md.armorMat, sword, 0, -0.1, 0);
+    m(B(0.04, 1.4, 0.16), gold, sword, 0, -0.82, 0);
+    md.rig.sword = sword;
+    m(B(0.7, 1.2, 0.04), glowMat(0x8a1a1a), r.torso, 0, 0.2, -0.26, 0.12);
+    md.root.scale.setScalar(1.4);
   } else {
     md = buildEnemyModel('grunt', 0x5a5a62);
     const r = md.rig, A = md.armorMat, Gm = glowMat(0xff8a2a);

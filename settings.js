@@ -37,6 +37,7 @@ export const DEFAULTS = {
   crosshair: 'cross', crossColor: '#ffffff', crossSize: 1, difficulty: 'normal', showFPS: false, hitmarkers: true,
   binds: defaultBinds(),
   ctrlFix: true,
+  skin: 'steel',
 };
 
 const KEY = 'rubblemaker-settings';

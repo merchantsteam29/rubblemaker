@@ -53,6 +53,7 @@ export const SCENES = [
         R(20, 20, ['balcony'], ['f3 g2', 'f4']),
         R(18, 32, ['colonnade'], ['g5 n1', 'h1 s2 n1'], 'SNIPERS lock on with a red line · dash, or PUNCH right as it flashes'),
         R(26, 26, ['balcony'], ['f5 s2', 'h1 f3 g2']),
+        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'mirror', hint: 'TRAINER: only RICOCHETS hurt him' },
       ] },
       { id: '1-4', name: 'CLOISTER', par: 230, rooms: [
         R(18, 18, ['colonnade'], ['g4 s1']),
@@ -64,6 +65,7 @@ export const SCENES = [
         R(24, 24, ['pews'], ['s4 g2', 's3 f3']),
         R(28, 22, ['balcony'], ['s4 h1 p1', 'g6 k2 n1']),
         R(24, 30, ['altar'], ['h2', 's3 f3 g2']),
+        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'marksman', hint: 'TRAINER: punch his shot back' },
       ] },
       { id: '1-6', name: 'RELIQUARY', par: 230, rooms: [
         R(26, 26, ['colonnade'], ['h1 g4', 'h2']),
@@ -73,6 +75,7 @@ export const SCENES = [
       { id: '1-7', name: 'THE TRANSEPT', par: 250, rooms: [
         R(36, 24, ['colonnade', 'pews'], ['g8 s2', 'f4 s3 n2', 'h2 g4 k2']),
         R(24, 36, ['colonnade'], ['s4 f4', 'h2 s2 g4']),
+        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'fortress', hint: 'TRAINER: strip the shield layers' },
       ] },
       { id: '1-8', name: 'STAINED GLASS', par: 240, rooms: [
         R(26, 26, ['balcony'], ['f6', 'f4 g4']),
@@ -83,6 +86,7 @@ export const SCENES = [
         R(20, 26, ['pillars', 'water'], ['g7', 's3 f3']),
         R(24, 24, ['crates'], ['h1 g3 x4', 's3 f3 k2']),
         R(28, 28, ['platforms'], ['h2 s2', 'g6 f4']),
+        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'queen', hint: 'TRAINER: only nails hurt the queen' },
       ] },
       { id: '1-10', name: 'BUTTRESS', par: 260, rooms: [
         R(28, 28, ['balcony'], ['s5 g4', 'h2 f3']),
@@ -106,13 +110,74 @@ export const SCENES = [
 export const DUEL_SCENE = { id: 'S', name: 'DUELS', theme: 'cathedral' };
 export const DUELS = [
   { id: '0-S', name: 'SISTER SHARD', duel: 'blade', unlockAfter: '0-5', theme: 'cathedral', par: 150, boss: true, startHint: 'A duel of honor. Win it, and the BLADE ARM is yours.', rooms: [{ w: 32, d: 32, props: ['colonnade'], waves: [], boss: 'shard' }] },
-  { id: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '1-6', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
-  { id: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '1-11', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
+  { id: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '1-6', orArm: 'blade', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
+  { id: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '1-11', orArm: 'shock', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
+  { id: '2-S', name: 'THE GILDED ONE', duel: 'gold', skulls: true, theme: 'kiln', par: 180, boss: true, startHint: 'Every skull found. The gilded one has been waiting for you.', rooms: [{ w: 34, d: 34, props: ['pillars'], waves: [], boss: 'gilded' }] },
 ];
+SCENES.push({
+  id: 2, name: 'THE KILN', theme: 'kiln',
+  levels: [
+    { id: '2-1', name: 'BRICKWORKS GATE', par: 200, startHint: 'The KILN. Lava burns and launches you · jump or dash across', rooms: [
+      R(24, 26, ['lava', 'pillars'], ['g6 s2', 'x3 f3']),
+      R(26, 24, ['lava', 'platforms'], ['h1 g4 s2', 'k2 n1 f2']),
+    ] },
+    { id: '2-2', name: 'FIRING LINE', par: 210, startHint: 'FLAME VENTS glow before they erupt · enemies burn too', rooms: [
+      R(24, 30, ['vents', 'ruins'], ['g6 x2', 's3 n2 f2']),
+      R(28, 24, ['vents', 'lava'], ['h2 g4', 'k3 p1 s2']),
+    ] },
+    { id: '2-3', name: 'THE PRESS', par: 220, startHint: 'CRUSHERS slam on a rhythm · lure enemies underneath for style', rooms: [
+      R(26, 26, ['crushers'], ['g8', 'h1 k2 s2']),
+      R(24, 32, ['crushers', 'vents'], ['x4 g4 f2', 'h2 n2 p1']),
+    ] },
+    { id: '2-4', name: 'SLAG CANALS', par: 230, rooms: [
+      R(22, 32, ['lava', 'crates'], ['g6 s3', 'f5 x3']),
+      R(30, 24, ['lava', 'platforms'], ['h2 k2 p1', 'n3 s3 g4']),
+      R(24, 24, ['vents'], ['h1 x5 f3']),
+    ] },
+    { id: '2-5', name: 'BELLOWS HALL', par: 230, rooms: [
+      R(30, 30, ['crushers', 'pillars'], ['g8 s2', 'h2 k3', 'f6 p1']),
+      R(26, 22, ['vents', 'lava'], ['n3 x4 s2']),
+    ] },
+    { id: '2-6', name: 'CLINKER YARD', par: 240, rooms: [
+      R(26, 26, ['ruins', 'lava'], ['g7 k2', 's4 f4 p1']),
+      R(28, 28, ['crushers', 'platforms'], ['h3 x3', 'n3 s3 k2']),
+      R(24, 24, ['vents'], ['f6 x4 p1']),
+    ] },
+    { id: '2-7', name: 'KILN No. 7', par: 250, rooms: [
+      R(32, 26, ['lava', 'vents'], ['g8 s3', 'h2 n2 p2']),
+      R(26, 32, ['crushers', 'lava'], ['k4 x4 f3', 'h2 s4 g4']),
+    ] },
+    { id: '2-8', name: 'ASH PITS', par: 250, rooms: [
+      R(24, 24, ['vents', 'pillars'], ['f6 x3']),
+      R(28, 28, ['lava', 'platforms'], ['h2 g6 p1', 'n4 k2 s2']),
+      R(26, 26, ['crushers'], ['h3 x4 f3']),
+    ] },
+    { id: '2-9', name: 'MORTAR MILL', par: 260, rooms: [
+      R(30, 30, ['crushers', 'vents'], ['g10 k2', 's4 n3 p1', 'h3 x4']),
+      R(24, 28, ['lava'], ['f8 s3 p1']),
+    ] },
+    { id: '2-10', name: 'GLAZE ROOM', par: 260, rooms: [
+      R(26, 26, ['lava', 'ruins'], ['h2 k3 s3', 'x6 f4']),
+      R(28, 24, ['vents', 'crushers'], ['n4 p2 g6', 'h3 k2 s3']),
+      R(24, 24, ['lava', 'platforms'], ['h2 x4 f4 p1']),
+    ] },
+    { id: '2-11', name: 'THE CHIMNEY STACK', par: 320, rooms: [
+      R(22, 22, ['vents'], ['g8 x4']),
+      R(24, 24, ['crushers'], ['h2 k3 p1']),
+      R(26, 26, ['lava', 'platforms'], ['n4 s4 f4']),
+      R(28, 28, ['vents', 'lava'], ['h3 x5 p2', 'k4 n3 g6']),
+    ] },
+    { id: '2-12', name: 'THE MOLTEN FOREMAN', par: 320, boss: true, startHint: 'The heat is unbearable. Something enormous is working the kiln...', rooms: [
+      R(24, 24, ['vents'], ['g6 x3 s3', 'h2 n2 p1']),
+      { w: 46, d: 46, props: ['platforms', 'pillars'], waves: [], boss: 'boss3' },
+    ] },
+  ],
+});
 export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE }))];
 
 export const THEMES = {
   cellar: { wallH: 8, corrH: 6, doorH: 5, fog: 0x10140f, fogNear: 8, fogFar: 75, sky: 0x0b0e0b },
+  kiln: { wallH: 12, corrH: 8, doorH: 6, fog: 0x2a0e06, fogNear: 14, fogFar: 100, sky: 0x1a0804 },
   cathedral: { wallH: 18, corrH: 10, doorH: 7, fog: 0x1d1210, fogNear: 20, fogFar: 130, sky: 0x150c0a },
 };
 
@@ -148,6 +213,7 @@ export function buildLevel(level, ctx) {
   const T = THEMES[level.theme];
   const M = ctx.mats;
   const wallMat = level.theme === 'cellar' ? M.cobble : M.brick;
+  const isKiln = level.theme === 'kiln';
   const trimMat = level.theme === 'cellar' ? M.brick : M.cobble;
 
   const specs = [{ w: 14, d: 14, props: [], waves: [], hint: level.startHint, kind: 'start' }, ...level.rooms.map((r) => ({ ...r, kind: r.boss ? 'boss' : 'arena' }))];
@@ -193,6 +259,12 @@ export function buildLevel(level, ctx) {
     rooms.push(r); occupied.push(pad(r, 1)); occupied.push(c);
     lastDir = dir;
   });
+
+  // one arena room per level hides a secret wall (never in duels)
+  if (!level.duel) {
+    const cands = rooms.filter((x) => x.kind === 'arena');
+    if (cands.length) cands[Math.floor(rng() * cands.length)].secret = true;
+  }
 
   // ---- geometry
   const doors = [];
@@ -277,7 +349,37 @@ export function buildLevel(level, ctx) {
     const ri = () => ({ x: rand(r.x0 + 3, r.x1 - 3), z: rand(r.z0 + 3, r.z1 - 3) });
     if (r.kind === 'boss') clear.push({ x0: r.cx - 6, x1: r.cx + 6, z0: r.cz - 6, z1: r.cz + 6 });
 
+    if (r.secret) {
+      const sides = ['N', 'S', 'E', 'W'].filter((sd) => !doorSides.has(sd));
+      const side = sides[Math.floor(rng() * sides.length)] || 'N';
+      const [dx, dz] = DIRS[side];
+      const horiz = side === 'N' || side === 'S';
+      const len = horiz ? r.w : r.d;
+      const off = (rng() < 0.5 ? -1 : 1) * (len / 2 - 2.6);
+      const depth = 1.4;
+      const x = horiz ? r.cx + off : r.cx + dx * (r.w / 2 - depth / 2);
+      const z = horiz ? r.cz + dz * (r.d / 2 - depth / 2) : r.cz + off;
+      placedProps.push({ x0: x - 2, x1: x + 2, z0: z - 2, z1: z + 2 });
+      ctx.secretWall(x, z, horiz ? 2.4 : depth, horiz ? depth : 2.4, 3.2, level.id);
+    }
     for (const p of r.props || []) {
+      if (p === 'lava') {
+        const horiz = rng() < 0.5;
+        for (let i = 0; i < 2; i++) {
+          const t = (i === 0 ? -0.22 : 0.22) + rand(-0.05, 0.05);
+          const x = horiz ? r.cx : r.cx + t * r.w, z = horiz ? r.cz + t * r.d : r.cz;
+          ctx.hazard('lava', x, z, horiz ? r.w - 1 : 2.6, horiz ? 2.6 : r.d - 1);
+        }
+        continue;
+      }
+      if (p === 'vents') {
+        for (let i = 0; i < 6; i++) { const { x, z } = ri(); if (tryRect(x, z, 1.8, 1.8)) ctx.hazard('vent', x, z, 1.6, 1.6, { phase: rng() * 4 }); }
+        continue;
+      }
+      if (p === 'crushers') {
+        for (let i = 0; i < 4; i++) { const { x, z } = ri(); if (tryRect(x, z, 3, 3)) ctx.hazard('crusher', x, z, 2.6, 2.6, { phase: rng() * 3.2, top: H - 1.5 }); }
+        continue;
+      }
       if (p === 'pillars') {
         const gap = r.kind === 'boss' ? 12 : 8;
         for (let x = r.x0 + gap / 2 + 1; x < r.x1 - 2; x += gap) for (let z = r.z0 + gap / 2 + 1; z < r.z1 - 2; z += gap) {
@@ -375,6 +477,16 @@ export function buildLevel(level, ctx) {
           const ax = horiz ? x - len / 2 - 1.3 : x, az = horiz ? z : z - len / 2 - 1.3;
           ctx.box(ax, 0, az, 2.4, 1.6, 2.4, M.cobble, 3);
         }
+      }
+    }
+    if (isKiln) {
+      for (const side of ['N', 'S', 'E', 'W']) {
+        if (doorSides.has(side)) continue;
+        const [dx, dz] = DIRS[side];
+        const horiz = side === 'N' || side === 'S';
+        const x = horiz ? r.cx + rand(-r.w / 4, r.w / 4) : r.cx + dx * (r.w / 2 - 0.05);
+        const z = horiz ? r.cz + dz * (r.d / 2 - 0.05) : r.cz + rand(-r.d / 4, r.d / 4);
+        ctx.furnace(x, z, side);
       }
     }
     // cathedral dressing: stained glass + banners
