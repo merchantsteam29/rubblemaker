@@ -771,7 +771,7 @@ function addStyle(pts, label, weapon = null, cls = '') {
   ST.points = Math.min(STYLE_MAX, ST.points + gained);
   G.styleTotal += gained;
   G.score += gained * (1 + ST.idx * 0.25) * (G.mod ? G.mod.mult : 1);
-  if (label) { pushFeed('+' + label, cls); statLabel(label); }
+  if (label) { pushFeed('+' + label, cls); statLabel(label); vsLabel(label); }
 }
 function loseStyle(n) {
   ST.points = Math.max(0, ST.points - n);
@@ -786,6 +786,7 @@ const WNAMES = ['REVOLVER', 'SHOTGUN', 'NAILGUN', 'LAUNCHER'];
 
 const W = { altCD: 0, variant: [0, 0, 0, 0], arm: 'fist', heat: 0, nailCD: 0, shockCharge: 0, coins: 4, pump: 0, sawCD: 0, cur: 0, cd: 0, switchT: 0, lastSwitch: -9, charge: 0, charging: false, punchCD: 0, punchT: 0, kick: 0, coreCD: 0, flashT: 0 };
 function switchWeapon(i) {
+  if (i === 4 && !owns('flail')) { if (G.state === 'play') pushFeed('FLAIL LOCKED · visit the FORGE', 'bad'); return; }
   if (i === 3 && !owns('launcher')) { if (G.state === 'play') pushFeed('LAUNCHER LOCKED · visit the FORGE', 'bad'); return; }
   if (i === 2 && !owns('nailgun')) { if (G.state === 'play') pushFeed('NAILGUN LOCKED · visit the FORGE', 'bad'); return; }
   if (i === 1 && !owns('shotgun')) { if (G.state === 'play') pushFeed('SHOTGUN LOCKED · visit the FORGE', 'bad'); return; }
@@ -851,6 +852,7 @@ function makeEnemy(type, x, z, y = 0) {
   ringFx(pos, 2.5, 0xff3a2a);
   burst(pos, 14, 0xff4a2a, 7, 0.15, 0.6, true, 0.3, 1.2);
   sfxAt(pos, 'spawn', distVol(pos));
+  maybeElite(e);
   if (!def.boss) voiceSoon(e, 'alert', 0.9);
   return e;
 }
@@ -1047,6 +1049,7 @@ function damageEnemy(e, dmg, info) {
   }
   if (e.def.canHurt && !e.def.canHurt(info, e)) { blockedFx(e, info.point); return false; }
   dmg = swapChain(info, dmg);
+  dmg = eliteDmg(e, dmg, info);
   e.hp -= dmg;
   if (G.mode === 'practice') practiceHit(e, dmg);
   e.flash = 0.07;
@@ -1072,6 +1075,7 @@ function killEnemy(e, info) {
   G.kills++;
   statKill(e, info);
   voice(e, 'die');
+  eliteKilled(e, info);
   if (!e.def.boss && !e.dummy && e.type !== 'swarmling' && e.type !== 'mender') RECENT_DEAD.push({ type: e.type, x: e.mesh.position.x, z: e.mesh.position.z, t: G.time });
   if (e.def.onKill) e.def.onKill(e, info || {});
   if (e.def.boss) bossDefeated(e);
@@ -1347,10 +1351,10 @@ function explode(pos, radius, dmg, weapon) {
     if (d > radius) continue;
     const k = 1 - (d / radius) * 0.6;
     const away = c.clone().sub(pos).setY(0).normalize().multiplyScalar(9 * k).setY(9 * k);
-    damageEnemy(e, dmg * k, { weapon: weapon === 'combo' || weapon === 'bomb' ? null : weapon === 'brick' ? 'launcher' : 'shotgun', explosion: true, combo: weapon === 'combo', point: c, knock: away });
+    damageEnemy(e, dmg * k, { weapon: weapon === 'combo' || weapon === 'bomb' ? null : weapon === 'brick' ? 'launcher' : weapon === 'flail' ? 'flail' : 'shotgun', explosion: true, combo: weapon === 'combo', point: c, knock: away });
     hitAny++;
   }
-  if (hitAny && weapon !== 'combo') useWeapon(weapon === 'brick' ? 'launcher' : 'shotgun');
+  if (hitAny && weapon !== 'combo') useWeapon(weapon === 'brick' ? 'launcher' : weapon === 'flail' ? 'flail' : 'shotgun');
   if (hitAny >= 3) addStyle(60, 'COLLATERAL', null, 'cool');
   if (weapon === 'punchcore' && hitAny) addStyle(80, 'HOMERUN', 'punch', 'big');
   if (weapon === 'bomb') {
@@ -1507,7 +1511,8 @@ function updatePlayer(dt) {
   const right = new V3(Math.cos(P.yaw), 0, -Math.sin(P.yaw));
   const ix = clamp((down('right') ? 1 : 0) - (down('left') ? 1 : 0) + AXIS.x, -1, 1);
   const iz = clamp((down('forward') ? 1 : 0) - (down('back') ? 1 : 0) + AXIS.y, -1, 1);
-  const wish = fwd.clone().multiplyScalar(iz).addScaledVector(right, ix);
+  const rv = VS && VS.fx && VS.fx.reverse ? -1 : 1;
+  const wish = fwd.clone().multiplyScalar(iz * rv).addScaledVector(right, ix * rv);
   if (wish.lengthSq() > 1) wish.normalize();
   const crouchHeld = down('slide');
   const crouchPressed = hit('slide');
@@ -1638,12 +1643,14 @@ function startSlide(wish, fwd) {
 function updateWeapons(dt) {
   W.cd -= dt; W.punchCD -= dt; W.coreCD -= dt; W.sawCD -= dt; W.switchT = Math.max(0, W.switchT - dt);
   W.coins = Math.min(4, W.coins + dt / 1.6);
+  flailTick(dt);
   if (hit('weapon1')) switchWeapon(0);
   if (hit('weapon2')) switchWeapon(1);
   if (hit('swap')) switchWeapon(nextGun());
   if (hit('arm')) cycleArm();
   if (hit('weapon3')) switchWeapon(2);
   if (hit('weapon4')) switchWeapon(3);
+  if (hit('weapon5')) switchWeapon(4);
   if (W.arm === 'shock') {
     if (down('punch') && W.punchCD <= 0) W.shockCharge = Math.min(1, W.shockCharge + dt / 0.7);
     else if (W.shockCharge > 0) { shockPunch(W.shockCharge); W.shockCharge = 0; }
@@ -1675,7 +1682,8 @@ function updateWeapons(dt) {
     if (v === 2 && hit('alt') && W.sawCD <= 0) { launchSaw(); W.sawCD = 1.2; W.cd = Math.max(W.cd, 0.3); }
   } else if (W.cur === 2) {
     updateNailgun(dt);
-  } else updateLauncher(dt);
+  } else if (W.cur === 3) updateLauncher(dt);
+  else updateFlail(dt);
 }
 
 function updateViewmodel(dt) {
@@ -1711,6 +1719,7 @@ function updateViewmodel(dt) {
   VM.shotVariants.forEach((g, i) => (g.visible = i === W.variant[1]));
   VM.nailVariants.forEach((g, i) => (g.visible = i === W.variant[2]));
   VM.launcherVariants.forEach((g, i) => (g.visible = i === W.variant[3]));
+  flailVM(dt);
   VM.launcherFlash.material.opacity = W.cur === 3 && W.flashT > 0 ? 1 : 0;
   VM.launcherFlash.material.rotation = Math.random() * 6;
   VM.launcherHopper.position.y = 0.16 - (W.cur === 3 && W.cd > 0.3 ? 0.03 : 0);
@@ -1840,6 +1849,7 @@ function updateHUD() {
     if (idx > ui.rank && ui.rank >= 0) {
       sfx.rankUp();
       if (music && idx >= 4) music.stinger(idx === RANKS.length - 1 ? 2 : 1);
+      vsRank(idx);
       rankEl.classList.remove('pop'); void rankEl.offsetWidth; rankEl.classList.add('pop');
       if (idx === RANKS.length - 1) banner('RUBBLEMAKER');
     }
@@ -1870,14 +1880,16 @@ function updateHUD() {
   else if (W.cur === 2 && W.variant[2] === 0) alt = 'MAGNETS ' + '◆'.repeat(3 - magnets.length) + '◇'.repeat(magnets.length);
   else if (W.cur === 2 && W.variant[2] === 1) { const n = Math.round(W.heat * 5); alt = (W.overheat > 0 ? 'OVERHEAT ' : 'HEAT ') + '▮'.repeat(n) + '▯'.repeat(5 - n); }
   else if (W.cur === 3) alt = W.variant[3] === 1 ? 'LIMPETS ' + bricks.filter((b) => b.kind === 'limpet').length + ' · ALT DETONATES' : (W.altCD > 0 ? (W.variant[3] ? 'FAN' : 'CLUSTER') + ' ···' : (W.variant[3] ? 'FAN' : 'CLUSTER') + ' READY');
+  if (W.cur === 4) alt = flailAlt();
   if (W.arm === 'shock' && W.shockCharge > 0) alt = 'CHARGE ' + '▮'.repeat(Math.round(W.shockCharge * 5));
   if (alt !== ui.alt) { ui.alt = alt; $('altInfo').textContent = alt; }
-  const fi = freshInfo(fresh[['revolver', 'shotgun', 'nailgun', 'launcher'][W.cur]]);
+  const fi = freshInfo(fresh[['revolver', 'shotgun', 'nailgun', 'launcher', 'flail'][W.cur]]);
   if (fi.name !== ui.fresh) { ui.fresh = fi.name; const f = $('fresh'); f.textContent = fi.name; f.className = fi.name; }
   // charge bar
-  $('charge').style.opacity = W.charging ? 1 : 0;
-  $('chargeFill').style.width = `${W.charge * 100}%`;
-  $('chargeFill').style.background = W.charge >= 1 ? '#ffffff' : '#6ad8ff';
+  $('charge').style.opacity = W.charging || FLAIL.held ? 1 : 0;
+  const chv = FLAIL.held ? FLAIL.wind : W.charge;
+  $('chargeFill').style.width = `${chv * 100}%`;
+  $('chargeFill').style.background = chv >= 1 ? '#ffffff' : FLAIL.held ? '#ffb03a' : '#6ad8ff';
   // hurt vignette
   P.hurtFlash = Math.max(0, P.hurtFlash - 0.04);
   $('hurt').style.opacity = Math.max(P.hurtFlash, P.hp < 30 ? 0.35 + Math.sin(G.time * 6) * 0.15 : 0);
@@ -1908,6 +1920,7 @@ function update(dt) {
   updateNails(dt);
   updateBricks(dt);
   updateFlames(dt);
+  updateElites(dt);
   updateBurning(dt);
   updateForge();
   if (G.mode === 'endless') updateWaves(dt); else if (G.mode === 'practice') updatePractice(dt); else updateCampaign(dt);
@@ -1979,6 +1992,7 @@ function clearWorld() {
   cores.length = 0;
   for (const p of parts) { p.life = 0; p.mesh.visible = false; }
   feedEl.innerHTML = '';
+  clearFireballs();
 }
 function resetGame() {
   clearWorld();
@@ -1991,6 +2005,7 @@ function resetGame() {
   shocks.length = 0;
   clearProjectiles();
   clearNails();
+  ghostClear();
   RECENT_DEAD.length = 0; CHAIN.n = 0; CHAIN.t = -9;
   forge = null; promptShown = false; $('prompt').classList.remove('show');
   hideBeam();
@@ -2622,6 +2637,8 @@ function updateCampaign(dt) {
   const L = G.layout;
   if (!L) return;
   G.levelTime += dt;
+  vsTick(dt);
+  ghostTick(dt);
   hudTimerT -= dt;
   if (hudTimerT <= 0) { hudTimerT = 0.2; $('wave').textContent = `${G.level.id} · ${fmtTime(G.levelTime)}`; }
   for (const r of L.rooms) {
@@ -2673,6 +2690,7 @@ function saveProgress(p) { PROGC = p; try { localStorage.setItem('rubblemaker-pr
 
 function completeLevel() {
   if (G.state !== 'play') return;
+  if (VS.active) { vsFinish(); return; }
   G.state = 'complete';
   document.exitPointerLock?.();
   show('hud', false);
@@ -2694,6 +2712,7 @@ function completeLevel() {
   const best = prog.best[bk];
   const newBest = !best || overall > best.rank || (overall === best.rank && t < best.time);
   if (newBest && !cheatsOn()) prog.best[bk] = { rank: overall, time: t };
+  ghostSave(t);
   const earned = Math.round((100 + Math.floor(G.styleTotal / 10) + [0, 25, 50, 100, 150, 300, 500][overall]) * (DIFF().scrap || 1));
   prog.scrap = (prog.scrap || 0) + earned;
   saveProgress(prog);
@@ -2750,6 +2769,7 @@ function startLevel(idx) {
   G.spawn = P.pos.clone();
   G.deaths = 0;
   G.checkpoint = { x: P.pos.x, z: P.pos.z, yaw: P.yaw };
+  ghostStart(lv);
   G.styleTarget = Math.max(500, layout.rooms.reduce((s, r) => s + r.waves.reduce((a, w) => a + w.length, 0) * 80 + (r.boss ? 1200 : 0), 0));
   $('wave').textContent = lv.id;
   const go = () => { enterPlay(); banner(`${lv.id} ${lv.name}`); };
@@ -2768,6 +2788,13 @@ function startEndless() {
   enterPlay();
 }
 function toMenu() {
+  if (VS && VS.active) {
+    if (!VS.result) vsSend({ t: 'quit' });
+    VS.active = false; VS.result = null; VS.fx = {}; G.lowgrav = false;
+    show('vsHud', false); show('vsCount', false); show('vsResult', false); $('vsCurseFx').className = 'hidden';
+    if (VS.rival.mesh) { scene.remove(VS.rival.mesh); VS.rival.mesh = null; }
+    normalizeLoadout();
+  }
   clearWorld();
   resetGame();
   G.layout = null; G.level = null; G.mode = 'endless';
@@ -2782,7 +2809,7 @@ function toMenu() {
   spawnMenuCrowd();
 }
 function menuish() {
-  return G.state === 'menu' || G.state === 'levels' || G.state === 'records' || G.state === 'codex' || (G.state === 'settings' && settingsFrom === 'menu');
+  return G.state === 'menu' || G.state === 'levels' || G.state === 'records' || G.state === 'codex' || G.state === 'versus' || (G.state === 'settings' && settingsFrom === 'menu');
 }
 
 $('startBtn').addEventListener('click', openLevels);
@@ -2846,13 +2873,15 @@ const SHOP = [
 ];
 let PROGC = null;
 function prog() { return PROGC || (PROGC = loadProgress()); }
-function owns(id) { if (G.mode === 'practice' && !id.startsWith('skin_')) return true; return (prog().owned || []).includes(id); }
-function ownsVariant(gun, v) { return v === 0 ? gun === 0 || owns(['', 'shotgun', 'nailgun', 'launcher'][gun]) : owns(['rev', 'shot', 'nail', 'brick'][gun] + v); }
+function owns(id) { if ((G.mode === 'practice' || (VS && VS.active)) && !id.startsWith('skin_')) return true; return (prog().owned || []).includes(id); }
+function ownsVariant(gun, v) { return v === 0 ? gun === 0 || owns(['', 'shotgun', 'nailgun', 'launcher', 'flail'][gun]) : owns(['rev', 'shot', 'nail', 'brick', 'flail'][gun] + v); }
 function applyVariantLook() {
   chargeMat.emissive.setHex(VARIANTS[0][W.variant[0]].hex);
   VM.shotAccent.emissive.setHex(VARIANTS[1][W.variant[1]].hex);
   if (VARIANTS[2]) VM.nailAccent.emissive.setHex(VARIANTS[2][W.variant[2]].hex);
   if (VARIANTS[3]) VM.launcherAccent.emissive.setHex(VARIANTS[3][W.variant[3]].hex);
+  const s5 = document.querySelector('#weaponSlots span[data-w="4"]');
+  if (s5) s5.textContent = owns('flail') ? '5 FLAIL' : '5 LOCKED';
   const s4 = document.querySelector('#weaponSlots span[data-w="3"]');
   if (s4) s4.textContent = owns('launcher') ? '4 LAUNCHER' : '4 LOCKED';
   const s3 = document.querySelector('#weaponSlots span[data-w="2"]');
@@ -2861,7 +2890,7 @@ function applyVariantLook() {
   if (slot) slot.textContent = owns('shotgun') ? '2 SHOTGUN' : '2 LOCKED';
 }
 function normalizeLoadout() {
-  for (const g of [0, 1, 2, 3]) if (!ownsVariant(g, W.variant[g])) W.variant[g] = 0;
+  for (const g of [0, 1, 2, 3, 4]) if (!ownsVariant(g, W.variant[g])) W.variant[g] = 0;
   if (!ownedArms().includes(W.arm)) W.arm = 'fist';
   W.heat = 0; W.overheat = 0; W.shockCharge = 0;
   updateArmSlot();
@@ -3652,7 +3681,7 @@ SHOP.push(
 );
 const ARM_NAMES = { fist: 'PUNCH', blade: 'BLADE', shock: 'SHOCKWAVE', grapple: 'GRAPPLE' };
 function nextGun() {
-  for (let k = 1; k <= 4; k++) { const g = (W.cur + k) % 4; if (g === 0 || (g === 1 && owns('shotgun')) || (g === 2 && owns('nailgun')) || (g === 3 && owns('launcher'))) return g; }
+  for (let k = 1; k <= 5; k++) { const g = (W.cur + k) % 5; if (g === 0 || (g === 1 && owns('shotgun')) || (g === 2 && owns('nailgun')) || (g === 3 && owns('launcher')) || (g === 4 && owns('flail'))) return g; }
   return 0;
 }
 
@@ -4939,7 +4968,7 @@ function navMove(dir, items) {
 }
 function padBack(scr) {
   if (scr.id === 'settings') { const b = scr.querySelector('.back'); if (b) b.click(); return; }
-  const map = { shop: 'shopClose', levels: 'levelsBack', pitRecords: 'pitRecordsBack', codex: 'codexBack', cheats: 'cheatsClose', pause: 'resumeBtn' };
+  const map = { shop: 'shopClose', levels: 'levelsBack', pitRecords: 'pitRecordsBack', codex: 'codexBack', versus: 'vsBack', vsResult: 'vsLobbyBtn', cheats: 'cheatsClose', pause: 'resumeBtn' };
   if (map[scr.id]) $(map[scr.id]).click();
 }
 function padMenu(now, edge, lx, ly, dt) {
@@ -6134,7 +6163,7 @@ function loadStats() {
 }
 function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(STATS)); } catch (_) {} }
 loadStats();
-const statsLive = () => G.mode !== 'practice' && !cheatsOn();
+const statsLive = () => G.mode !== 'practice' && !cheatsOn() && !(VS && VS.active);
 function statLabel(label) {
   if (!statsLive()) return;
   const k = String(label).replace(/ x\d+$/, '');
@@ -6283,7 +6312,7 @@ const CODEX_BEASTS = [
 ];
 const ARSENAL = () => {
   const gunDesc = (g, v) => (g === 0 && v === 0 ? 'Your starting sidearm. Hold ALT to charge a piercing LANCE shot through a whole line of enemies.' : (SHOP.find((it) => it.gun === g && it.v === v) || {}).desc || '');
-  const guns = [0, 1, 2, 3].map((g) => ({ head: WNAMES[g], rows: VARIANTS[g].map((vd, v) => ({ name: vd.name, css: vd.css, owned: ownsVariant(g, v), desc: gunDesc(g, v) })) }));
+  const guns = [0, 1, 2, 3, 4].map((g) => ({ head: WNAMES[g], rows: VARIANTS[g].map((vd, v) => ({ name: vd.name, css: vd.css, owned: ownsVariant(g, v), desc: gunDesc(g, v) })) }));
   const arms = { head: 'ARMS', rows: [
     { name: 'PUNCH', css: '#ffd04a', owned: true, desc: `${actLabel('punch')} punches. Punch a glowing orb to PARRY it back, or punch a shotgun core for a CORE PUNCH.` },
     { name: 'BLADE', css: '#9ae8ff', owned: owns('arm_blade'), desc: 'Slices orbs out of the air and CLEAVES groups of enemies. Won from SISTER SHARD.' },
@@ -6572,6 +6601,7 @@ function storyShots(id, L) {
   return { shots, props };
 }
 function maybeStory(lv, go) {
+  if (VS && VS.active) return false;
   const id = STORY_AT[lv.id];
   if (!id || cutsSeen()[id] || !G.layout) return false;
   const { shots, props } = storyShots(id, G.layout);
@@ -6580,7 +6610,7 @@ function maybeStory(lv, go) {
 }
 function bossCutscene(room) {
   const type = room.boss;
-  if (G.mode !== 'campaign' || !STORY[type] || (G.level && G.level.prime) || cutsSeen()[type] || G.state !== 'play') return false;
+  if ((VS && VS.active) || G.mode !== 'campaign' || !STORY[type] || (G.level && G.level.prime) || cutsSeen()[type] || G.state !== 'play') return false;
   const def = DEFS[type];
   const md = codexModel(type);
   md.root.position.set(room.cx, 0, room.cz);
@@ -6863,3 +6893,770 @@ function tickAudio(theme) {
     if (beatT <= 0) { beatT = 0.55 + P.hp / 60; sfx.heartbeat(1 - P.hp / 40); }
   } else beatT = 0;
 }
+
+// ================================================================ BATCH 5a: THE CHAIN FLAIL (weapon 5)
+const HALF_PI = Math.PI / 2;
+VARIANTS.push([{ name: 'HOOK', hex: 0xffb03a, css: '#ffc04a' }, { name: 'SPIKE', hex: 0xff3a4a, css: '#ff6a5a' }, { name: 'MAGNET', hex: 0x3ac8ff, css: '#6ad8ff' }]);
+SHOP.push(
+  { id: 'flail', gun: 4, v: 0, price: 1000, desc: 'Unlocks the CHAIN FLAIL: HOLD FIRE to whirl a wrecking ball around you, RELEASE to sweep everything in front. HOOK alt-fire hurls the ball to yank an enemy in.' },
+  { id: 'flail1', gun: 4, v: 1, price: 900, req: 'flail', desc: 'Flail variant. The spiked ball PIERCES shields, shield layers and IRON armor. ALT brings it crashing down where you aim.' },
+  { id: 'flail2', gun: 4, v: 2, price: 950, req: 'flail', desc: 'Flail variant. The whirling ball DRAGS nearby enemies into its path. Flail kills pack RUBBLE into it; ALT hurls the rubble as a blast.' },
+);
+WNAMES.push('FLAIL');
+W.variant.push(0);
+fresh.flail = 1;
+CHAIN_W.add('flail');
+var FLAIL = { held: false, wind: 0, ang: 0, swingT: 0, swingC: 0, swingA: 0, altCD: 0, rubble: 0, whooshT: 0, smash: [] };
+
+const FLVM = (() => {
+  const M = VM.skinMats;
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 });
+  const leather = new THREE.MeshStandardMaterial({ color: 0x3a2214, roughness: 0.95 });
+  const accent = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xffb03a, emissiveIntensity: 1.2 });
+  const mk = (geo, mat, parent, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); parent.add(m); return m; };
+  mk(new THREE.CylinderGeometry(0.032, 0.038, 0.4, 8), wood, g, 0, 0, 0);
+  for (const y of [-0.14, -0.08, -0.02]) mk(new THREE.CylinderGeometry(0.041, 0.041, 0.035, 8), leather, g, 0, y, 0);
+  mk(new THREE.SphereGeometry(0.05, 8, 6), M.brass, g, 0, -0.22, 0);
+  mk(new THREE.CylinderGeometry(0.045, 0.04, 0.05, 8), M.steel, g, 0, 0.21, 0);
+  mk(new THREE.BoxGeometry(0.1, 0.09, 0.1), leather, g, 0.0, -0.08, 0.04);                     // glove
+  const pivot = new THREE.Group(); pivot.position.set(0, 0.24, 0); g.add(pivot);
+  const link = new THREE.TorusGeometry(0.022, 0.007, 4, 8);
+  const links = [];
+  for (let i = 0; i < 6; i++) links.push(mk(link, M.dsteel, pivot, 0, 0.03 + i * 0.035, 0, 0, i % 2 ? HALF_PI : 0, 0));
+  const ball = new THREE.Group(); ball.position.set(0, 0.29, 0); pivot.add(ball);
+  mk(new THREE.SphereGeometry(0.085, 12, 9), M.dsteel, ball, 0, 0, 0);
+  mk(new THREE.TorusGeometry(0.087, 0.012, 4, 14), accent, ball, 0, 0, 0, HALF_PI, 0, 0);
+  const hookG = new THREE.Group(); ball.add(hookG);
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; mk(new THREE.ConeGeometry(0.02, 0.09, 5), M.brass, hookG, Math.cos(a) * 0.08, 0.05, Math.sin(a) * 0.08, Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9); }
+  const spikeG = new THREE.Group(); ball.add(spikeG);
+  const dirs = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0.7, -0.7, 0], [-0.7, -0.7, 0], [0, 0.7, 0.7], [0, -0.7, -0.7]];
+  for (const [x, y, z] of dirs) { const c = mk(new THREE.ConeGeometry(0.018, 0.07, 5), M.steel, spikeG, x * 0.1, y * 0.1, z * 0.1); c.lookAt(x * 2, y * 2, z * 2); c.rotateX(HALF_PI); }
+  const magG = new THREE.Group(); ball.add(magG);
+  const magMat = new THREE.MeshStandardMaterial({ color: 0xc81e1e, emissive: 0x3a0606, metalness: 0.5 });
+  mk(new THREE.TorusGeometry(0.07, 0.025, 6, 12, Math.PI), magMat, magG, 0, 0.09, 0);
+  for (const sd of [-1, 1]) mk(new THREE.BoxGeometry(0.05, 0.03, 0.05), M.steel, magG, sd * 0.07, 0.09, 0);
+  g.userData.base = new V3(0.27, -0.21, -0.55);
+  g.scale.setScalar(0.72);
+  g.rotation.order = 'YXZ';
+  g.visible = false;
+  return { g, pivot, ball, links, accent, variants: [hookG, spikeG, magG] };
+})();
+vmScene.add(FLVM.g);
+guns.push(FLVM.g);
+
+// the real ball in the world (whirl + sweep) with its chain
+const flailBall = new THREE.Group();
+{
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.8, roughness: 0.35 }));
+  flailBall.add(core);
+  const sp = new THREE.ConeGeometry(0.07, 0.3, 5), spm = new THREE.MeshStandardMaterial({ color: 0x8a8a94, metalness: 0.9, roughness: 0.3 });
+  for (let i = 0; i < 10; i++) { const c = new THREE.Mesh(sp, spm); const a = i * 2.4, b = Math.acos(1 - 2 * (i + 0.5) / 10); c.position.set(Math.sin(b) * Math.cos(a) * 0.38, Math.cos(b) * 0.38, Math.sin(b) * Math.sin(a) * 0.38); c.lookAt(c.position.clone().multiplyScalar(3)); c.rotateX(HALF_PI); flailBall.add(c); }
+  flailBall.userData.glow = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 5, 16), new THREE.MeshBasicMaterial({ color: 0xffb03a }));
+  flailBall.userData.glow.rotation.x = HALF_PI; flailBall.add(flailBall.userData.glow);
+}
+flailBall.scale.setScalar(1.3);
+flailBall.visible = false;
+scene.add(flailBall);
+const flailChain = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V3(), new V3()]), new THREE.LineBasicMaterial({ color: 0x9a9aa4 }));
+flailChain.frustumCulled = false; flailChain.visible = false;
+scene.add(flailChain);
+
+Object.assign(sfx, {
+  flailSpin(k) { nz(0.28, 500 + k * 1800, 0.35 + k * 0.3, { type: 'bandpass', q: 1.4, end: 260, a: 0.08 }); },
+  flailSweep(k) { nz(0.35, 2600, 0.6 + k * 0.4, { type: 'bandpass', q: 1, end: 400, a: 0.03 }); tn(120, 50, 0.25, 0.3 + k * 0.3); },
+  flailHit(k) { nz(0.25, 1600, 0.9, { end: 200, dest: crunch }); tn(90, 30, 0.35, 0.7 + k * 0.4); crumble(5, 0.18, 0.25); },
+  chain() { for (let i = 0; i < 4; i++) tn(2400 + Math.random() * 1600, 1800, 0.04, 0.08, 'triangle', { delay: i * 0.035 }); },
+});
+
+const fwdOf = (yaw) => new V3(-Math.sin(yaw), 0, -Math.cos(yaw));
+function flailHand() { return camera.position.clone().add(new V3(0.35, -0.45, -0.3).applyQuaternion(camera.quaternion)); }
+function flailHitEnemy(e, dmg, k, dir, v, label) {
+  if (e.dead || e.spawnT > 0 || e.buried) return false;
+  if (v === 1) { if (e.layers > 0) stripLayer(e); if (e.shieldUp) breakShield(e, dir.clone().negate()); }
+  const pt = e.mesh.position.clone(); pt.y += e.def.h * 0.55;
+  const knock = dir.clone().multiplyScalar((8 + 18 * k) / Math.max(0.6, Math.sqrt(e.def.mass))).setY(4 + 5 * k);
+  const killed = damageEnemy(e, dmg, { weapon: 'flail', point: pt, knock: e.def.boss ? null : knock, pierce: v === 1, explosion: false });
+  burst(pt, 8, 0x8a6a4a, 7, 0.14, 0.5);
+  if (killed && v === 2 && FLAIL.rubble < 6) FLAIL.rubble++;
+  if (label) addStyle(30, label, 'flail', 'cool');
+  return true;
+}
+function whirl(dt, v) {
+  const k = FLAIL.wind;
+  FLAIL.ang += dt * (6 + k * 10);
+  const r = 2.1 + k * 0.6;
+  const c = new V3(P.pos.x + Math.cos(FLAIL.ang) * r, P.pos.y + 1.2 + Math.sin(FLAIL.ang * 2) * 0.15, P.pos.z + Math.sin(FLAIL.ang) * r);
+  flailBall.position.copy(c); flailBall.visible = true; flailBall.rotation.y += dt * 9;
+  FLAIL.whooshT -= dt;
+  if (FLAIL.whooshT <= 0) { FLAIL.whooshT = Math.PI * 2 / (6 + k * 10) * 0.5; sfx.flailSpin(k); }
+  for (const e of enemies) {
+    if (e.dead || e.spawnT > 0 || e.buried) continue;
+    const ep = e.mesh.position;
+    const dy = (ep.y + (e.def.fly ? 0 : e.def.h * 0.5)) - c.y;
+    const d = Math.hypot(ep.x - c.x, ep.z - c.z);
+    if (v === 2 && !e.def.boss && e.def.mass <= 1.6) {
+      const dp = Math.hypot(ep.x - P.pos.x, ep.z - P.pos.z);
+      if (dp < 8 && dp > r) { e.vel.x += (P.pos.x - ep.x) / dp * 22 * dt; e.vel.z += (P.pos.z - ep.z) / dp * 22 * dt; }
+    }
+    if (d < 0.6 + e.def.r && Math.abs(dy) < e.def.h * 0.6 + 0.5 && G.time > (e.flT || 0)) {
+      e.flT = G.time + 0.3;
+      const out = new V3(ep.x - P.pos.x, 0, ep.z - P.pos.z).normalize();
+      flailHitEnemy(e, 7 + k * 9, 0.3, out, v);
+      sfx.flailHit(0.2);
+    }
+  }
+}
+function flailSweep(k, v) {
+  const fwd = fwdOf(P.yaw);
+  const range = 3.4 + k * 2.8, arc = 1.25, dmg = k < 0.2 ? 28 : 30 + 95 * k;
+  FLAIL.swingT = 0.24; FLAIL.swingC = k; FLAIL.swingA = 0;
+  sfx.flailSweep(k);
+  let n = 0;
+  for (const e of enemies.slice()) {
+    if (e.dead || e.spawnT > 0 || e.buried) continue;
+    const to = e.mesh.position.clone().sub(P.pos); const dy = to.y; to.y = 0;
+    const d = to.length() - e.def.r;
+    if (d > range || dy > 3.2 || dy < -2.4 - e.def.h) continue;
+    if (d > 0.4 && Math.acos(clamp(to.normalize().dot(fwd), -1, 1)) > arc) continue;
+    if (flailHitEnemy(e, dmg, k, d > 0.4 ? to : fwd, v)) n++;
+  }
+  // knock orbs back like a parry
+  for (const o of orbs) {
+    if (!o.m || o.parried) continue;
+    const to = o.m.position.clone().sub(P.pos); if (to.length() > range + 0.5) continue;
+    if (to.clone().setY(0).normalize().dot(fwd) < 0.2) continue;
+    const { dir } = aim();
+    o.parried = true; o.dmg = o.big ? 170 : 90; o.life = 4; o.vel.copy(dir).multiplyScalar(42);
+    o.m.material.color.set(0x9ae8ff); o.glow.material.color.set(0x3ac8ff);
+    sfx.parry(); heal(25); addStyle(100, 'FLAIL PARRY', 'flail', 'big'); pushFeed('+25 HP', 'heal');
+  }
+  if (k >= 0.6) breakSecretsInFront(range);
+  if (n) {
+    sfx.flailHit(k);
+    G.hitstop = Math.max(G.hitstop, 0.04 + k * 0.05);
+    G.shake = Math.max(G.shake, 0.2 + k * 0.4);
+    useWeapon('flail');
+    if (k >= 1) addStyle(60, 'WRECKING BALL', 'flail', 'big');
+    if (n >= 3) addStyle(40 + n * 20, 'DEMOLITION SWEEP', 'flail', 'big');
+    else addStyle(10 * n, null, 'flail');
+  }
+}
+function flailAltFire(v) {
+  if (v === 0) {                                   // HOOK: throw the ball, yank what it catches
+    FLAIL.altCD = 1.3;
+    const { origin, dir } = aim();
+    ray.set(origin, dir); ray.far = 28;
+    const h = ray.intersectObjects(rayTargets(), false)[0];
+    sfx.chain();
+    const end = h ? h.point : origin.clone().addScaledVector(dir, 28);
+    tracer(flailHand(), end, 0x9a9aa4, 0.03, 0.25);
+    const e = h && h.object.userData.enemy;
+    if (!e || e.dead) return;
+    damageEnemy(e, 15, { weapon: 'flail', point: h.point.clone() });
+    if (e.dead) return;
+    if (!e.def.boss && e.def.mass <= 1.6) {
+      const pull = P.pos.clone().sub(e.mesh.position); pull.y = 0;
+      e.vel.copy(pull.multiplyScalar(2.4)).setY(6); e.grounded = false;
+      if (e.state === 'dive') { e.state = 'recover'; e.t = 0.6; }
+      addStyle(40, 'HOOKED', 'flail', 'cool');
+    } else {
+      const to = h.point.clone().sub(P.pos); const d = to.length();
+      P.vel.copy(to.normalize().multiplyScalar(Math.min(30, 10 + d))).setY(Math.max(P.vel.y, 7)); P.grounded = false;
+      addStyle(20, 'REELED IN', 'flail');
+    }
+    useWeapon('flail');
+  } else if (v === 1) {                            // SPIKE: overhead smash where you aim
+    FLAIL.altCD = 1.6;
+    const { origin, dir } = aim();
+    ray.set(origin, dir); ray.far = 16;
+    const h = ray.intersectObjects(worldMeshes, false)[0];
+    const p = h ? h.point.clone() : origin.clone().addScaledVector(dir, 16);
+    p.y = Math.max(0, floorAt(p.x, p.z, p.y + 0.5));
+    FLAIL.smash.push({ p, t: 0.32 });
+    ringFx(p.clone().setY(p.y + 0.05), 3.4, 0xff5a3a);
+    sfx.chain();
+  } else {                                         // MAGNET: hurl the packed rubble
+    if (FLAIL.rubble <= 0) { pushFeed('NO RUBBLE · kill with the flail to pack it', 'bad'); FLAIL.altCD = 0.4; return; }
+    FLAIL.altCD = 0.9;
+    const n = 4 + FLAIL.rubble * 2;
+    const { origin, dir } = aim();
+    for (let i = 0; i < n; i++) {
+      const d = dir.clone().add(new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(0.11)).normalize();
+      ray.set(origin, d); ray.far = 40;
+      const h = ray.intersectObjects(rayTargets(), false)[0];
+      tracer(muzzle(), h ? h.point : origin.clone().addScaledVector(d, 40), 0xc8784a, 0.035, 0.12);
+      const e = h && h.object.userData.enemy;
+      if (e && !e.dead) damageEnemy(e, 11, { weapon: 'flail', point: h.point.clone(), knock: d.clone().multiplyScalar(3) });
+      else if (h) burst(h.point, 3, 0x8a5a3a, 4, 0.1, 0.4);
+    }
+    statShot();
+    sfx.shotgun(); W.kick = 1;
+    if (FLAIL.rubble >= 6) addStyle(60, 'LANDSLIDE', 'flail', 'big'); else addStyle(20, 'RUBBLE BLAST', 'flail', 'cool');
+    FLAIL.rubble = 0;
+    useWeapon('flail');
+  }
+}
+function updateFlail(dt) {
+  const v = W.variant[4];
+  if (down('fire') && W.cd <= 0 && FLAIL.swingT <= 0) {
+    if (!FLAIL.held) { FLAIL.held = true; FLAIL.wind = 0; sfx.chain(); statShot(); }
+    FLAIL.wind = Math.min(1, FLAIL.wind + dt / 0.85);
+    whirl(dt, v);
+  } else if (FLAIL.held) {
+    FLAIL.held = false;
+    flailSweep(FLAIL.wind, v);
+    FLAIL.wind = 0; W.cd = 0.42;
+  }
+  if (hit('alt') && FLAIL.altCD <= 0 && !FLAIL.held) flailAltFire(v);
+}
+// runs every frame whatever is equipped: swing animation, smashes, cooldowns
+function flailTick(dt) {
+  FLAIL.altCD -= dt;
+  if (W.cur !== 4 && FLAIL.held) { FLAIL.held = false; FLAIL.wind = 0; }
+  if (FLAIL.swingT > 0) {
+    FLAIL.swingT -= dt;
+    const u = 1 - Math.max(0, FLAIL.swingT) / 0.24;
+    const a = P.yaw + 1.3 - u * 2.6, r = 2.6 + FLAIL.swingC * 2.2;
+    flailBall.position.set(P.pos.x - Math.sin(a) * r, P.pos.y + 1.3 - u * 0.3, P.pos.z - Math.cos(a) * r);
+    flailBall.visible = true;
+  } else if (!FLAIL.held) flailBall.visible = false;
+  for (let i = FLAIL.smash.length - 1; i >= 0; i--) {
+    const s = FLAIL.smash[i];
+    s.t -= dt;
+    if (s.t <= 0) {
+      FLAIL.smash.splice(i, 1);
+      explode(s.p, 3.6, 70, 'flail');
+      shockwave(s.p, 16, 7, 0);
+      addStyle(20, 'SPIKE DROP', 'flail', 'cool');
+    }
+  }
+  flailChain.visible = flailBall.visible;
+  if (flailChain.visible) {
+    const pa = flailChain.geometry.attributes.position;
+    const h = flailHand();
+    pa.setXYZ(0, h.x, h.y, h.z); pa.setXYZ(1, flailBall.position.x, flailBall.position.y, flailBall.position.z); pa.needsUpdate = true;
+    flailBall.userData.glow.material.color.setHex(VARIANTS[4][W.variant[4]].hex);
+  }
+}
+function flailVM(dt) {
+  FLVM.variants.forEach((g, i) => (g.visible = i === W.variant[4]));
+  FLVM.accent.emissive.setHex(VARIANTS[4][W.variant[4]].hex);
+  FLVM.accent.emissiveIntensity = 1.1 + FLAIL.wind * 3 + (FLAIL.rubble ? Math.sin(G.time * 8) * 0.4 : 0);
+  // ball hangs and sways; while whirling it leaves the viewmodel (the world ball takes over)
+  FLVM.ball.visible = !(flailBall.visible && W.cur === 4);
+  FLVM.links.forEach((l) => (l.visible = FLVM.ball.visible));
+  FLVM.pivot.rotation.z = Math.PI - 0.75 + Math.sin(G.time * 2.2) * 0.12 - swayX * 0.001;
+  FLVM.pivot.rotation.x = Math.sin(G.time * 1.7) * 0.1 + (P.vel.y || 0) * 0.01;
+  FLVM.g.rotation.x += (FLAIL.held ? -0.6 : 0) - 0.35;
+  FLVM.g.rotation.z += 0.3;
+}
+function flailAlt() {
+  const v = W.variant[4];
+  if (FLAIL.held) return FLAIL.wind >= 1 ? 'WRECKING BALL READY' : 'WINDING ' + '▮'.repeat(Math.round(FLAIL.wind * 5)) + '▯'.repeat(5 - Math.round(FLAIL.wind * 5));
+  if (v === 2) return 'RUBBLE ' + '■'.repeat(FLAIL.rubble) + '□'.repeat(6 - FLAIL.rubble);
+  return (v === 0 ? 'HOOK' : 'SPIKE DROP') + (FLAIL.altCD > 0 ? ' ···' : ' READY');
+}
+
+// ================================================================ BATCH 5b: ELITE ENEMIES
+const ELITES = {
+  iron: { name: 'IRON', hp: 2.2, speed: 0.9, color: 0x9aa4b4, emissive: 0x2a3a5a, glow: 0x8ac8ff, style: 120 },
+  ember: { name: 'EMBER', hp: 1.5, speed: 1.25, color: 0xff7a3a, emissive: 0xff4a0a, glow: 0xff7a2a, style: 100 },
+};
+const ELITE_OK = new Set(['grunt', 'shooter', 'flyer', 'heavy', 'shield', 'sniper', 'priest', 'ram', 'burrower', 'mender']);
+const fireballs = [];
+const fireballMat = new THREE.SpriteMaterial({ map: GLOW, color: 0xff6a1a, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+function eliteChance() {
+  if (G.mode === 'endless') return G.wave >= 6 ? Math.min(0.2, 0.025 * (G.wave - 4)) : 0;
+  if (G.mode !== 'campaign' || !G.level || G.level.duel || G.level.prime) return 0;
+  const si = SCENES.indexOf(G.level.scene), num = Number(String(G.level.id).split('-')[1]) || 1;
+  if (si <= 0) return num >= 3 ? 0.05 : 0;
+  return 0.04 + si * 0.03 + num * 0.003;
+}
+function maybeElite(e) {
+  if (e.def.boss || e.dummy || !ELITE_OK.has(e.type) || e.sent === 'never') return;
+  if (Math.random() >= eliteChance()) return;
+  makeElite(e, e.type === 'heavy' || e.type === 'shield' || e.type === 'ram' ? (Math.random() < 0.7 ? 'iron' : 'ember') : e.def.fly ? 'ember' : Math.random() < 0.5 ? 'iron' : 'ember');
+}
+function makeElite(e, kind) {
+  if (e.elite) return;
+  const X = ELITES[kind];
+  e.elite = kind;
+  e.def = Object.assign(Object.create(e.def), { speed: e.def.speed * X.speed, kill: e.def.kill + 60, label: X.name + ' ELITE' });
+  e.hp *= X.hp; e.maxHp *= X.hp;
+  e.baseScale *= 1.12;
+  if (!e.def.fly) e.mesh.scale.setScalar(e.baseScale);
+  const tint = new THREE.Color(X.color);
+  for (const mt of e.mats) {
+    if (!mt.color) continue;
+    mt.color.lerp(tint, kind === 'iron' ? 0.55 : 0.35);
+    if (kind === 'iron' && 'metalness' in mt) { mt.metalness = 0.75; mt.roughness = 0.35; }
+    if (mt.emissive) { mt.emissive.setHex(X.emissive); mt.emissiveIntensity = kind === 'ember' ? 0.9 : 0.4; mt.userData.baseEmissive = X.emissive; mt.userData.baseIntensity = mt.emissiveIntensity; }
+  }
+  const crest = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: X.glow, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  crest.scale.set(0.9, 0.9, 1); crest.position.y = (e.def.h + 0.4) / Math.max(0.01, e.baseScale);
+  e.mesh.add(crest); e.crest = crest;
+  e.eT = rand(2.5, 4.5); e.fT = 0;
+  try { if (!localStorage.getItem('rubblemaker-elite-seen')) { localStorage.setItem('rubblemaker-elite-seen', '1'); showHint('ELITES · IRON ones shrug off bullets (use explosions, headshots or the SPIKE flail) and pound the floor. EMBER ones burn the ground, throw fire and BLOW UP when they die.'); } } catch (_) {}
+}
+// IRON armor: half damage unless it is the right tool
+function eliteDmg(e, dmg, info) {
+  if (e.elite !== 'iron') return dmg;
+  if (info.explosion || info.head || info.combo || info.parry || info.pierce || info.weapon === 'slam' || info.weapon === 'shock' || info.countersnipe) return dmg;
+  if (G.time - (e.tingT || 0) > 0.2) { e.tingT = G.time; sfx.ting(); if (info.point) burst(info.point, 4, 0xc8d8ff, 5, 0.06, 0.25, true); }
+  return dmg * 0.45;
+}
+function eliteKilled(e, info) {
+  if (!e.elite) return;
+  addStyle(ELITES[e.elite].style, ELITES[e.elite].name + ' ELITE', info && info.weapon, 'big');
+  if (e.elite === 'ember') {
+    const p = e.mesh.position.clone(); p.y += 0.6;
+    setTimeout(() => { if (G.state === 'play' || G.state === 'pause') { explode(p, 3.4, 0, 'enemy'); for (let i = 0; i < 5; i++) addFlame(p.x + rand(-2, 2), p.z + rand(-2, 2), 'cat', 3); } }, 450);
+    ringFx(p.clone().setY(0.1), 3.4, 0xff4a0a);
+  }
+  if (statsLive()) { STATS.elites = (STATS.elites || 0) + 1; }
+}
+function updateElites(dt) {
+  for (const e of enemies) {
+    if (!e.elite || e.dead || e.spawnT > 0 || e.buried) continue;
+    const p = e.mesh.position;
+    if (e.crest) e.crest.material.opacity = 0.6 + Math.sin(G.time * 6 + p.x) * 0.3;
+    const dist = Math.hypot(P.pos.x - p.x, P.pos.z - p.z);
+    e.eT -= dt;
+    if (e.elite === 'iron') {
+      if (e.slamT > 0) {
+        e.slamT -= dt;
+        if (e.slamT <= 0) { shockwave(new V3(p.x, e.def.fly ? 0 : p.y, p.z), 15, 13, 16); sfxAt(p, 'heavySlam', distVol(p)); G.shake = Math.max(G.shake, 0.3 * distVol(p)); burst(p.clone().setY(p.y + 0.2), 14, 0x8a8a94, 8, 0.15, 0.6); }
+      } else if (e.eT <= 0 && dist < 11 && !e.def.fly) {
+        e.eT = rand(4.5, 6.5); e.slamT = 0.65;
+        ringFx(new V3(p.x, p.y + 0.06, p.z), 3, 0x8ac8ff);
+        sfxAt(p, 'windup', distVol(p));
+      }
+    } else {
+      e.fT -= dt;
+      if (e.fT <= 0 && !e.def.fly && e.vel.lengthSq() + 1 > 0) { e.fT = 0.45; addFlame(p.x, p.z, 'cat', 2.4); }
+      if (Math.random() < 0.3) spawnPart(new V3(p.x + rand(-0.4, 0.4), p.y + e.def.h * rand(0.2, 0.9) * (e.def.fly ? 0.3 : 1), p.z + rand(-0.4, 0.4)), new V3(0, 2.5, 0), 0xffa040, 0.07, 0.35, true, -0.1);
+      if (e.eT <= 0 && dist > 5 && dist < 26) {
+        e.eT = rand(3.2, 4.8);
+        const from = p.clone(); from.y += e.def.fly ? 0 : e.def.h * 0.8;
+        if (lineOfSight(from, playerEye())) throwFireball(from, playerEye());
+      }
+    }
+  }
+  for (let i = fireballs.length - 1; i >= 0; i--) {
+    const f = fireballs[i];
+    f.life -= dt; f.vel.y -= 9 * dt;
+    const prev = f.s.position.clone();
+    f.s.position.addScaledVector(f.vel, dt);
+    f.s.scale.setScalar(0.9 + Math.sin(G.time * 30) * 0.1);
+    if (Math.random() < 0.6) spawnPart(prev, new V3(0, 1, 0), 0xff8a2a, 0.08, 0.3, true, -0.05);
+    const pe = playerEye(); pe.y -= 0.5;
+    let end = false;
+    if (f.s.position.distanceTo(pe) < 0.9) { if (hurtPlayer(12, f.vel.clone().setY(0).normalize().multiplyScalar(5).setY(3))) sfx.sizzle(); end = true; }
+    else if (f.life <= 0 || f.s.position.y < Math.max(0, floorAt(f.s.position.x, f.s.position.z, f.s.position.y + 1)) || !lineOfSight(prev, f.s.position)) end = true;
+    if (end) { addFlame(f.s.position.x, f.s.position.z, 'cat', 2.5); burst(f.s.position, 8, 0xff7a2a, 5, 0.1, 0.4, true); scene.remove(f.s); fireballs.splice(i, 1); }
+  }
+}
+function throwFireball(from, to) {
+  const s = new THREE.Sprite(fireballMat); s.position.copy(from); s.scale.setScalar(0.9);
+  scene.add(s);
+  const d = to.clone().sub(from); const t = d.length() / 17;
+  const vel = d.multiplyScalar(1 / t); vel.y += 4.5 * t;
+  fireballs.push({ s, vel, life: 3 });
+  sfxAt(from, 'orb', distVol(from));
+}
+function clearFireballs() { for (const f of fireballs) scene.remove(f.s); fireballs.length = 0; FLAIL.smash.length = 0; FLAIL.rubble = 0; }
+
+// ================================================================ BATCH 5c: GHOST REPLAYS
+var GH = { rec: null, recT: 0, play: null, mesh: null, key: '' };
+const GHOST_KEY = 'rubblemaker-ghosts';
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8ae8ff, transparent: true, opacity: 0.32, depthWrite: false });
+function loadGhosts() { try { return JSON.parse(localStorage.getItem(GHOST_KEY) || '{}'); } catch (_) { return {}; } }
+function ghostModel(mat) {
+  const md = buildGolem();
+  md.root.traverse((o) => { if (o.isMesh) o.material = mat; if (o.isLight) o.visible = false; });
+  md.root.scale.multiplyScalar(0.55);
+  md.root.userData.md = md;
+  scene.add(md.root);
+  return md.root;
+}
+function ghostClear() {
+  if (GH.mesh) { scene.remove(GH.mesh); GH.mesh = null; }
+  GH.rec = null; GH.play = null;
+}
+function encodeFrames(arr) {
+  const a = new Int16Array(arr), b = new Uint8Array(a.buffer);
+  let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function decodeFrames(str) {
+  const s = atob(str), b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return new Int16Array(b.buffer);
+}
+function ghostStart(lv) {
+  ghostClear();
+  GH.key = bestKey(lv);
+  GH.rec = []; GH.recT = 0;
+  if (!settings.ghost || (VS && VS.active)) return;
+  const g = loadGhosts()[GH.key];
+  if (!g) return;
+  try { GH.play = { f: decodeFrames(g.d), t: g.t }; } catch (_) { return; }
+  GH.mesh = ghostModel(ghostMat);
+  GH.mesh.position.set(P.pos.x, P.pos.y, P.pos.z);
+}
+function ghostTick(dt) {
+  if (GH.rec) {
+    GH.recT -= dt;
+    if (GH.recT <= 0 && GH.rec.length < 4 * 10 * 900) { GH.recT += 0.1; GH.rec.push(Math.round(P.pos.x * 10), Math.round(P.pos.y * 10), Math.round(P.pos.z * 10), Math.round(((P.yaw % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) * 1000 - 3142)); }
+  }
+  if (GH.play && GH.mesh) {
+    const f = GH.play.f, n = f.length / 4;
+    const u = G.levelTime * 10, i = Math.min(n - 1, Math.floor(u)), j = Math.min(n - 1, i + 1), k = Math.min(1, u - i);
+    const L = (o) => (f[i * 4 + o] + (f[j * 4 + o] - f[i * 4 + o]) * k) / 10;
+    const x = L(0), y = L(1), z = L(2);
+    const moved = Math.hypot(x - GH.mesh.position.x, z - GH.mesh.position.z);
+    GH.mesh.position.set(x, y, z);
+    let ya = (f[i * 4 + 3] + 3142) / 1000, yb = (f[j * 4 + 3] + 3142) / 1000;
+    if (yb - ya > Math.PI) ya += Math.PI * 2; else if (ya - yb > Math.PI) yb += Math.PI * 2;
+    GH.mesh.rotation.y = ya + (yb - ya) * k + Math.PI;
+    const md = GH.mesh.userData.md;
+    if (md && md.rig) { GH.walk = (GH.walk || 0) + moved * 2.2; const sw = Math.sin(GH.walk) * Math.min(1, moved / dt / 6) * 0.7; if (md.rig.hipL) { md.rig.hipL.rotation.x = sw; md.rig.hipR.rotation.x = -sw; } if (md.rig.shL) { md.rig.shL.rotation.x = -sw; md.rig.shR.rotation.x = sw; } }
+    GH.mesh.visible = u < n + 10 && Math.hypot(x - P.pos.x, z - P.pos.z) > 1.2;
+    ghostMat.opacity = 0.22 + Math.sin(G.time * 3) * 0.06;
+  }
+}
+function ghostSave(t) {
+  if (!GH.rec || GH.rec.length < 8 || cheatsOn() || (VS && VS.active)) return;
+  const all = loadGhosts();
+  if (all[GH.key] && all[GH.key].t <= t) return;
+  all[GH.key] = { t, d: encodeFrames(GH.rec), at: Date.now() };
+  for (let tries = 0; tries < 12; tries++) {
+    try { localStorage.setItem(GHOST_KEY, JSON.stringify(all)); break; } catch (_) {
+      const keys = Object.keys(all).filter((k) => k !== GH.key).sort((a, b) => (all[a].at || 0) - (all[b].at || 0));
+      if (!keys.length) break; delete all[keys[0]];
+    }
+  }
+  pushFeed('NEW GHOST SAVED', 'cool');
+}
+
+// ================================================================ BATCH 5d: RUBBLE RACE (secret 1v1 versus over PeerJS)
+var VS = {
+  active: false, peer: null, conn: null, host: false, code: '', level: 0, meReady: false, rivalReady: false, freeze: 0,
+  rival: { prog: 0, done: false, t: 0, pos: null, yaw: 0, tgt: null, mesh: null, rooms: 0 },
+  sendT: 0, sendCD: 0, curses: 0, styleBank: 0, clearedSeen: 0, fx: {}, result: null, connected: false,
+};
+const VS_PREFIX = 'rubblemaker-race-';
+const rivalMat = new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.4, depthWrite: false });
+const vsUnlocked = () => { try { return localStorage.getItem('rubblemaker-vs') === '1'; } catch (_) { return false; } };
+function vsReveal() { show('vsBtn', vsUnlocked()); }
+// the secret: type R A C E on the title screen
+var raceBuf = '';
+addEventListener('keydown', (e) => {
+  if (G.state !== 'menu' || !e.code.startsWith('Key')) return;
+  raceBuf = (raceBuf + e.code.slice(3)).slice(-4);
+  if (raceBuf !== 'RACE') return;
+  raceBuf = '';
+  const first = !vsUnlocked();
+  try { localStorage.setItem('rubblemaker-vs', '1'); } catch (_) {}
+  vsReveal();
+  const el = $('achToast');
+  el.innerHTML = `<small>${first ? 'SECRET FOUND' : 'SECRET'}</small><b>RUBBLE RACE</b><span>1v1 versus is open · race a friend through the same level</span>`;
+  el.classList.add('show'); sfx.portal();
+  setTimeout(() => el.classList.remove('show'), 3200);
+});
+function vsMsg(t, bad) { const m = $('vsMsg'); m.textContent = t; m.classList.toggle('bad', !!bad); }
+function vsLevels() { return LEVELS.map((l, i) => [l, i]).filter(([l]) => !l.duel && !l.prime); }
+function openVersus() {
+  initAudio();
+  G.state = 'versus';
+  show('menu', false); show('vsResult', false);
+  show('versus', true);
+  const sel = $('vsLevel');
+  if (!sel.options.length) sel.innerHTML = vsLevels().map(([l, i]) => `<option value="${i}">${l.id} · ${l.name}</option>`).join('');
+  vsLobbyUI();
+}
+function vsLobbyUI() {
+  const inLobby = !!VS.peer;
+  show('vsHome', !inLobby); show('vsLobby', inLobby);
+  if (!inLobby) { vsMsg(window.Peer ? '' : 'Loading the network library… if this stays, check your connection.'); return; }
+  $('vsCodeShow').innerHTML = VS.host ? `ROOM CODE <b>${VS.code}</b><small>send this to your rival</small>` : `JOINED <b>${VS.code}</b>`;
+  $('vsStatus').textContent = VS.connected ? 'RIVAL CONNECTED' : VS.host ? 'WAITING FOR A RIVAL…' : 'CONNECTING…';
+  $('vsStatus').className = VS.connected ? 'ok' : '';
+  $('vsLevel').disabled = !VS.host;
+  show('vsStart', VS.host);
+  $('vsStart').disabled = !VS.connected;
+  $('vsLevel').value = String(VS.level);
+  if (!VS.host) vsMsg(VS.connected ? 'The host picks the level and starts the race.' : '');
+}
+function newCode() { return 'BRICK-' + String(1000 + Math.floor(Math.random() * 9000)); }
+function vsHost(tries = 0) {
+  if (!window.Peer) { vsMsg('Network library not loaded. Are you online?', true); return; }
+  vsLeave(true);
+  VS.host = true; VS.code = newCode(); VS.level = Number($('vsLevel').value || vsLevels()[0][1]);
+  const peer = new window.Peer(VS_PREFIX + VS.code);
+  VS.peer = peer;
+  peer.on('open', () => vsLobbyUI());
+  peer.on('connection', (c) => { if (VS.conn && VS.conn.open) { c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 300); }); return; } vsAttach(c); });
+  peer.on('error', (er) => {
+    if (er.type === 'unavailable-id' && tries < 4) { vsHost(tries + 1); return; }
+    vsMsg('Network error: ' + (er.type || er.message), true);
+  });
+  vsLobbyUI();
+}
+function vsJoin() {
+  if (!window.Peer) { vsMsg('Network library not loaded. Are you online?', true); return; }
+  let code = $('vsCode').value.trim().toUpperCase().replace(/\s+/g, '');
+  if (/^\d{4}$/.test(code)) code = 'BRICK-' + code;
+  if (/^BRICK\d{4}$/.test(code)) code = 'BRICK-' + code.slice(5);
+  if (!/^BRICK-\d{4}$/.test(code)) { vsMsg('Codes look like BRICK-1234', true); return; }
+  vsLeave(true);
+  VS.host = false; VS.code = code;
+  const peer = new window.Peer();
+  VS.peer = peer;
+  peer.on('open', () => { vsAttach(peer.connect(VS_PREFIX + code, { reliable: true })); });
+  peer.on('error', (er) => { vsMsg(er.type === 'peer-unavailable' ? 'No race with that code. Check it with the host.' : 'Network error: ' + (er.type || er.message), true); if (er.type === 'peer-unavailable') { vsLeave(true); vsLobbyUI(); } });
+  vsLobbyUI();
+}
+function vsAttach(c) {
+  VS.conn = c;
+  c.on('open', () => { VS.connected = true; vsSend({ t: 'hi', v: 1 }); if (VS.host) vsSend({ t: 'lvl', idx: VS.level }); vsLobbyUI(); sfx.door(); });
+  c.on('data', (m) => vsRecv(m));
+  c.on('close', () => vsLost());
+  c.on('error', () => vsLost());
+}
+function vsSend(m) { try { if (VS.conn && VS.conn.open) VS.conn.send(m); } catch (_) {} }
+function vsLost() {
+  if (!VS.connected) return;
+  VS.connected = false; VS.conn = null;
+  if (VS.active && !VS.result) { vsEndRace(true, 'RIVAL DISCONNECTED · WIN BY FORFEIT'); return; }
+  if (G.state === 'versus') { vsMsg('Your rival left.', true); vsLobbyUI(); }
+}
+function vsLeave(quiet) {
+  vsSend({ t: 'bye' });
+  try { if (VS.conn) VS.conn.close(); } catch (_) {}
+  try { if (VS.peer) VS.peer.destroy(); } catch (_) {}
+  VS.conn = null; VS.peer = null; VS.connected = false;
+  if (!quiet) vsLobbyUI();
+}
+function vsRecv(m) {
+  if (!m || typeof m !== 'object') return;
+  const R = VS.rival;
+  switch (m.t) {
+    case 'hi': VS.connected = true; vsLobbyUI(); break;
+    case 'full': vsMsg('That race already has two players.', true); vsLeave(); break;
+    case 'lvl': VS.level = m.idx | 0; vsLobbyUI(); break;
+    case 'go': vsBegin(m.idx | 0); break;
+    case 'ready': R.ready = true; VS.rivalReady = true; if (VS.meReady) vsCountdown(); vsReadyUI(); break;
+    case 'p':
+      R.tgt = new V3(+m.x || 0, +m.y || 0, +m.z || 0); R.yaw = +m.yaw || 0; R.prog = clamp(+m.prog || 0, 0, 1); R.rooms = m.rooms | 0;
+      if (!R.pos) R.pos = R.tgt.clone();
+      break;
+    case 'send': vsReceiveEnemies(Array.isArray(m.types) ? m.types.slice(0, 3) : []); break;
+    case 'curse': vsApplyCurse(String(m.k)); break;
+    case 'done': R.done = true; R.t = +m.time || 0; if (VS.active && !VS.result) vsEndRace(VS.myDone && VS.myT <= R.t, VS.myDone ? null : 'YOUR RIVAL REACHED THE PORTAL FIRST'); break;
+    case 'lobby': if (G.state === 'vsResult' || G.state === 'versus') { vsMsg('Host is back in the lobby.'); } break;
+    case 'quit': if (VS.active && !VS.result) vsEndRace(true, 'YOUR RIVAL GAVE UP'); break;
+    case 'bye': vsLost(); break;
+  }
+}
+function vsStartRace() {
+  if (!VS.host || !VS.connected) return;
+  VS.level = Number($('vsLevel').value);
+  vsSend({ t: 'go', idx: VS.level });
+  vsBegin(VS.level);
+}
+function vsBegin(idx) {
+  VS.active = true; VS.level = idx; VS.result = null; VS.myDone = false; VS.myT = 0;
+  VS.meReady = false; VS.rivalReady = false; VS.freeze = 0;
+  VS.rival = { prog: 0, done: false, t: 0, pos: null, yaw: 0, tgt: null, mesh: VS.rival.mesh, rooms: 0, ready: false };
+  VS.curses = 0; VS.styleBank = 0; VS.clearedSeen = 0; VS.sendCD = 0; VS.fx = {};
+  show('versus', false); show('vsResult', false);
+  normalizeLoadout();
+  startLevel(idx);
+  G.state = 'vsready';
+  camera.position.set(P.pos.x, P.pos.y + P.camH, P.pos.z); camera.rotation.set(P.pitch, P.yaw, 0); camera.updateMatrixWorld();
+  show('hud', true); show('vsHud', true);
+  if (!VS.rival.mesh) VS.rival.mesh = ghostModel(rivalMat);
+  VS.rival.mesh.visible = false;
+  show('vsCount', true);
+  vsReadyUI();
+}
+function vsReadyUI() {
+  const el = $('vsCount');
+  if (G.state !== 'vsready') return;
+  el.innerHTML = `<b>${LEVELS[VS.level].id} · ${LEVELS[VS.level].name}</b><button id="vsReadyBtn" ${VS.meReady ? 'disabled' : ''}>${VS.meReady ? 'READY ✔' : 'CLICK WHEN READY'}</button><small>RIVAL: ${VS.rivalReady ? 'READY ✔' : 'getting ready…'}</small><small class="keys">first to the portal wins · [T] fires a curse when you have one</small>`;
+  $('vsReadyBtn').onclick = vsSetReady;
+}
+function vsSetReady() {
+  if (VS.meReady || G.state !== 'vsready') return;
+  VS.meReady = true;
+  requestLock();
+  vsSend({ t: 'ready' });
+  if (VS.rivalReady) vsCountdown(); else vsReadyUI();
+}
+function vsCountdown() {
+  if (G.state !== 'vsready') return;
+  G.state = 'play';
+  last = performance.now();
+  VS.freeze = 3; VS.goAt = performance.now() + 3000;
+  requestLock();
+}
+// progress through the level, 0..1
+function vsProgress() {
+  const L = G.layout; if (!L) return 0;
+  const fights = L.rooms.filter((r) => (r.waves && r.waves.length) || r.boss);
+  const done = fights.filter((r) => r.state === 'clear').length;
+  return fights.length ? Math.min(0.95, done / fights.length * 0.95) : 0;
+}
+function vsTick(dt) {
+  if (!VS.active) return;
+  const R = VS.rival;
+  if (VS.freeze > 0) {
+    const before = Math.ceil(VS.freeze);
+    VS.freeze = (VS.goAt - performance.now()) / 1000;
+    P.pos.x = G.spawn.x; P.pos.z = G.spawn.z; P.vel.set(0, 0, 0); W.cd = Math.max(W.cd, 0.15);
+    G.levelTime = 0;
+    const el = $('vsCount');
+    if (VS.freeze <= 0) { el.innerHTML = '<b class="go">GO!</b>'; sfx.wave(); setTimeout(() => { if (VS.freeze <= 0) show('vsCount', false); }, 700); }
+    else if (Math.ceil(VS.freeze) !== before || !el.querySelector('.num')) { el.innerHTML = `<b class="num">${Math.ceil(VS.freeze)}</b>`; tone(440, 440, 0.15, 0.2, 'square'); }
+  }
+  // stream my position + progress
+  VS.sendT -= dt;
+  if (VS.sendT <= 0) {
+    VS.sendT = 1 / 12;
+    vsSend({ t: 'p', x: Math.round(P.pos.x * 100) / 100, y: Math.round(P.pos.y * 100) / 100, z: Math.round(P.pos.z * 100) / 100, yaw: Math.round(P.yaw * 100) / 100, prog: vsProgress(), rooms: G.layout ? G.layout.rooms.filter((r) => r.state === 'clear').length : 0 });
+  }
+  // rival ghost
+  if (R.mesh && R.tgt) {
+    R.pos.lerp(R.tgt, Math.min(1, dt * 10));
+    const moved = Math.hypot(R.pos.x - R.mesh.position.x, R.pos.z - R.mesh.position.z);
+    R.mesh.position.copy(R.pos);
+    R.mesh.rotation.y = R.yaw + Math.PI;
+    R.mesh.visible = Math.hypot(R.pos.x - P.pos.x, R.pos.z - P.pos.z) > 1.2;
+    const md = R.mesh.userData.md;
+    if (md && md.rig && md.rig.hipL) { R.walk = (R.walk || 0) + moved * 2.2; const sw = Math.sin(R.walk) * Math.min(1, moved / Math.max(dt, 1e-3) / 6) * 0.7; md.rig.hipL.rotation.x = sw; md.rig.hipR.rotation.x = -sw; }
+  }
+  // curse charges: every room cleared and every 900 style
+  const cleared = G.layout ? G.layout.rooms.filter((r) => r.state === 'clear').length : 0;
+  if (cleared > VS.clearedSeen) { VS.clearedSeen = cleared; vsGainCurse(); }
+  if (G.styleTotal - VS.styleBank >= 900) { VS.styleBank += 900; vsGainCurse(); }
+  if (hit('curse')) vsFireCurse();
+  VS.sendCD -= dt;
+  // curse effects on me
+  const F = VS.fx;
+  for (const k in F) { F[k] -= dt; if (F[k] <= 0) { delete F[k]; if (k === 'lowgrav') G.lowgrav = false; } }
+  if (F.jam) { W.cd = Math.max(W.cd, 0.1); if (FLAIL.held) { FLAIL.held = false; FLAIL.wind = 0; } }
+  if (F.lowgrav) G.lowgrav = true;
+  const fx = $('vsCurseFx');
+  fx.className = F.fog ? 'fog' : F.reverse ? 'rev' : F.jam ? 'jam' : F.lowgrav ? 'grav' : 'hidden';
+  fx.textContent = F.reverse ? 'CONTROLS REVERSED' : F.jam ? 'WEAPONS JAMMED' : F.lowgrav ? 'LOW GRAVITY' : '';
+  // HUD
+  $('vsMe').style.width = `${(G.portal ? 0.97 : vsProgress()) * 100}%`;
+  $('vsRiv').style.width = `${R.prog * 100}%`;
+  $('vsCurse').innerHTML = VS.curses ? `CURSE ×${VS.curses} <b>[${keyLabel(bound('curse')[0] || 'KeyT')}]</b>` : '<span>clear rooms / earn style for curses</span>';
+}
+function vsGainCurse() { if (VS.curses >= 3) return; VS.curses++; pushFeed('CURSE READY', 'cool'); sfx.coin(); }
+const CURSES = { fog: ['FOG', 6], reverse: ['REVERSED CONTROLS', 3.5], jam: ['WEAPON JAM', 3], lowgrav: ['LOW GRAVITY', 7] };
+function vsFireCurse() {
+  if (!VS.curses || VS.freeze > 0) return;
+  VS.curses--;
+  const k = Object.keys(CURSES)[(Math.random() * 4) | 0];
+  vsSend({ t: 'curse', k });
+  pushFeed('CURSE SENT · ' + CURSES[k][0], 'cool');
+  addStyle(30, null, null);
+  tone(300, 90, 0.5, 0.25, 'sawtooth');
+}
+function vsApplyCurse(k) {
+  if (!CURSES[k] || !VS.active || VS.result) return;
+  VS.fx[k] = CURSES[k][1];
+  banner('CURSED: ' + CURSES[k][0]);
+  tone(200, 60, 0.7, 0.3, 'sawtooth'); fxFlash(0x8a2aff, 0.25);
+}
+// sabotage: your style milestones send enemies into your rival's level
+const SEND_POOL = [['grunt', 'shooter', 'flyer'], ['grunt', 'shooter', 'shield', 'flyer', 'bomber'], ['grunt', 'shooter', 'ram', 'bomber', 'flyer']];
+function vsSendEnemies(n, why) {
+  if (!VS.active || VS.result || VS.sendCD > 0 || VS.freeze > 0) return;
+  VS.sendCD = 7;
+  const pool = SEND_POOL[Math.max(0, SCENES.indexOf(G.level.scene))] || SEND_POOL[0];
+  const types = []; for (let i = 0; i < n; i++) types.push(pool[(Math.random() * pool.length) | 0]);
+  vsSend({ t: 'send', types });
+  pushFeed(`${why} · SENT ${n} TO RIVAL`, 'cool');
+}
+function vsLabel(label) {
+  if (!VS.active) return;
+  if (label === 'TRIPLE KILL' || label === 'MULTIKILL') vsSendEnemies(2, label);
+}
+function vsRank(idx) { if (VS.active && idx >= 4) vsSendEnemies(idx >= 6 ? 2 : 1, RANKS[idx].l + ' RANK'); }
+function vsReceiveEnemies(types) {
+  if (!VS.active || VS.result || G.state === 'vsready' || VS.freeze > 0) return;
+  if (enemies.filter((e) => e.sent && !e.dead).length >= 5) return;
+  let n = 0;
+  for (const t of types) {
+    if (!DEFS[t]) continue;
+    for (let k = 0; k < 10; k++) {
+      const a = Math.random() * Math.PI * 2, d = rand(6, 11);
+      const x = P.pos.x + Math.cos(a) * d, z = P.pos.z + Math.sin(a) * d;
+      const fy = DEFS[t].fly ? P.pos.y + rand(3, 4.5) : 0;
+      if (overlapBox(x - 0.7, 0.1, z - 0.7, x + 0.7, 2.4, z + 0.7)) continue;
+      if (!lineOfSight(playerEye(), new V3(x, 1.2, z))) continue;
+      const e = makeEnemy(t, x, z, fy); e.sent = true; n++;
+      break;
+    }
+  }
+  if (n) { banner(`RIVAL SENT ${n} ${n > 1 ? 'ENEMIES' : 'ENEMY'}`); fxFlash(0xff3a1a, 0.15); }
+}
+// someone reached the portal
+function vsFinish() {
+  VS.myDone = true; VS.myT = G.levelTime;
+  vsSend({ t: 'done', time: VS.myT });
+  if (VS.rival.done) vsEndRace(VS.myT < VS.rival.t);
+  else vsEndRace(true);
+}
+function vsEndRace(win, note) {
+  if (VS.result) return;
+  VS.result = win ? 'win' : 'lose';
+  G.state = 'vsResult';
+  document.exitPointerLock?.();
+  show('hud', false); show('vsHud', false); show('vsCount', false); show('pause', false); show('over', false);
+  G.lowgrav = false; VS.fx = {};
+  $('vsCurseFx').className = 'hidden';
+  if (VS.rival.mesh) VS.rival.mesh.visible = false;
+  $('vsResTitle').textContent = win ? 'YOU WIN' : 'YOU LOSE';
+  $('vsResTitle').className = 'title ' + (win ? 'win' : 'lose');
+  const lv = LEVELS[VS.level];
+  $('vsResStats').innerHTML = `<span>LEVEL</span><b>${lv.id} · ${lv.name}</b>` +
+    `<span>YOUR TIME</span><b>${VS.myDone ? fmtTime(VS.myT) : 'DNF'}</b>` +
+    `<span>RIVAL</span><b>${VS.rival.done ? fmtTime(VS.rival.t) : 'DNF'}</b>` +
+    `<span>KILLS</span><b>${G.kills}</b>` + (note ? `<p>${note}</p>` : '');
+  show('vsRematch', VS.host && VS.connected);
+  show('vsResult', true);
+  win ? sfx.rankUp() : sfx.hurt();
+}
+function vsToLobby() {
+  VS.active = false; VS.result = null;
+  G.lowgrav = false;
+  if (VS.rival.mesh) { scene.remove(VS.rival.mesh); VS.rival.mesh = null; }
+  show('vsHud', false); show('vsCount', false); show('vsResult', false);
+  toMenu();
+  normalizeLoadout();
+  if (VS.host) vsSend({ t: 'lobby' });
+  openVersus();
+}
+function vsToLobbyMenu() {
+  VS.active = false; VS.result = null;
+  if (VS.rival.mesh) { scene.remove(VS.rival.mesh); VS.rival.mesh = null; }
+  show('vsHud', false); show('vsCount', false); show('vsResult', false); show('versus', false);
+  toMenu(); normalizeLoadout();
+}
+$('vsBtn').addEventListener('click', openVersus);
+$('vsHost').addEventListener('click', () => vsHost());
+$('vsJoin').addEventListener('click', vsJoin);
+$('vsCode').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.code === 'Enter') vsJoin(); });
+$('vsLevel').addEventListener('change', () => { VS.level = Number($('vsLevel').value); vsSend({ t: 'lvl', idx: VS.level }); });
+$('vsStart').addEventListener('click', vsStartRace);
+$('vsLeave').addEventListener('click', () => { vsLeave(); vsLobbyUI(); });
+$('vsBack').addEventListener('click', () => { G.state = 'menu'; show('versus', false); show('menu', true); });
+$('vsRematch').addEventListener('click', () => { vsSend({ t: 'go', idx: VS.level }); VS.active = false; if (VS.rival.mesh) VS.rival.mesh.visible = false; toMenu(); vsBegin(VS.level); });
+$('vsLobbyBtn').addEventListener('click', vsToLobby);
+vsReveal();
