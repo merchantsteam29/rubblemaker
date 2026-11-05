@@ -63,10 +63,10 @@
 <div id="menu" class="screen">
   <h1>RUBBLEMAKER</h1>
   <p class="tag">brick. cobblestone. carnage.</p>
-  <p class="ver">v1.1 · PRIME REMATCHES · P-RANKS · THE PIT SHIFTS</p>
+  <p class="ver">v1.2 · THE STORY · THE CODEX · NEW SOUND</p>
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
-  <div class="row-buttons"><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
+  <div class="row-buttons"><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
   <div class="controls" id="controlsList"></div>
   <div class="tips">
     Revolver RMB: hold to charge a piercing shot. Shotgun RMB: lob a core &mdash; shoot it with the revolver for a <b>COMBO BLAST</b>.<br>
@@ -104,6 +104,15 @@
   <div id="sceneList"></div>
   <button class="sub" id="levelsBack">BACK</button>
 </div>
+
+<div id="codex" class="screen hidden">
+  <h2 class="title">CODEX</h2>
+  <div id="codexTabs"><button data-tab="beasts">BESTIARY</button><button data-tab="arsenal">ARSENAL</button><button data-tab="stats">STATS</button><button data-tab="ach">ACHIEVEMENTS</button><button data-tab="story">STORY</button></div>
+  <div id="codexBody"></div>
+  <button class="sub" id="codexBack">BACK</button>
+</div>
+<div id="achToast"></div>
+<div id="cutscene" class="hidden"><div class="bar top"></div><div class="bar bot"></div><div id="cutCard"></div><div id="cutCap" class="hidden"><b id="cutWho"></b><p id="cutText"></p></div><div id="cutSkip"></div></div>
 
 <div id="pitRecords" class="screen hidden">
   <h2 class="title">PIT RECORDS</h2>

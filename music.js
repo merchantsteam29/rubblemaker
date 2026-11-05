@@ -1,6 +1,7 @@
 // =====================================================================
-//  Procedural heavy-industrial soundtrack. Intensity 0..4 adds layers:
+//  Procedural heavy-industrial soundtrack. Intensity 0..5 adds layers:
 //  0 pad + pulse · 1 kick/hats · 2 bass + snare · 3 full chug + metal · 4 lead
+//  5 RUBBLEMAKER: double-kick, octave bass, crash every bar, harmony lead
 // =====================================================================
 
 const THEMES = {
@@ -18,7 +19,9 @@ const midi = (n) => 440 * 2 ** ((n - 69) / 12);
 export function createMusic(AC, out, noiseBuf) {
   const bus = AC.createGain();
   bus.gain.value = 0;
-  bus.connect(out);
+  // tone filter: opens up with the style rank, muffles when hurt / paused
+  const toneLP = AC.createBiquadFilter(); toneLP.type = 'lowpass'; toneLP.frequency.value = 18000; toneLP.Q.value = 0.9;
+  bus.connect(toneLP); toneLP.connect(out);
 
   // distorted bass chain
   const bassIn = AC.createGain(); bassIn.gain.value = 0.5;
@@ -35,7 +38,7 @@ export function createMusic(AC, out, noiseBuf) {
   fb.gain.value = 0.3; dWet.gain.value = 0.25;
   delay.connect(fb); fb.connect(delay); delay.connect(dWet); dWet.connect(bus);
 
-  let theme = THEMES.menu, step = 0, nextTime = 0, intensity = 0, playing = false;
+  let theme = THEMES.menu, step = 0, nextTime = 0, intensity = 0, playing = false, fill = 0, sting = 0;
 
   function env(g, t, a, peak, d) {
     g.gain.setValueAtTime(0.0001, t);
@@ -84,6 +87,16 @@ export function createMusic(AC, out, noiseBuf) {
       o.connect(g); g.connect(bassIn); o.start(t); o.stop(t + len + 0.05);
     }
   }
+  function crash(t, v = 1) {
+    const n = AC.createBufferSource(); n.buffer = noiseBuf;
+    const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 4500;
+    const g = AC.createGain(); env(g, t, 0.002, 0.22 * v, 1.1);
+    n.connect(f); f.connect(g); g.connect(bus); g.connect(delay); n.start(t, Math.random() * 0.3); n.stop(t + 1.2);
+  }
+  function chord(t, root, len) {
+    for (const n of [root, root + 7, root + 12]) bass(t, n, len, 0.7);
+    crash(t, 1.2);
+  }
   function lead(t, note, len) {
     const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square';
     o.frequency.value = midi(note);
@@ -126,6 +139,15 @@ export function createMusic(AC, out, noiseBuf) {
     }
     if (i >= 3 && (s === 6 || s === 14) && bar % 2 === 1) metal(t);
     if (i >= 4) lead(t, root + 24 + LEAD[(s + bar * 4) % 16], sixteenth * 0.9);
+    if (i >= 5) {
+      if (s % 2 === 1) kick(t, 0.5);
+      if (s === 0) crash(t, 0.8);
+      if (s % 4 === 0) bass(t, root + 12 + (theme.bass || DEFAULT_BASS)[s], sixteenth * 0.7, 0.55);
+      if (s % 2 === 0) lead(t, root + 31 + LEAD[(s + bar * 4 + 2) % 16], sixteenth * 1.6);
+    }
+    // drum fill after the intensity rises
+    if (fill > 0) { snare(t, 0.35 + (4 - fill) * 0.15); fill--; }
+    if (sting) { chord(t, root, sixteenth * (sting > 1 ? 6 : 3)); if (sting > 1) lead(t, root + 36, sixteenth * 6); sting = 0; }
   }
 
   return {
@@ -136,7 +158,9 @@ export function createMusic(AC, out, noiseBuf) {
       delay.delayTime.value = (60 / theme.tempo) * 0.75;
       step = Math.ceil(step / 16) * 16; // restart on a bar line
     },
-    setIntensity(v) { intensity = Math.max(0, Math.min(4, v | 0)); },
+    setIntensity(v) { const n = Math.max(0, Math.min(5, v | 0)); if (n > intensity && n >= 2 && playing) fill = 4; intensity = n; },
+    setTone(hz) { toneLP.frequency.setTargetAtTime(hz, AC.currentTime, 0.25); },
+    stinger(level = 1) { sting = level; },
     start() {
       if (playing) return;
       playing = true;
