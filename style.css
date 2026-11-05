@@ -245,7 +245,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0908; c
 #touchUI .use { right: 7vh; bottom: 55vh; width: 11vh; height: 11vh; font-size: 2.2vh; }
 #touchUI .pause { right: 2vh; top: 2vh; width: 9vh; height: 9vh; border-radius: 12px; }
 #touchUI .w { top: 2vh; width: 11vh; height: 7vh; border-radius: 10px; font-size: 1.8vh; }
-#touchUI .w1 { right: 38vh; } #touchUI .w2 { right: 26vh; } #touchUI .w3 { right: 14vh; }
+#touchUI .w1 { right: 50vh; } #touchUI .w2 { right: 38vh; } #touchUI .w3 { right: 26vh; } #touchUI .w4 { right: 14vh; }
 body.touch #bottomRight { right: auto; left: 50%; transform: translateX(-50%) scale(.62); transform-origin: bottom center; bottom: 4px; text-align: center; }
 body.touch #weaponSlots { justify-content: center; }
 body.touch #bottomLeft { left: 12px; bottom: auto; top: 12px; transform: scale(.8); transform-origin: top left; }

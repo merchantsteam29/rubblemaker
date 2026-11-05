@@ -796,8 +796,43 @@ export function buildViewmodels(GLOW) {
   m(C(0.04, 0.04, 0.05, 10), leather, armGrapple, 0.06, 0.02, 0.05, 0, 0, HP);
   const arms = { fist: arm, blade: armBlade, shock: armShock, grapple: armGrapple };
 
-  for (const g of [revolver, shotgun, arm, nailgun, armBlade, armShock, armGrapple]) bake(g);
-  return { revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw, nailgun, nailSpin, nailAccent, nailFlash, nailVariants, arms, shockGlow, skinMats: { steel, dsteel, brass } };
+  // ---- BRICK LAUNCHER: a stubby iron mortar tube fed from a hopper of bricks
+  const brickRed = new THREE.MeshStandardMaterial({ color: 0x9a3a24, roughness: 0.85, ...f });
+  const mortarLine = new THREE.MeshStandardMaterial({ color: 0xc8b8a0, roughness: 0.9, ...f });
+  const launcherAccent = new THREE.MeshStandardMaterial({ color: 0x442211, emissive: 0xffd04a, emissiveIntensity: 1.3 });
+  const launcher = new THREE.Group();
+  m(C(0.078, 0.07, 0.5, 10), dsteel, launcher, 0, 0.02, -0.14, HP);              // tube
+  m(C(0.092, 0.092, 0.07, 10), brass, launcher, 0, 0.02, -0.39, HP);             // muzzle ring
+  m(C(0.06, 0.06, 0.02, 10), black, launcher, 0, 0.02, -0.425, HP);              // bore
+  for (const z of [-0.05, -0.22]) m(C(0.084, 0.084, 0.025, 10), steel, launcher, 0, 0.02, z, HP);
+  m(B(0.16, 0.16, 0.2), steel, launcher, 0, 0.0, 0.12);                          // breech
+  for (const y of [0.03, -0.03]) m(B(0.165, 0.014, 0.05), launcherAccent, launcher, 0, y, 0.12);
+  m(B(0.13, 0.07, 0.16), woodDark, launcher, 0, 0.115, 0.06);                    // hopper
+  const hopper = pivot(launcher, 'hopper', 0, 0.16, 0.06);
+  for (let i = 0; i < 3; i++) { m(B(0.1, 0.035, 0.045), brickRed, hopper, 0, i * 0.008, -0.05 + i * 0.05); m(B(0.102, 0.004, 0.047), mortarLine, hopper, 0, i * 0.008 + 0.019, -0.05 + i * 0.05); }
+  m(B(0.05, 0.13, 0.07), wood, launcher, 0, -0.12, 0.14, -0.3);                  // grip
+  m(B(0.04, 0.1, 0.045), leather, launcher, 0, -0.1, -0.2);                      // fore-grip
+  m(B(0.075, 0.09, 0.2), wood, launcher, 0, -0.02, 0.32, 0.08);                  // stock
+  m(B(0.02, 0.05, 0.02), steel, launcher, 0, 0.11, -0.33);                       // sight
+  gripHand(launcher, 0, -0.12, 0.15, -0.3);
+  const launcherFlash = flashSprite(-0.46, 0.42); launcher.add(launcherFlash);
+  const mortarG = pivot(launcher, 'mortar');                                      // MORTAR: bomblet canisters
+  for (let i = 0; i < 3; i++) { const a = -0.9 + i * 0.9; m(C(0.024, 0.024, 0.12, 8), brass, mortarG, Math.sin(a) * 0.1, 0.02 + Math.cos(a) * 0.1, -0.3, HP); m(S(0.02, 6, 5), launcherAccent, mortarG, Math.sin(a) * 0.1, 0.02 + Math.cos(a) * 0.1, -0.37); }
+  const limpetG = pivot(launcher, 'limpet');                                      // LIMPET: glue tank
+  const glue = new THREE.MeshStandardMaterial({ color: 0x2a6a1a, emissive: 0x4aff3a, emissiveIntensity: 0.9, roughness: 0.2, transparent: true, opacity: 0.85 });
+  m(C(0.042, 0.042, 0.17, 10), glue, limpetG, -0.1, 0.0, -0.08, HP);
+  for (const z of [-0.17, 0.01]) m(C(0.046, 0.046, 0.015, 10), dsteel, limpetG, -0.1, 0.0, z, HP);
+  m(C(0.008, 0.008, 0.2, 4), black, limpetG, -0.07, 0.03, -0.27, HP);
+  const skipG2 = pivot(launcher, 'skipstone');                                    // SKIPSTONE: flat paddle muzzle
+  m(B(0.24, 0.022, 0.11), steel, skipG2, 0, 0.0, -0.44);
+  mirror((sd) => m(B(0.012, 0.06, 0.12), dsteel, skipG2, sd * 0.12, 0.0, -0.44));
+  const launcherVariants = [mortarG, limpetG, skipG2];
+  launcher.userData.base = new THREE.Vector3(0.25, -0.29, -0.6);
+  launcher.scale.setScalar(0.72);
+  launcher.visible = false;
+
+  for (const g of [revolver, shotgun, arm, nailgun, launcher, armBlade, armShock, armGrapple]) bake(g);
+  return { launcher, launcherAccent, launcherFlash, launcherVariants, launcherHopper: hopper, revolver, shotgun, arm, revFlash, shotFlash, chargeMat, shotAccent, coils, cyl, hammer, pump, revVariants, shotVariants, pressureLights, needle, saw, nailgun, nailSpin, nailAccent, nailFlash, nailVariants, arms, shockGlow, skinMats: { steel, dsteel, brass } };
 }
 
 // ---------------------------------------------------------------- props
@@ -913,6 +948,39 @@ export function buildVariantModel(kind) {
     const fuse = m(S(0.06, 6, 5), Gm, bomb, 0, 0.52, 0); fuse.userData.keep = true;
     md.rig.bomb = bomb; md.rig.fuse = fuse;
     md.root.scale.setScalar(0.8);
+  } else if (kind === 'ram') {
+    md = buildEnemyModel('heavy', 0x7a5a3a);
+    const r = md.rig, A = md.armorMat;
+    mirror((sd) => {
+      m(T(0.2, 0.06, 5, 10, Math.PI * 1.25), md.boneMat, r.head, sd * 0.3, 0.32, -0.02, 0, HP, sd * 0.4);
+      m(K(0.06, 0.2, 5), md.boneMat, r.head, sd * 0.5, 0.12, 0.12, 0.6, 0, sd * 0.5);
+    });
+    m(B(0.56, 0.32, 0.14), A, r.head, 0, 0.2, 0.34);
+    m(B(0.1, 0.1, 0.04), glowMat(0xff3a1a), r.head, -0.13, 0.2, 0.42);
+    m(B(0.1, 0.1, 0.04), glowMat(0xff3a1a), r.head, 0.13, 0.2, 0.42);
+    for (let i = 0; i < 4; i++) m(K(0.06, 0.24, 4), A, r.torso, 0, 1.0 - i * 0.2, -0.45 - i * 0.02, -0.7);
+    md.root.scale.setScalar(0.82);
+  } else if (kind === 'burrower') {
+    md = buildEnemyModel('grunt', 0x6a5a48);
+    const r = md.rig;
+    for (const el of [r.elL, r.elR]) for (let i = -1; i <= 1; i++) m(K(0.045, 0.3, 4), md.boneMat, el, i * 0.07, -0.55, 0.06, Math.PI, 0, 0);
+    mirror((sd) => m(B(0.13, 0.11, 0.05), glowMat(0xffb04a), r.head, sd * 0.13, 0.24, 0.3));
+    m(K(0.3, 0.45, 6), md.armorMat, r.head, 0, 0.5, 0.02, -0.25);
+    m(B(0.7, 0.2, 0.5), md.mats[3], r.torso, 0, 0.95, -0.1);
+    md.root.scale.setScalar(0.95);
+  } else if (kind === 'mender') {
+    md = buildEnemyModel('shooter', 0x8ab89a);
+    const r = md.rig, Gm = glowMat(0x6aff9a);
+    const staff = pivot(r.elR, 'staff', 0, -0.4, 0.1);
+    m(C(0.025, 0.025, 1.7, 5), md.boneMat, staff, 0, 0.35, 0);
+    m(T(0.13, 0.02, 4, 12), md.armorMat, staff, 0, 1.2, 0);
+    m(S(0.08, 8, 6), Gm, staff, 0, 1.2, 0);
+    md.rig.staffTip = pivot(staff, 'tip', 0, 1.2, 0);
+    for (let i = 0; i < 3; i++) m(B(0.55, 0.05, 0.42), md.mats[3], r.torso, 0, 0.4 + i * 0.22, 0.02, 0, 0, (i - 1) * 0.25);
+    m(B(0.32, 0.06, 0.02), Gm, r.head, 0, 0.26, 0.3);
+    m(T(0.24, 0.02, 4, 16), Gm, r.head, 0, 0.62, 0, HP);
+    if (md.orb) md.orb.visible = false;
+    md.root.scale.setScalar(0.9);
   } else {
     md = buildEnemyModel('shooter', 0xe8e0d0);
     const r = md.rig, A = md.armorMat, Gm = glowMat(0x6ad8ff);
@@ -958,6 +1026,23 @@ export function buildDuelistModel(kind) {
     mirror((s) => m(B(0.14, 0.06, 0.02), glowMat(0xffffff), r.head, s * 0.13, 0.24, 0.39));
     m(B(0.06, 0.3, 0.02), glowMat(0xffd04a), r.head, 0, 0.24, 0.39);
     md.root.scale.setScalar(1.2);
+  } else if (kind === 'tumble' || kind === 'twirl') {
+    const main = kind === 'tumble' ? 0xd83a2a : 0x2a6ad8, alt = 0xffd04a;
+    md = buildEnemyModel('grunt', main);
+    const r = md.rig, A = glowMat(alt), B2 = glowMat(main);
+    // jester cap with three floppy points and bells
+    for (let i = -1; i <= 1; i++) {
+      m(K(0.12, 0.55, 5), i === 0 ? md.mats[0] : md.armorMat, r.head, i * 0.22, 0.62, -0.05 - Math.abs(i) * 0.05, -0.5 + Math.abs(i) * 0.2, 0, -i * 0.9);
+      m(S(0.06, 6, 5), A, r.head, i * 0.5, 0.78 - Math.abs(i) * 0.12, -0.28 + Math.abs(i) * 0.05);
+    }
+    m(T(0.3, 0.05, 4, 16), A, r.head, 0, 0.4, 0, HP);
+    // diamond harlequin patches
+    for (let i = 0; i < 3; i++) m(B(0.18, 0.18, 0.04), i % 2 ? A : B2, r.torso, -0.2 + i * 0.2, 0.6, 0.27, 0, 0, Math.PI / 4);
+    m(B(0.6, 0.08, 0.5), A, r.torso, 0, 0.25, 0);
+    // big grin mask
+    m(B(0.36, 0.08, 0.03), glowMat(0xffffff), r.head, 0, 0.12, 0.34);
+    mirror((sd) => m(B(0.1, 0.06, 0.03), glowMat(0x1a1a1a), r.head, sd * 0.12, 0.28, 0.34));
+    md.root.scale.setScalar(1.05);
   } else if (kind === 'gilded') {
     md = buildEnemyModel('grunt', 0xffc040);
     const r = md.rig, gold = glowMat(0xffe08a);
@@ -983,6 +1068,70 @@ export function buildDuelistModel(kind) {
     m(T(0.08, 0.02, 4, 10, Math.PI * 1.3), A, hook, 0, -0.06, 0, 0, HP, 0);
     md.root.scale.setScalar(0.85);
   }
+  finishHit(md);
+  return md;
+}
+
+// ---------------------------------------------------------------- CINDER, THE KILN-CAT (quadruped, animated in main.js)
+export function buildCatModel() {
+  const root = new THREE.Group();
+  const flat = { flatShading: true };
+  const fur = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.9, emissive: 0x3a1004, emissiveIntensity: 0.35, ...flat });
+  const belly = new THREE.MeshStandardMaterial({ color: 0x4a3a30, roughness: 0.9, emissive: 0x200800, emissiveIntensity: 0.2, ...flat });
+  const ember = new THREE.MeshStandardMaterial({ color: 0x5a1a04, emissive: 0xff6a1a, emissiveIntensity: 1.6, ...flat });
+  const claw = new THREE.MeshStandardMaterial({ color: 0xe8d8c0, roughness: 0.4, ...flat });
+  const mats = [fur, belly, ember, claw];
+  for (const mt of mats) { mt.userData.baseEmissive = mt.emissive.getHex(); mt.userData.baseIntensity = mt.emissiveIntensity; }
+  const rig = {};
+  const body = pivot(root, 'body', 0, 1.35, 0);
+  rig.body = body;
+  m(B(1.0, 0.9, 2.0), fur, body, 0, 0, 0);
+  m(B(0.8, 0.3, 1.7), belly, body, 0, -0.38, 0);
+  for (let i = 0; i < 5; i++) m(B(1.02, 0.06, 0.12), ember, body, 0, 0.2 - (i % 2) * 0.15, -0.7 + i * 0.35, 0, 0, (i % 2 ? 0.2 : -0.2));
+  m(B(0.12, 0.08, 1.6), ember, body, 0, 0.47, 0);
+  // head
+  const head = pivot(body, 'head', 0, 0.45, 1.05);
+  rig.head = head;
+  m(B(0.85, 0.7, 0.75), fur, head, 0, 0.05, 0.2);
+  m(B(0.5, 0.32, 0.3), belly, head, 0, -0.15, 0.58);
+  m(B(0.14, 0.1, 0.06), glowMat(0xff8aa0), head, 0, -0.02, 0.74);
+  mirror((sd) => {
+    m(K(0.2, 0.45, 4), fur, head, sd * 0.3, 0.55, 0.1, 0, Math.PI / 4, -sd * 0.2);
+    m(K(0.12, 0.3, 4), ember, head, sd * 0.3, 0.52, 0.16, 0, Math.PI / 4, -sd * 0.2);
+    const eye = m(B(0.2, 0.12, 0.04), glowMat(0xffd04a), head, sd * 0.2, 0.15, 0.58);
+    eye.userData.noHit = false;
+    m(B(0.04, 0.11, 0.045), glowMat(0x1a0a00), head, sd * 0.2, 0.15, 0.585);
+    for (let k = 0; k < 3; k++) m(B(0.4, 0.015, 0.015), claw, head, sd * 0.42, -0.08 + k * 0.06, 0.62, 0, 0, sd * (k - 1) * 0.15);
+  });
+  const jaw = pivot(head, 'jaw', 0, -0.25, 0.4);
+  rig.jaw = jaw;
+  m(B(0.45, 0.12, 0.3), belly, jaw, 0, -0.04, 0.1);
+  mirror((sd) => m(K(0.03, 0.12, 4), claw, jaw, sd * 0.14, 0.04, 0.2, Math.PI, 0, 0));
+  // legs
+  const legs = [];
+  for (const [nm, x, z] of [['legFL', -0.38, 0.75], ['legFR', 0.38, 0.75], ['legBL', -0.38, -0.75], ['legBR', 0.38, -0.75]]) {
+    const leg = pivot(body, nm, x, -0.3, z);
+    m(B(0.3, 0.8, 0.34), fur, leg, 0, -0.4, 0);
+    const knee = pivot(leg, nm + 'k', 0, -0.8, 0);
+    m(B(0.26, 0.4, 0.28), fur, knee, 0, -0.15, 0.04);
+    m(B(0.32, 0.12, 0.42), belly, knee, 0, -0.32, 0.1);
+    for (let k = -1; k <= 1; k++) m(K(0.03, 0.12, 4), claw, knee, k * 0.09, -0.34, 0.33, HP, 0, 0);
+    legs.push(leg); rig[nm] = leg;
+  }
+  rig.legs = legs;
+  rig.kneeL = legs[0]; rig.kneeR = legs[1];
+  // tail: a chain of glowing segments
+  let tp = pivot(body, 'tail0', 0, 0.25, -1.0);
+  rig.tail = [tp];
+  for (let i = 0; i < 5; i++) {
+    m(B(0.2 - i * 0.02, 0.2 - i * 0.02, 0.4), i > 2 ? ember : fur, tp, 0, 0, -0.2);
+    const nx = pivot(tp, 'tail' + (i + 1), 0, 0, -0.38);
+    rig.tail.push(nx); tp = nx;
+  }
+  rig.tail2 = rig.tail[2];
+  m(S(0.16, 6, 5), glowMat(0xffb04a), tp, 0, 0, -0.05);
+  bake(root);
+  const md = { root, rig, mats, extraMats: [], hit: [], orb: null };
   finishHit(md);
   return md;
 }

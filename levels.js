@@ -112,6 +112,8 @@ export const DUELS = [
   { id: '0-S', name: 'SISTER SHARD', duel: 'blade', unlockAfter: '0-5', theme: 'cathedral', par: 150, boss: true, startHint: 'A duel of honor. Win it, and the BLADE ARM is yours.', rooms: [{ w: 32, d: 32, props: ['colonnade'], waves: [], boss: 'shard' }] },
   { id: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '1-6', orArm: 'blade', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
   { id: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '1-11', orArm: 'shock', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
+  { id: '2-S1', name: 'TUMBLE & TWIRL', duel: 'djump', unlockAfter: '2-4', orArm: 'grapple', theme: 'kiln', par: 170, boss: true, startHint: 'A drumroll echoes off the kiln walls... the TWIN ACROBATS are on. Beat BOTH for the DOUBLE JUMP.', rooms: [{ w: 36, d: 36, props: ['platforms', 'pillars'], waves: [], boss: 'twins' }] },
+  { id: '2-S2', name: 'CINDER, THE KILN-CAT', duel: 'firedash', unlockAfter: '2-9', orArm: 'djump', theme: 'kiln', par: 170, boss: true, startHint: 'Something big is purring inside the furnace. Tame CINDER to earn the FIRE DASH.', rooms: [{ w: 38, d: 38, props: ['lava', 'platforms'], waves: [], boss: 'cat' }] },
   { id: '2-S', name: 'THE GILDED ONE', duel: 'gold', skulls: true, theme: 'kiln', par: 180, boss: true, startHint: 'Every skull found. The gilded one has been waiting for you.', rooms: [{ w: 34, d: 34, props: ['pillars'], waves: [], boss: 'gilded' }] },
 ];
 SCENES.push({
@@ -130,34 +132,34 @@ SCENES.push({
       R(24, 32, ['crushers', 'vents'], ['x4 g4 f2', 'h2 n2 p1']),
     ] },
     { id: '2-4', name: 'SLAG CANALS', par: 230, rooms: [
-      R(22, 32, ['lava', 'crates'], ['g6 s3', 'f5 x3']),
+      R(22, 32, ['lava', 'crates'], ['g6 s3 r1', 'f5 x3']),
       R(30, 24, ['lava', 'platforms'], ['h2 k2 p1', 'n3 s3 g4']),
       R(24, 24, ['vents'], ['h1 x5 f3']),
     ] },
     { id: '2-5', name: 'BELLOWS HALL', par: 230, rooms: [
       R(30, 30, ['crushers', 'pillars'], ['g8 s2', 'h2 k3', 'f6 p1']),
-      R(26, 22, ['vents', 'lava'], ['n3 x4 s2']),
+      R(26, 22, ['vents', 'lava'], ['n3 x4 s2 b3']),
     ] },
     { id: '2-6', name: 'CLINKER YARD', par: 240, rooms: [
       R(26, 26, ['ruins', 'lava'], ['g7 k2', 's4 f4 p1']),
       R(28, 28, ['crushers', 'platforms'], ['h3 x3', 'n3 s3 k2']),
-      R(24, 24, ['vents'], ['f6 x4 p1']),
+      R(24, 24, ['vents'], ['f6 x4 m1 b2']),
     ] },
     { id: '2-7', name: 'KILN No. 7', par: 250, rooms: [
       R(32, 26, ['lava', 'vents'], ['g8 s3', 'h2 n2 p2']),
-      R(26, 32, ['crushers', 'lava'], ['k4 x4 f3', 'h2 s4 g4']),
+      R(26, 32, ['crushers', 'lava'], ['k4 x4 f3 r2', 'h2 s4 g4']),
     ] },
     { id: '2-8', name: 'ASH PITS', par: 250, rooms: [
       R(24, 24, ['vents', 'pillars'], ['f6 x3']),
-      R(28, 28, ['lava', 'platforms'], ['h2 g6 p1', 'n4 k2 s2']),
+      R(28, 28, ['lava', 'platforms'], ['h2 g6 m1 b2', 'n4 k2 s2']),
       R(26, 26, ['crushers'], ['h3 x4 f3']),
     ] },
     { id: '2-9', name: 'MORTAR MILL', par: 260, rooms: [
-      R(30, 30, ['crushers', 'vents'], ['g10 k2', 's4 n3 p1', 'h3 x4']),
+      R(30, 30, ['crushers', 'vents'], ['g10 k2', 's4 n3 p1', 'h3 x4 r2 m1']),
       R(24, 28, ['lava'], ['f8 s3 p1']),
     ] },
     { id: '2-10', name: 'GLAZE ROOM', par: 260, rooms: [
-      R(26, 26, ['lava', 'ruins'], ['h2 k3 s3', 'x6 f4']),
+      R(26, 26, ['lava', 'ruins'], ['h2 k3 s3', 'x6 f4 b4']),
       R(28, 24, ['vents', 'crushers'], ['n4 p2 g6', 'h3 k2 s3']),
       R(24, 24, ['lava', 'platforms'], ['h2 x4 f4 p1']),
     ] },
@@ -165,10 +167,10 @@ SCENES.push({
       R(22, 22, ['vents'], ['g8 x4']),
       R(24, 24, ['crushers'], ['h2 k3 p1']),
       R(26, 26, ['lava', 'platforms'], ['n4 s4 f4']),
-      R(28, 28, ['vents', 'lava'], ['h3 x5 p2', 'k4 n3 g6']),
+      R(28, 28, ['vents', 'lava'], ['h3 x5 p2', 'k4 n3 g6 r2 m1 b2']),
     ] },
     { id: '2-12', name: 'THE MOLTEN FOREMAN', par: 320, boss: true, startHint: 'The heat is unbearable. Something enormous is working the kiln...', rooms: [
-      R(24, 24, ['vents'], ['g6 x3 s3', 'h2 n2 p1']),
+      R(24, 24, ['vents'], ['g6 x3 s3', 'h2 n2 r1 m1']),
       { w: 46, d: 46, props: ['platforms', 'pillars'], waves: [], boss: 'boss3' },
     ] },
   ],
@@ -181,7 +183,7 @@ export const THEMES = {
   cathedral: { wallH: 18, corrH: 10, doorH: 7, fog: 0x1d1210, fogNear: 20, fogFar: 130, sky: 0x150c0a },
 };
 
-const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer', k: 'shield', n: 'sniper', x: 'bomber', p: 'priest' };
+const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer', k: 'shield', n: 'sniper', x: 'bomber', p: 'priest', r: 'ram', b: 'burrower', m: 'mender' };
 export function parseWave(str) {
   const out = [];
   for (const tok of str.trim().split(/\s+/)) {

@@ -16,6 +16,7 @@ export const ACTIONS = [
   ['weapon1', 'Revolver', ['Digit1']],
   ['weapon2', 'Shotgun', ['Digit2']],
   ['weapon3', 'Nailgun', ['Digit3']],
+  ['weapon4', 'Brick launcher', ['Digit4']],
   ['swap', 'Swap weapon', ['KeyQ']],
   ['arm', 'Switch arm', ['KeyG']],
   ['interact', 'Use (FORGE)', ['KeyE']],
@@ -31,7 +32,7 @@ export const DIFFS = {
 
 const defaultBinds = () => Object.fromEntries(ACTIONS.map(([id, , b]) => [id, b.slice()]));
 // standard gamepad layout: 0 A · 1 B · 2 X · 3 Y · 4 LB · 5 RB · 6 LT · 7 RT · 8 VIEW · 9 MENU · 10 L3 · 11 R3 · 12-15 D-pad
-export const PAD_DEFAULTS = { jump: 0, slide: 1, interact: 2, swap: 3, dash: 4, punch: 5, alt: 6, fire: 7, inspect: 8, arm: 11, weapon1: 14, weapon2: 12, weapon3: 15 };
+export const PAD_DEFAULTS = { jump: 0, slide: 1, interact: 2, swap: 3, dash: 4, punch: 5, alt: 6, fire: 7, inspect: 8, arm: 11, weapon1: 14, weapon2: 12, weapon3: 15, weapon4: 13 };
 export const PAD_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'VIEW', 'MENU', 'L3', 'R3', 'D-PAD ↑', 'D-PAD ↓', 'D-PAD ←', 'D-PAD →', 'HOME'];
 export const padLabel = (b) => (b == null ? '—' : PAD_NAMES[b] || 'B' + b);
 const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
