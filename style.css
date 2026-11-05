@@ -271,3 +271,17 @@ body.touch #prompt { top: 40%; }
   #settings .panel { max-height: 56vh; }
   #best, #overStats { font-size: 15px; }
 }
+
+/* batch 4.3 */
+.gP { color: #fff1a0; text-shadow: 0 0 10px #ffb000, 0 0 22px #ff8a00, 2px 2px 0 #000; }
+.pLine { color: #ffe07a; font-family: 'Bungee', sans-serif; }
+#completeRank.gP { font-size: 96px; }
+.scene.prime h3 span { background: #8a1a10; }
+.lvl.duel.prime-card { border-color: #a0301a; }
+.pitTable { margin: 14px auto 0; border-collapse: collapse; font-size: 14px; min-width: min(460px, 90vw); }
+.pitTable th { opacity: .6; font-weight: normal; font-size: 11px; letter-spacing: 1px; padding: 2px 10px; }
+.pitTable td { padding: 3px 10px; border-top: 1px solid rgba(255,255,255,.08); text-align: left; }
+.pitTable tr.me td { color: #ffe14a; background: rgba(255,200,60,.08); }
+#pitRecords { justify-content: flex-start; padding-top: 8vh; overflow-y: auto; }
+#pitRecordsList { margin-bottom: 18px; }
+#pitRecordsList p { opacity: .6; }

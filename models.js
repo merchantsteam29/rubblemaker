@@ -558,6 +558,41 @@ export function buildTrainerModel(kind) {
     for (let i = 0; i < 7; i++) m(K(0.03, 0.24, 3), Gm, r.head, (i - 3) * 0.06, 0.28, -0.05, -0.3, 0, (i - 3) * 0.18);
     m(S(0.18, 8, 6), Gm, r.hips, 0, -0.1, -0.2);
     md.root.scale.setScalar(2.6);
+  } else if (kind === 'anvil') {
+    // THE ANVIL: an iron smith-golem with an anvil for a head
+    md = buildEnemyModel('heavy', 0x3a3a44);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xffb04a);
+    m(B(1.1, 0.35, 0.6), A, r.head, 0, 0.55, 0.05);
+    m(B(0.7, 0.25, 0.45), A, r.head, 0, 0.3, 0.05);
+    m(K(0.25, 0.55, 4), A, r.head, 0, 0.55, 0.62, HP, 0, Math.PI / 4);
+    m(B(0.5, 0.08, 0.04), Gm, r.head, 0, 0.3, 0.29);
+    for (let i = 0; i < 3; i++) m(B(1.4, 0.12, 1.0), A, r.torso, 0, 0.3 + i * 0.4, 0.05);
+    m(B(0.5, 0.5, 0.08), Gm, r.torso, 0, 0.75, 0.55);
+    const ham = pivot(r.elR, 'hammer', 0, -0.8, 0.15);
+    m(C(0.06, 0.06, 1.2, 6), md.mats[3], ham, 0, 0, 0.3, HP);
+    m(B(0.5, 0.4, 0.4), A, ham, 0, 0, 0.9);
+    md.root.scale.setScalar(1.35);
+  } else if (kind === 'bellows') {
+    // THE BELLOWS: a giant leather bellows on legs, wheezing furnace breath
+    md = buildEnemyModel('heavy', 0x6a4028);
+    const r = md.rig, A = md.armorMat, Gm = glowMat(0xff6a1a);
+    const leather = md.mats[3];
+    for (let i = 0; i < 4; i++) m(B(1.5 - i * 0.12, 0.22, 1.2 - i * 0.08), i % 2 ? A : leather, r.torso, 0, 0.25 + i * 0.28, -0.1);
+    m(C(0.12, 0.25, 0.9, 8), A, r.torso, 0, 0.7, 0.8, HP);
+    m(C(0.13, 0.13, 0.06, 8), Gm, r.torso, 0, 0.7, 1.25, HP);
+    for (const y of [0.35, 0.95]) m(B(1.6, 0.06, 1.3), md.boneMat, r.torso, 0, y, -0.1);
+    mirror((sd) => m(B(0.2, 0.8, 0.2), md.boneMat, r.torso, sd * 0.85, 1.4, -0.1));
+    m(B(0.7, 0.12, 0.25), Gm, r.head, 0, 0.25, 0.3);
+    md.root.scale.setScalar(1.45);
+  } else if (kind === 'crane') {
+    // THE CRANE: a soot-black bird of iron hanging from a hook chain
+    md = buildEnemyModel('flyer', 0x2a2a30);
+    const r = md.rig, Gm = glowMat(0xffd04a);
+    m(K(0.1, 0.6, 4), md.boneMat, r.head, 0, 0.0, 0.55, HP);
+    for (let i = 0; i < 6; i++) m(T(0.08, 0.025, 4, 8), md.armorMat, r.hips, 0, 0.5 + i * 0.16, 0, i % 2 ? HP : 0, 0, 0);
+    m(T(0.18, 0.05, 4, 10, Math.PI * 1.3), md.armorMat, r.hips, 0, 1.5, 0, 0, HP, 0);
+    mirror((sd) => m(B(0.1, 0.06, 0.04), Gm, r.head, sd * 0.1, 0.12, 0.3));
+    md.root.scale.setScalar(2.3);
   } else {
     md = buildEnemyModel('heavy', 0x2e2622);
     const r = md.rig, A = md.armorMat, Gm = glowMat(0xff6a1a);

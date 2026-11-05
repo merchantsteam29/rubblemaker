@@ -127,9 +127,10 @@ SCENES.push({
       R(24, 30, ['vents', 'ruins'], ['g6 x2', 's3 n2 f2']),
       R(28, 24, ['vents', 'lava'], ['h2 g4', 'k3 p1 s2']),
     ] },
-    { id: '2-3', name: 'THE PRESS', par: 220, startHint: 'CRUSHERS slam on a rhythm · lure enemies underneath for style', rooms: [
+    { id: '2-3', name: 'THE PRESS', par: 270, startHint: 'CRUSHERS slam on a rhythm · lure enemies underneath for style', rooms: [
       R(26, 26, ['crushers'], ['g8', 'h1 k2 s2']),
       R(24, 32, ['crushers', 'vents'], ['x4 g4 f2', 'h2 n2 p1']),
+      { w: 28, d: 28, props: ['pillars'], waves: [], boss: 'anvil', hint: 'TRAINER: only the BLADE cuts the ANVIL' },
     ] },
     { id: '2-4', name: 'SLAG CANALS', par: 230, rooms: [
       R(22, 32, ['lava', 'crates'], ['g6 s3 r1', 'f5 x3']),
@@ -140,10 +141,11 @@ SCENES.push({
       R(30, 30, ['crushers', 'pillars'], ['g8 s2', 'h2 k3', 'f6 p1']),
       R(26, 22, ['vents', 'lava'], ['n3 x4 s2 b3']),
     ] },
-    { id: '2-6', name: 'CLINKER YARD', par: 240, rooms: [
+    { id: '2-6', name: 'CLINKER YARD', par: 290, rooms: [
       R(26, 26, ['ruins', 'lava'], ['g7 k2', 's4 f4 p1']),
       R(28, 28, ['crushers', 'platforms'], ['h3 x3', 'n3 s3 k2']),
       R(24, 24, ['vents'], ['f6 x4 m1 b2']),
+      { w: 28, d: 28, props: ['pillars'], waves: [], boss: 'bellows', hint: 'TRAINER: only a CHARGED SHOCKWAVE cracks the BELLOWS' },
     ] },
     { id: '2-7', name: 'KILN No. 7', par: 250, rooms: [
       R(32, 26, ['lava', 'vents'], ['g8 s3', 'h2 n2 p2']),
@@ -154,9 +156,10 @@ SCENES.push({
       R(28, 28, ['lava', 'platforms'], ['h2 g6 m1 b2', 'n4 k2 s2']),
       R(26, 26, ['crushers'], ['h3 x4 f3']),
     ] },
-    { id: '2-9', name: 'MORTAR MILL', par: 260, rooms: [
+    { id: '2-9', name: 'MORTAR MILL', par: 310, rooms: [
       R(30, 30, ['crushers', 'vents'], ['g10 k2', 's4 n3 p1', 'h3 x4 r2 m1']),
       R(24, 28, ['lava'], ['f8 s3 p1']),
+      { w: 30, d: 30, props: ['pillars'], waves: [], boss: 'crane', hint: 'TRAINER: GRAPPLE the CRANE to drag it down' },
     ] },
     { id: '2-10', name: 'GLAZE ROOM', par: 260, rooms: [
       R(26, 26, ['lava', 'ruins'], ['h2 k3 s3', 'x6 f4 b4']),
@@ -175,7 +178,13 @@ SCENES.push({
     ] },
   ],
 });
-export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE }))];
+export const PRIME_SCENE = { id: 'P', name: 'BOSS REMATCHES', theme: 'cellar' };
+export const PRIMES = [
+  { id: '0-P', name: 'MORTIMER PRIME', duel: 'skin:rust', prime: true, unlockAfter: '0-5', theme: 'cellar', par: 200, boss: true, startHint: 'The Warden has been rebuilt: harder, faster, angrier. Beat him for the RUSTED gun skin.', rooms: [{ w: 42, d: 42, props: ['pillars'], waves: [], boss: 'boss1', prime: true }] },
+  { id: '1-P', name: 'HIGH MASON PRIME', duel: 'skin:marble', prime: true, unlockAfter: '1-12', theme: 'cathedral', par: 260, boss: true, startHint: 'The Architect has redrawn his plans. Survive them for the MARBLE gun skin.', rooms: [{ w: 46, d: 46, props: ['colonnade'], waves: [], boss: 'boss2', prime: true }] },
+  { id: '2-P', name: 'FOREMAN PRIME', duel: 'skin:magma', prime: true, unlockAfter: '2-12', theme: 'kiln', par: 300, boss: true, startHint: 'The kiln burns white-hot. The Foreman is back on shift. Win the MAGMA gun skin.', rooms: [{ w: 48, d: 48, props: ['platforms', 'pillars'], waves: [], boss: 'boss3', prime: true }] },
+];
+export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE })), ...PRIMES.map((d) => ({ ...d, scene: PRIME_SCENE }))];
 
 export const THEMES = {
   cellar: { wallH: 8, corrH: 6, doorH: 5, fog: 0x10140f, fogNear: 8, fogFar: 75, sky: 0x0b0e0b },
@@ -205,6 +214,10 @@ function mulberry(seed) {
 function hashStr(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h; }
 
 const DIRS = { N: [0, -1], E: [1, 0], W: [-1, 0], S: [0, 1] };
+export const VARIETY = {
+  '0-4': ['bridge'], '1-2': ['mezzanine'], '1-4': ['towers'], '1-6': ['bridge'], '1-8': ['mezzanine'], '1-10': ['towers'],
+  '2-2': ['mezzanine'], '2-5': ['bridge'], '2-7': ['towers'], '2-8': ['mezzanine'], '2-10': ['bridge'], '2-11': ['mezzanine'],
+};
 const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
 const CW = 5; // corridor / door width
 
@@ -219,6 +232,10 @@ export function buildLevel(level, ctx) {
   const trimMat = level.theme === 'cellar' ? M.brick : M.cobble;
 
   const specs = [{ w: 14, d: 14, props: [], waves: [], hint: level.startHint, kind: 'start' }, ...level.rooms.map((r) => ({ ...r, kind: r.boss ? 'boss' : 'arena' }))];
+  if (VARIETY[level.id]) {
+    const big = specs.filter((x) => x.kind === 'arena').sort((a, b) => b.w * b.d - a.w * a.d)[0];
+    if (big) big.props = [...VARIETY[level.id], ...(big.props || [])];
+  }
   if (!level.boss) specs.push({ w: 14, d: 14, props: [], waves: [], kind: 'exit' });
 
   // ---- layout
@@ -364,7 +381,100 @@ export function buildLevel(level, ctx) {
       placedProps.push({ x0: x - 2, x1: x + 2, z0: z - 2, z1: z + 2 });
       ctx.secretWall(x, z, horiz ? 2.4 : depth, horiz ? depth : 2.4, 3.2, level.id);
     }
+    // local wall coords: u = along the wall from room centre, v = inward distance from the wall
+    const wallBox = (side, u, v, du, dv, y, h, mat, tex, solid = true) => {
+      const [dx, dz] = DIRS[side];
+      const horiz = side === 'N' || side === 'S';
+      const wx = horiz ? r.cx + u : r.cx + dx * r.w / 2 - dx * v;
+      const wz = horiz ? r.cz + dz * r.d / 2 - dz * v : r.cz + u;
+      ctx.box(wx, y, wz, horiz ? du : dv, h, horiz ? dv : du, mat, tex, solid);
+      return { x: wx, z: wz, w: horiz ? du : dv, d: horiz ? dv : du };
+    };
+    const wallRectFree = (side, u, v, du, dv) => {
+      const [dx, dz] = DIRS[side];
+      const horiz = side === 'N' || side === 'S';
+      const wx = horiz ? r.cx + u : r.cx + dx * r.w / 2 - dx * v;
+      const wz = horiz ? r.cz + dz * r.d / 2 - dz * v : r.cz + u;
+      const near = Math.max(1.1, v - dv / 2), far = v + dv / 2;
+      const v2 = (near + far) / 2, dv2 = Math.max(0.2, far - near);
+      const wx2 = horiz ? wx : r.cx + dx * r.w / 2 - dx * v2;
+      const wz2 = horiz ? r.cz + dz * r.d / 2 - dz * v2 : wz;
+      return tryRect(wx2, wz2, horiz ? du : dv2, horiz ? dv2 : du);
+    };
     for (const p of r.props || []) {
+      if (p === 'mezzanine') {
+        // a raised walkway along one wall, reached by a staircase of auto-step 0.5 m risers
+        const sides = shuffle(['N', 'S', 'E', 'W'].filter((sd) => !doorSides.has(sd)), rng);
+        const hy = level.theme === 'cellar' ? 3.5 : 4;
+        const steps = Math.round(hy / 0.5), run = 0.8;
+        for (const side of sides) {
+          const horiz = side === 'N' || side === 'S';
+          const wallLen = horiz ? r.w : r.d, across = horiz ? r.d : r.w;
+          const dep = Math.min(6, across * 0.28);
+          const L = wallLen - 3 - steps * run;
+          if (L < 8) continue;
+          const sg = rng() < 0.5 ? -1 : 1;
+          const u0 = -sg * (steps * run) / 2;
+          // deck + stairs as one footprint (they touch, so they can't be checked separately)
+          if (!wallRectFree(side, 0, dep / 2 + 0.6, L + steps * run, dep + 1.2)) continue;
+          wallBox(side, u0, dep / 2, L, dep, hy - 0.4, 0.4, M.cobble, 3);
+          wallBox(side, u0, dep / 2, L, dep, hy, 0.12, M.brick, 4, false);
+          const n = Math.max(2, Math.floor(L / 6));
+          for (let i = 0; i < n; i++) wallBox(side, u0 + ((i + 0.5) / n - 0.5) * (L - 1), dep - 0.6, 0.8, 0.8, 0, hy - 0.4, M.brick, 4);
+          for (const k of [-1, 1]) wallBox(side, u0 + k * L * 0.32, dep - 0.15, L * 0.28, 0.3, hy, 0.9, M.brick, 4);
+          for (let i = 0; i < steps; i++) wallBox(side, u0 + sg * (L / 2 + (i + 0.5) * run), 1.4, run, 2.8, 0, hy - i * 0.5, M.cobble, 3);
+          break;
+        }
+        continue;
+      }
+      if (p === 'bridge') {
+        // a raised walkway crossing the room (you can walk underneath), stairs at both ends
+        const hy = 3.4, steps = Math.round(hy / 0.5), run = 0.8;
+        let alongX, deck, bx, bz, ok = false;
+        const sg = rng() < 0.5 ? -1 : 1;
+        for (const ax of r.w >= r.d ? [true, false] : [false, true]) {
+          const long = ax ? r.w : r.d;
+          const dk = long - 2 * steps * run - 8;
+          if (dk < 4) continue;
+          for (const k of [0.22, -0.22, 0.3, -0.3, 0.14, -0.14, 0]) {
+            const off = (ax ? r.d : r.w) * k * sg;
+            const x = ax ? r.cx : r.cx + off, z = ax ? r.cz + off : r.cz;
+            const total = dk + 2 * steps * run;
+            if (tryRect(x, z, ax ? total : 3.4, ax ? 3.4 : total)) { alongX = ax; deck = dk; bx = x; bz = z; ok = true; break; }
+          }
+          if (ok) break;
+        }
+        if (!ok) continue;
+        ctx.box(bx, hy - 0.4, bz, alongX ? deck : 3, 0.4, alongX ? 3 : deck, M.cobble, 3);
+        ctx.box(bx, hy, bz, alongX ? deck : 3, 0.12, alongX ? 3 : deck, M.brick, 4, false);
+        for (const k of [-0.5, 0, 0.5]) ctx.box(bx + (alongX ? k * (deck - 1) : 0), 0, bz + (alongX ? 0 : k * (deck - 1)), 0.9, hy - 0.4, 0.9, M.brick, 4);
+        for (const sd of [-1, 1]) {
+          for (let i = 0; i < steps; i++) {
+            const t = sd * (deck / 2 + (i + 0.5) * run);
+            ctx.box(bx + (alongX ? t : 0), 0, bz + (alongX ? 0 : t), alongX ? run : 3, hy - i * 0.5, alongX ? 3 : run, M.cobble, 3);
+          }
+          ctx.box(bx + (alongX ? 0 : sd * 1.35), hy, bz + (alongX ? sd * 1.35 : 0), alongX ? deck * 0.6 : 0.25, 0.7, alongX ? 0.25 : deck * 0.6, M.iron, 1);
+        }
+        continue;
+      }
+      if (p === 'towers') {
+        // tall brick towers to wall-jump or grapple up, with a climbable stack of blocks
+        let made = 0;
+        for (let i = 0; i < 14 && made < 2; i++) {
+          const { x, z } = ri();
+          if (!tryRect(x, z, 6.5, 3.4)) continue;
+          const hy = 5.6;
+          ctx.box(x, 0, z, 3, hy, 3, M.brick, 4);
+          ctx.box(x, hy, z, 3.6, 0.4, 3.6, M.cobble, 3);
+          for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.box(x + ox * 1.6, hy + 0.4, z + oz * 1.6, 0.5, 0.6, 0.5, M.cobble, 3);
+          ctx.box(x - 2.4, 0, z, 1.8, 1.8, 1.8, M.cobble, 3);
+          ctx.box(x - 2.4, 1.8, z + 0.9, 1.8, 1.8, 1.8 / 2 + 0.01, M.cobble, 3);
+          ctx.box(x - 2.0, 3.6, z + 1.2, 1.0, 1.4, 1.0, M.cobble, 3);
+          ctx.torch(x, 3, z + 1.5, 0, 1);
+          made++;
+        }
+        continue;
+      }
       if (p === 'lava') {
         const horiz = rng() < 0.5;
         for (let i = 0; i < 2; i++) {
