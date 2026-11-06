@@ -49,7 +49,7 @@ export const DEFAULTS = {
   skin: 'steel',
   padBinds: { ...PAD_DEFAULTS }, padSens: 1, padInvert: false, padDeadzone: 0.15, aimAssist: 0.5, rumble: true,
   touchControls: 'auto', touchSens: 1, touchOpacity: 0.55,
-  ghost: true, autoQuality: true,
+  ghost: true, autoQuality: true, controllers: true,
 };
 
 const KEY = 'rubblemaker-settings';
@@ -112,7 +112,7 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.back').addEventListener('click', () => { stopCapture(); onBack(); });
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
-      CONTROLS: ['binds'], CONTROLLER: ['padBinds', 'padSens', 'padInvert', 'padDeadzone', 'aimAssist', 'rumble'], TOUCH: ['touchControls', 'touchSens', 'touchOpacity'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'autoQuality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
+      CONTROLS: ['binds'], CONTROLLER: ['controllers', 'padBinds', 'padSens', 'padInvert', 'padDeadzone', 'aimAssist', 'rumble'], TOUCH: ['touchControls', 'touchSens', 'touchOpacity'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'autoQuality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
       AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers', 'gore', 'ghost'],
     }[tab];
     if (!keysFor) return;
@@ -167,6 +167,7 @@ export function initSettingsUI(root, onChange, onBack) {
       }
     } else if (tab === 'CONTROLLER') {
       panel.appendChild(el('<p class="hint">Plug in any Xbox / PlayStation / standard pad and press a button. Click a slot, then press a pad button to rebind. Left stick moves, right stick looks, MENU pauses. In menus: D-pad / stick to move, A to pick, B to go back.</p>'));
+      panel.appendChild(toggle('Controllers (turn OFF if the camera spins by itself)', 'controllers'));
       panel.appendChild(slider('Look sensitivity', 'padSens', 0.2, 3, 0.05, (v) => v.toFixed(2)));
       panel.appendChild(toggle('Invert Y', 'padInvert'));
       panel.appendChild(slider('Stick deadzone', 'padDeadzone', 0.05, 0.4, 0.01, (v) => `${Math.round(v * 100)}%`));

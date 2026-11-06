@@ -4832,17 +4832,19 @@ function pauseGame() {
 }
 
 // ---------------------------------------------------------------- gamepad
-const PADS = { prev: [], navT: 0, navDir: '', rumbleT: 0 };
+const PADS = { prev: [], navT: 0, navDir: '', rumbleT: 0, centered: {} };
+addEventListener('gamepaddisconnected', (e) => { delete PADS.centered[e.gamepad.index]; });
 function getPad() {
-  if (!navigator.getGamepads) return null;
-  let any = null;
+  // only real game pads: wheels, joysticks, pedals and tablets also report as "gamepads" and their
+  // resting axes read as a held stick, which spun the camera on its own
+  if (!navigator.getGamepads || settings.controllers === false) return null;
   for (const p of navigator.getGamepads()) {
-    if (!p || !p.connected) continue;
-    if (p.mapping === 'standard') return p;
-    any = any || p;
+    if (!p || !p.connected || p.mapping !== 'standard' || NOT_PADS.test(p.id || '')) continue;
+    return p;
   }
-  return any;
+  return null;
 }
+const NOT_PADS = /wheel|racing|steer|joystick|flight|hotas|throttle|pedal|rudder|tablet|wacom|stylus|pen |g29|g920|g923|t150|t300|tmx|fanatec|simucube|moza|extreme 3d|x52|x56/i;
 function deadzone(v) {
   const d = settings.padDeadzone, a = Math.abs(v || 0);
   return a < d ? 0 : Math.sign(v) * Math.min(1, (a - d) / (1 - d));
@@ -4872,7 +4874,10 @@ function pollInput(dt) {
   const was = PADS.prev;
   const edge = (i) => !!now[i] && !was[i];
   const ax = gp.axes;
-  const lx = deadzone(ax[0]), ly = deadzone(ax[1]), rx = deadzone(ax[2]), ry = deadzone(ax[3]);
+  // a stick only counts once it has been seen resting in the middle (a stuck or drifting axis never does)
+  const cen = PADS.centered[gp.index] || (PADS.centered[gp.index] = []);
+  const axv = (i) => { const v = ax[i] || 0; if (Math.abs(v) < 0.2) cen[i] = true; return cen[i] ? v : 0; };
+  const lx = deadzone(axv(0)), ly = deadzone(axv(1)), rx = deadzone(axv(2)), ry = deadzone(axv(3));
   if (now.some((b, i) => b && !was[i]) || Math.hypot(lx, ly) > 0.35 || Math.hypot(rx, ry) > 0.35) setInput('pad');
   if (G.input === 'pad') {
     if (playing) {
@@ -6555,8 +6560,8 @@ function updateCutscene(dt) {
     if (n !== CUT.typed) { CUT.typed = n; $('cutText').textContent = sh.line[1].slice(0, n); if (n % 3 === 0) try { tone(900 + Math.random() * 200, 700, 0.025, 0.03, 'square'); } catch (_) {} }
   }
   // gamepad: A = next, B/START = skip
-  for (const gp of navigator.getGamepads ? navigator.getGamepads() : []) {
-    if (!gp) continue;
+  const cutPad = getPad();
+  for (const gp of cutPad ? [cutPad] : []) {
     for (const [b, act] of [[0, 'next'], [1, 'skip'], [9, 'skip']]) {
       const down = !!(gp.buttons[b] && gp.buttons[b].pressed);
       const key = gp.index + ':' + b;
