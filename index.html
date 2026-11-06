@@ -64,10 +64,10 @@
 <div id="menu" class="screen">
   <h1>RUBBLEMAKER</h1>
   <p class="tag">brick. cobblestone. carnage.</p>
-  <p class="ver">v1.7 · CHISELLED STONE</p>
+  <p class="ver">v1.8 · MASON'S LODGE</p>
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
-  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">VERSUS</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
+  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
   <div class="tablet">
   <div class="controls" id="controlsList"></div>
   <div class="tips">
@@ -116,10 +116,11 @@
 </div>
 <div id="achToast"></div>
 <div id="versus" class="screen hidden">
-  <h2 class="title">RUBBLE RACE</h2>
-  <p class="vsSub">SECRET 1v1 · same level · first to the portal wins · sabotage your rival</p>
+  <h2 class="title">MASON'S LODGE</h2>
+  <p class="vsSub">THE SECRET LODGE · two golems, one link · race each other or fight side by side</p>
+  <div id="vsModes" class="row-buttons"><button data-mode="race" class="on">RUBBLE RACE <small>1v1</small></button><button data-mode="coop">CO-OP CAMPAIGN <small>2 golems</small></button></div>
   <div id="vsHome">
-    <button id="vsHost">HOST A RACE</button>
+    <button id="vsHost">HOST A LODGE</button>
     <div class="vsJoin"><input id="vsCode" maxlength="10" placeholder="BRICK-0000" autocomplete="off" spellcheck="false"><button id="vsJoin">JOIN</button></div>
   </div>
   <div id="vsLobby" class="hidden">
@@ -129,7 +130,8 @@
     <label class="vsPick">LEVEL <select id="vsLevel"></select></label>
     <div class="row-buttons"><button id="vsStart">START RACE</button><button class="sub" id="vsLeave">LEAVE</button></div>
     <div id="vsTauntLobby" class="vsTauntRow row-buttons hidden"></div>
-    <ul class="vsRules"><li>Everything is unlocked: every gun, variant and arm.</li><li>Hit a high style rank or a multikill to SEND ENEMIES into your rival's level.</li><li>Clear rooms and rack up style to earn CURSES. Fire them with [T]: fog, reversed controls, weapon jam, low gravity.</li><li>The red ghost is your rival, live.</li><li>RACE COURSES hide glowing SHORTCUT RUNES up high: touch one to open the doors and skip the fight (the enemies follow you).</li><li>Taunt with [V], then 1–4. First to win 2 races takes the set.</li></ul>
+    <ul class="vsRules" id="coRules"><li>Play any campaign level the host has unlocked, together. Your own guns, arms and upgrades come with you.</li><li>The host leads: walk into a room together, or the other golem gets pulled in when the doors close.</li><li>At 0 HP you go DOWN instead of dying. Stand over your partner for 2 seconds to lift them back up. Nobody comes? You rebuild beside them after 20s (+1 death).</li><li>Both down at once and the room resets. The level and your rank count on both saves.</li><li>Pausing (or the FORGE) holds the fight for both of you.</li></ul>
+    <ul class="vsRules" id="raceRules"><li>Everything is unlocked: every gun, variant and arm.</li><li>Hit a high style rank or a multikill to SEND ENEMIES into your rival's level.</li><li>Clear rooms and rack up style to earn CURSES. Fire them with [T]: fog, reversed controls, weapon jam, low gravity.</li><li>The red ghost is your rival, live.</li><li>RACE COURSES hide glowing SHORTCUT RUNES up high: touch one to open the doors and skip the fight (the enemies follow you).</li><li>Taunt with [V], then 1–4. First to win 2 races takes the set.</li></ul>
   </div>
   <p id="vsMsg"></p>
   <button class="sub" id="vsBack">BACK</button>
@@ -141,6 +143,9 @@
   <div class="vsTauntRow row-buttons"></div>
   <div class="row-buttons"><button id="vsRematch">REMATCH</button><button class="sub" id="vsLobbyBtn">LOBBY</button></div>
 </div>
+<div id="coHud" class="hidden"><b>PARTNER</b><div class="tr"><i id="coMateHp"></i></div><span id="coMateSt"></span></div>
+<div id="coDown" class="hidden"></div>
+<div id="coPauseNote" class="hidden">YOUR PARTNER PAUSED · the fight is on hold</div>
 <div id="vsHud" class="hidden"><div class="vsBar"><b>YOU</b><div class="tr"><i id="vsMe"></i></div></div><div class="vsBar riv"><b>RIVAL</b><div class="tr"><i id="vsRiv"></i></div></div><div id="vsCurse"></div></div>
 <div id="vsCount" class="hidden"></div>
 <div id="vsCurseFx" class="hidden"></div>

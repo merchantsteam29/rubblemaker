@@ -2,7 +2,7 @@
 // Globals declared with `var` in later parts. They must exist (as undefined) from the start,
 // because earlier code checks them before their part has run (e.g. `VS && VS.active`).
 // Add a name here if you add a top-level `var` that earlier code reads.
-var bricks, flames, RECENT_DEAD, CHAIN, STATS, CUT, OUT, LAYER, REV, revWet, revKey, crunch, comp, voicesLive, chatterT, beatT, tickLast, FLAIL, GH, VS, raceBuf, AQ, RUNES, tauntT, tauntOpenT, tauntPopT, LAYER_NAMES, ACT_NAMES, AWARD_FROM, GOLEM_BODY, GOLEM_GLOW, RIVAL_GLOW, SR, TUT;
+var bricks, flames, RECENT_DEAD, CHAIN, STATS, CUT, OUT, LAYER, REV, revWet, revKey, crunch, comp, voicesLive, chatterT, beatT, tickLast, FLAIL, GH, VS, raceBuf, AQ, RUNES, tauntT, tauntOpenT, tauntPopT, LAYER_NAMES, ACT_NAMES, AWARD_FROM, GOLEM_BODY, GOLEM_GLOW, RIVAL_GLOW, SR, TUT, CO;
 
 // =====================================================================
 //  RUBBLEMAKER — brick & cobblestone arena shooter with a style meter

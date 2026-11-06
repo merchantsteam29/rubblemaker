@@ -10,3 +10,8 @@ node tools/cdp.mjs http://127.0.0.1:8091/ tools/playthrough.js
 ```
 
 The game's globals (`G`, `P`, `frame`, `startLevel`, ...) are reachable directly from the page, because the `js/*.js` parts are plain scripts.
+- `coop.mjs <url>`: launches two headless Chromes, joins them into one MASON'S LODGE over real PeerJS and plays co-op: room sync, enemy ids, partner damage, down/revive, wipe, pause hold, results, NEXT, a boss, quitting, the race from the same lodge and a disconnect. Prints PASS/FAIL per step plus page errors. Needs internet (PeerJS cloud). Game time runs slower than real time with two software renderers, so waits are condition-based.
+
+```
+node tools/coop.mjs http://127.0.0.1:8091/
+```

@@ -3,7 +3,7 @@
 var VS = {
   active: false, peer: null, conn: null, host: false, code: '', level: 0, meReady: false, rivalReady: false, freeze: 0,
   rival: { prog: 0, done: false, t: 0, pos: null, yaw: 0, tgt: null, mesh: null, rooms: 0 },
-  sendT: 0, sendCD: 0, curses: 0, styleBank: 0, clearedSeen: 0, fx: {}, result: null, connected: false,
+  mode: 'race', sendT: 0, sendCD: 0, curses: 0, styleBank: 0, clearedSeen: 0, fx: {}, result: null, connected: false,
 };
 const VS_PREFIX = 'rubblemaker-race-';
 const rivalMat = new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.4, depthWrite: false });
@@ -20,7 +20,7 @@ addEventListener('keydown', (e) => {
   try { localStorage.setItem('rubblemaker-vs', '1'); } catch (_) {}
   vsReveal();
   const el = $('achToast');
-  el.innerHTML = `<small>${first ? 'SECRET FOUND' : 'SECRET'}</small><b>RUBBLE RACE</b><span>1v1 versus is open · race a friend through the same level</span>`;
+  el.innerHTML = `<small>${first ? 'SECRET FOUND' : 'SECRET'}</small><b>MASON'S LODGE</b><span>the lodge is open · race a friend, or fight the campaign together</span>`;
   el.classList.add('show'); sfx.portal();
   setTimeout(() => el.classList.remove('show'), 3200);
 });
@@ -31,23 +31,49 @@ function openVersus() {
   G.state = 'versus';
   show('menu', false); show('vsResult', false);
   show('versus', true);
-  const sel = $('vsLevel');
-  if (!sel.options.length) { const opt = ([l, i]) => `<option value="${i}">${l.id} · ${l.name}</option>`; const all = vsLevels(); sel.innerHTML = `<optgroup label="RACE COURSES">${all.filter(([l]) => l.race).map(opt).join('')}</optgroup><optgroup label="CAMPAIGN LEVELS">${all.filter(([l]) => !l.race).map(opt).join('')}</optgroup>`; }
+  vsFillLevels();
+  vsLobbyUI();
+}
+// the lodge's level list: race courses + levels for a race, the host's unlocked campaign for co-op
+function vsFillLevels() {
+  const sel = $('vsLevel'), key = VS.mode + (VS.host ? 'h' : 'j');
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  const opt = ([l, i]) => `<option value="${i}">${l.id} · ${l.name}</option>`;
+  if (VS.mode === 'coop') {
+    const all = coLevels(!VS.host), acts = [];
+    for (const it of all) { const a = levelActLabel(it[0]); let g = acts.find((x) => x.a === a); if (!g) acts.push(g = { a, l: [] }); g.l.push(it); }
+    sel.innerHTML = acts.map((g) => `<optgroup label="${g.a}">${g.l.map(opt).join('')}</optgroup>`).join('');
+  } else {
+    const all = vsLevels();
+    sel.innerHTML = `<optgroup label="RACE COURSES">${all.filter(([l]) => l.race).map(opt).join('')}</optgroup><optgroup label="CAMPAIGN LEVELS">${all.filter(([l]) => !l.race).map(opt).join('')}</optgroup>`;
+  }
+  if (![...sel.options].some((o) => o.value === String(VS.level))) VS.level = Number(sel.options[0] ? sel.options[0].value : 0);
+}
+function vsSetMode(m) {
+  if (m !== 'race' && m !== 'coop') return;
+  VS.mode = m;
+  vsFillLevels();
+  if (VS.host) { VS.level = Number($('vsLevel').value); vsSend({ t: 'lvl', idx: VS.level, mode: VS.mode }); }
   vsLobbyUI();
 }
 function vsLobbyUI() {
-  const inLobby = !!VS.peer;
+  const inLobby = !!VS.peer, coop = VS.mode === 'coop';
   show('vsHome', !inLobby); show('vsLobby', inLobby);
+  vsFillLevels();
+  document.querySelectorAll('#vsModes [data-mode]').forEach((b) => { b.classList.toggle('on', b.dataset.mode === VS.mode); b.disabled = inLobby && !VS.host; });
+  show('raceRules', !coop); show('coRules', coop);
+  $('vsStart').textContent = coop ? 'START CO-OP' : 'START RACE';
   if (!inLobby) { vsMsg(window.Peer ? '' : 'Loading the network library… if this stays, check your connection.'); return; }
-  $('vsCodeShow').innerHTML = VS.host ? `ROOM CODE <b>${VS.code}</b><small>send this to your rival</small>` : `JOINED <b>${VS.code}</b>`;
-  $('vsStatus').textContent = VS.connected ? 'RIVAL CONNECTED' : VS.host ? 'WAITING FOR A RIVAL…' : 'CONNECTING…';
+  $('vsCodeShow').innerHTML = VS.host ? `ROOM CODE <b>${VS.code}</b><small>send this to your ${coop ? 'partner' : 'rival'}</small>` : `JOINED <b>${VS.code}</b>`;
+  $('vsStatus').textContent = VS.connected ? (coop ? 'PARTNER CONNECTED' : 'RIVAL CONNECTED') : VS.host ? 'WAITING FOR A FRIEND…' : 'CONNECTING…';
   $('vsStatus').className = VS.connected ? 'ok' : '';
   $('vsLevel').disabled = !VS.host;
   show('vsStart', VS.host);
   $('vsStart').disabled = !VS.connected;
   $('vsLevel').value = String(VS.level);
-  if (!VS.host) vsMsg(VS.connected ? 'The host picks the level and starts the race.' : '');
-  $('vsScore').textContent = VS.connected ? scoreLine() : '';
+  if (!VS.host) vsMsg(VS.connected ? (coop ? 'The host picks the level and starts the co-op run.' : 'The host picks the level and starts the race.') : '');
+  $('vsScore').textContent = VS.connected && !coop ? scoreLine() : '';
   wireTauntRows();
   show('vsTauntLobby', VS.connected);
 }
@@ -77,12 +103,12 @@ function vsJoin() {
   const peer = new window.Peer();
   VS.peer = peer;
   peer.on('open', () => { vsAttach(peer.connect(VS_PREFIX + code, { reliable: true })); });
-  peer.on('error', (er) => { vsMsg(er.type === 'peer-unavailable' ? 'No race with that code. Check it with the host.' : 'Network error: ' + (er.type || er.message), true); if (er.type === 'peer-unavailable') { vsLeave(true); vsLobbyUI(); } });
+  peer.on('error', (er) => { vsMsg(er.type === 'peer-unavailable' ? 'No lodge with that code. Check it with the host.' : 'Network error: ' + (er.type || er.message), true); if (er.type === 'peer-unavailable') { vsLeave(true); vsLobbyUI(); } });
   vsLobbyUI();
 }
 function vsAttach(c) {
   VS.conn = c;
-  c.on('open', () => { VS.connected = true; vsSend({ t: 'hi', v: 1, glow: golemGlowHex() }); if (VS.host) vsSend({ t: 'lvl', idx: VS.level }); vsLobbyUI(); sfx.door(); });
+  c.on('open', () => { VS.connected = true; vsSend({ t: 'hi', v: 1, glow: golemGlowHex() }); if (VS.host) vsSend({ t: 'lvl', idx: VS.level, mode: VS.mode }); vsLobbyUI(); sfx.door(); });
   c.on('data', (m) => vsRecv(m));
   c.on('close', () => vsLost());
   c.on('error', () => vsLost());
@@ -106,8 +132,8 @@ function vsRecv(m) {
   const R = VS.rival;
   switch (m.t) {
     case 'hi': VS.connected = true; if (m.glow) RIVAL_GLOW = m.glow | 0; vsLobbyUI(); break;
-    case 'full': vsMsg('That race already has two players.', true); vsLeave(); break;
-    case 'lvl': VS.level = m.idx | 0; vsLobbyUI(); break;
+    case 'full': vsMsg('That lodge already has two players.', true); vsLeave(); break;
+    case 'lvl': if (m.mode === 'race' || m.mode === 'coop') VS.mode = m.mode; vsFillLevels(); VS.level = m.idx | 0; vsLobbyUI(); break;
     case 'go': vsBegin(m.idx | 0); break;
     case 'ready': R.ready = true; VS.rivalReady = true; if (VS.meReady) vsCountdown(); vsReadyUI(); break;
     case 'p':
@@ -130,6 +156,7 @@ function vsRecv(m) {
 }
 function vsStartRace() {
   if (!VS.host || !VS.connected) return;
+  if (VS.mode === 'coop') { coStart(); return; }
   VS.level = Number($('vsLevel').value);
   vsSend({ t: 'go', idx: VS.level });
   vsBegin(VS.level);
@@ -330,7 +357,8 @@ $('vsBtn').addEventListener('click', openVersus);
 $('vsHost').addEventListener('click', () => vsHost());
 $('vsJoin').addEventListener('click', vsJoin);
 $('vsCode').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.code === 'Enter') vsJoin(); });
-$('vsLevel').addEventListener('change', () => { VS.level = Number($('vsLevel').value); vsSend({ t: 'lvl', idx: VS.level }); });
+$('vsLevel').addEventListener('change', () => { VS.level = Number($('vsLevel').value); vsSend({ t: 'lvl', idx: VS.level, mode: VS.mode }); });
+$('vsModes').addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b && !b.disabled) vsSetMode(b.dataset.mode); });
 $('vsStart').addEventListener('click', vsStartRace);
 $('vsLeave').addEventListener('click', () => { vsLeave(); vsLobbyUI(); });
 $('vsBack').addEventListener('click', () => { G.state = 'menu'; show('versus', false); show('menu', true); });

@@ -44,6 +44,7 @@ const PARTS = [
   '21-aqueduct',
   '22-batch8',
   '23-ui',
+  '24-coop',
 ];
 
 let failed = null;

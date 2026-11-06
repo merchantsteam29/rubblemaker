@@ -566,3 +566,33 @@ body.touch #prompt { top: 40%; }
   #style { width: 250px; }
   #completeStats { gap: 4px 14px; font-size: 15px; padding: 12px 14px; }
 }
+
+/* ---------------------------------------------------------------- 9.3 MASON'S LODGE · co-op */
+#vsModes { gap: 8px; margin: -6px 0 16px; justify-content: center; }
+#vsModes button { font-size: 15px; padding: 10px 18px; opacity: .62; }
+#vsModes button small { display: block; font-family: var(--f-body); font-size: 10px; letter-spacing: 2px; opacity: .7; margin-top: 2px; }
+#vsModes button.on { opacity: 1; color: #fff1d8; box-shadow: var(--bevel), inset 0 -3px 0 var(--ember), 0 0 18px rgba(255, 90, 28, .35); }
+#vsModes button:disabled:not(.on) { opacity: .3; }
+#coNote { margin: -4px 0 12px; letter-spacing: 2px; color: var(--frost); text-align: center; font-size: 13px; }
+#coHud { position: absolute; left: 24px; bottom: 96px; width: 230px; z-index: 12; pointer-events: none; display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 2px; text-shadow: 0 1px 0 #000; padding: 6px 10px; clip-path: var(--cut-s);
+  background-image: var(--grain), var(--mottle), linear-gradient(168deg, #4a4038 0%, #332b25 60%, #221c18 100%); box-shadow: var(--bevel); }
+#coHud b { font-family: var(--f-carve); font-weight: 900; color: var(--frost); }
+#coHud .tr { flex: 1; height: 8px; background: #120d0a; box-shadow: var(--groove); }
+#coHud i { display: block; height: 100%; width: 100%; background: linear-gradient(180deg, #8ae0ff, #2a8ac8); transition: width .2s; }
+#coHud span { min-width: 56px; text-align: right; color: var(--chalk); font-weight: 800; }
+#coHud.down b, #coHud.down span { color: #ff6a4a; animation: coBlink .6s steps(2) infinite; }
+#coHud.down i { background: #6a1a10; }
+@keyframes coBlink { 50% { opacity: .45; } }
+#coDown { position: fixed; inset: 0; z-index: 11; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; padding-bottom: 24vh;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(90, 8, 0, .55) 75%, rgba(30, 0, 0, .85) 100%); text-shadow: 0 2px 0 #000; text-align: center; }
+#coDown b { font-family: var(--f-carve); font-weight: 900; font-size: clamp(30px, 6vw, 56px); color: #ff6a4a; letter-spacing: 3px; }
+#coDown span { letter-spacing: 2px; color: var(--chalk); font-weight: 700; }
+#coDown .tr { width: min(300px, 70vw); height: 10px; background: #120d0a; box-shadow: var(--groove), 0 0 0 1px rgba(255, 236, 210, .1); }
+#coDown .tr i { display: block; height: 100%; width: 0; background: linear-gradient(180deg, #8affb0, #2ac86a); }
+#coDown small { color: var(--dust); letter-spacing: 2px; }
+#coPauseNote { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); z-index: 30; pointer-events: none; font-family: var(--f-carve); font-weight: 900; font-size: clamp(18px, 3vw, 28px);
+  letter-spacing: 2px; color: var(--chalk); text-shadow: var(--engrave), 0 3px 0 #000; padding: 14px 26px; clip-path: var(--cut); white-space: nowrap;
+  background-image: var(--grain), var(--mottle), linear-gradient(168deg, #4a4038 0%, #2a231e 100%); box-shadow: var(--bevel); }
+body.touch #coHud { left: 12px; bottom: auto; top: 86px; transform: scale(.8); transform-origin: top left; }
+@media (max-width: 600px) { #vsModes button { font-size: 12px; padding: 8px 10px; } #coHud { bottom: auto; top: 62px; left: 10px; transform: scale(.85); transform-origin: top left; } #coPauseNote { white-space: normal; text-align: center; width: 86vw; } }
