@@ -6260,7 +6260,7 @@ const ACHS = [
   { id: 'arms', name: 'WRECKING BALL', desc: 'Kill 100 enemies with your arms', p: () => [['punch', 'blade', 'shock', 'grapple', 'slam'].reduce((a, k) => a + (STATS.wk[k] || 0), 0), 100], scrap: 300 },
   { id: 'untouched', name: 'UNTOUCHABLE', desc: 'Clear a level without taking damage', p: () => [STATS.flags.untouched ? 1 : 0, 1], scrap: 300 },
   { id: 'brutal', name: 'BRUTAL HONESTY', desc: 'Clear a level on BRUTAL', p: () => [STATS.flags.brutal ? 1 : 0, 1], scrap: 400 },
-  { id: 'shop', name: 'FULLY STOCKED', desc: 'Buy everything at the FORGE', p: () => [SHOP.filter((it) => (prog().owned || []).includes(it.id)).length, SHOP.length], scrap: 500 },
+  { id: 'shop', name: 'FULLY STOCKED', desc: 'Own every gun and variant the FORGE sells', p: () => [SHOP.filter((it) => (prog().owned || []).includes(it.id)).length, SHOP.length], scrap: 500 },
   { id: 'all', name: 'MASTER MASON', desc: 'Unlock every other achievement', p: () => [ACHS.filter((a) => a.id !== 'all' && STATS.ach[a.id]).length, ACHS.length - 1], skin: 'mason' },
 ];
 const achQueue = [];
@@ -6344,6 +6344,9 @@ const ARSENAL = () => {
     { name: 'SWAP CHAIN', css: '#6ad8ff', owned: true, desc: 'Hit the same enemy with different weapons in quick succession for bonus damage. Use all of them for FULL ARSENAL.' },
     { name: 'DOUBLE JUMP', css: '#ffd04a', owned: owns('up_djump'), desc: 'A second jump in mid-air. Won from TUMBLE & TWIRL.' },
     { name: 'FIRE DASH', css: '#ff6a2a', owned: owns('up_firedash'), desc: 'Your dash leaves a blazing trail that scorches enemies. Won from CINDER.' },
+    { name: 'WRECKING BALL', css: '#ffc04a', owned: owns('flail'), desc: 'FLAIL: hold FIRE until the wind-up bar is full, then release. The full sweep hits for over 120, breaks cracked walls and knocks enemies flying.' },
+    { name: 'DEMOLITION SWEEP', css: '#ffc04a', owned: owns('flail'), desc: 'FLAIL: catch 3 or more enemies in one sweep for bonus style. The MAGNET variant drags them into range first.' },
+    { name: 'FLAIL PARRY', css: '#ffc04a', owned: owns('flail'), desc: 'FLAIL: a sweep knocks glowing orbs straight back where you are aiming, just like a punch parry.' },
   ] };
   return [...guns, arms, moves];
 };
@@ -6353,6 +6356,7 @@ function codexModel(type) {
   const def = DEFS[type];
   const md = def.mini ? buildMiniModel(type) : def.cat ? buildCatModel() : def.base ? buildEnemyModel(def.base, def.color) : def.duelist ? buildDuelistModel(type) : def.variantModel ? buildVariantModel(type) : def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
   if (def.scale) md.root.scale.multiplyScalar(def.scale);
+  if (def.eliteKind) tintElite(md.mats, def.eliteKind);
   return md;
 }
 function codexShow(type) {
@@ -6402,8 +6406,8 @@ function renderCodex() {
   if (codexTab === 'beasts') {
     const met = CODEX_BEASTS.filter(([t]) => STATS.met[t] || STATS.by[t]);
     if (!codexSel || !met.some(([t]) => t === codexSel)) codexSel = met.length ? met[0][0] : null;
-    const cats = ['ENEMY', 'TRAINER', 'DUELIST', 'MINIBOSS', 'BOSS'];
-    body.innerHTML = `<div class="cxBeasts"><div class="cxList">${cats.map((c) => `<h4>${{ ENEMY: 'ENEMIES', TRAINER: 'TRAINERS', DUELIST: 'DUELISTS', MINIBOSS: 'MINI-BOSSES', BOSS: 'BOSSES' }[c]}</h4><div>${CODEX_BEASTS.filter((x) => x[2] === c).map(([t, n]) => { const seen = STATS.met[t] || STATS.by[t]; return `<button data-beast="${t}" class="${t === codexSel ? 'on' : ''}" ${seen ? '' : 'disabled'}>${seen ? n : '???'}</button>`; }).join('')}</div>`).join('')}</div>` +
+    const cats = ['ENEMY', 'ELITE', 'TRAINER', 'DUELIST', 'MINIBOSS', 'BOSS'];
+    body.innerHTML = `<div class="cxBeasts"><div class="cxList">${cats.map((c) => `<h4>${{ ENEMY: 'ENEMIES', ELITE: 'ELITES', TRAINER: 'TRAINERS', DUELIST: 'DUELISTS', MINIBOSS: 'MINI-BOSSES', BOSS: 'BOSSES' }[c]}</h4><div>${CODEX_BEASTS.filter((x) => x[2] === c).map(([t, n]) => { const seen = STATS.met[t] || STATS.by[t]; return `<button data-beast="${t}" class="${t === codexSel ? 'on' : ''}" ${seen ? '' : 'disabled'}>${seen ? n : '???'}</button>`; }).join('')}</div>`).join('')}</div>` +
       `<div class="cxDetail">${codexSel ? (() => { const [t, n, c, lore] = CODEX_BEASTS.find((x) => x[0] === codexSel); const d = DEFS[t]; return `<canvas id="codexCanvas"></canvas><h3>${n}</h3><small>${c === 'MINIBOSS' ? 'MINI-BOSS' : c} · ${Math.round(d.hp)} HP · KILLED ${STATS.by[t] || 0}×</small><p>${lore}</p>${d.hint || ENEMY_INTRO[t] ? `<p class="tip">${d.hint || ENEMY_INTRO[t]}</p>` : ''}`; })() : '<p>You haven\'t met anything yet. Go break something.</p>'}</div></div>` +
       `<p class="cxCount">${met.length} / ${CODEX_BEASTS.length} DISCOVERED</p>`;
     body.querySelectorAll('[data-beast]').forEach((b) => b.addEventListener('click', () => { codexSel = b.dataset.beast; renderCodex(); }));
@@ -6432,7 +6436,7 @@ function renderCodex() {
     const order = ['prologue', 'boss1', 'scene1', 'boss2', 'scene2', 'boss3', 'ending'];
     body.innerHTML = `<div class="cxStory">${order.map((k) => seen[k] ? `<div class="ch"><h4>${STORY[k].title}</h4>${STORY[k].lines.map(([w, t]) => `<p><b>${w}</b> ${t}</p>`).join('')}</div>` : `<div class="ch locked"><h4>???</h4><p>Keep playing to uncover this chapter.</p></div>`).join('')}</div>`;
   } else {
-    body.innerHTML = `<p class="cxCount">${Object.keys(STATS.ach).length} / ${ACHS.length} UNLOCKED</p><div class="cxAch">${ACHS.map((a) => { const [c, m] = a.p(); const got = !!STATS.ach[a.id]; const f = Math.min(1, c / m); return `<div class="ach ${got ? 'got' : ''}"><b>${a.name}</b><p>${a.desc}</p><em>${a.scrap ? '+' + a.scrap + ' ◆' : SKINS[a.skin].name + ' SKIN'}</em><div class="bar"><i style="width:${(got ? 1 : f) * 100}%"></i></div><small>${got ? 'UNLOCKED' : `${Math.min(c, m).toLocaleString()} / ${m.toLocaleString()}`}</small></div>`; }).join('')}</div>`;
+    body.innerHTML = `<p class="cxCount">${Object.keys(STATS.ach).length} / ${ACHS.length} UNLOCKED</p><div class="cxAch">${ACHS.map((a) => { const [c, m] = a.p(); const got = !!STATS.ach[a.id]; const f = Math.min(1, c / m); return `<div class="ach ${got ? 'got' : ''}"><b>${a.secret && a.secret() ? '???' : a.name}</b><p>${a.secret && a.secret() ? 'A secret. Keep exploring.' : a.desc}</p><em>${a.scrap ? '+' + a.scrap + ' ◆' : SKINS[a.skin].name + ' SKIN'}</em><div class="bar"><i style="width:${(got ? 1 : f) * 100}%"></i></div><small>${got ? 'UNLOCKED' : `${Math.min(c, m).toLocaleString()} / ${m.toLocaleString()}`}</small></div>`; }).join('')}</div>`;
   }
 }
 function openCodex() {
@@ -7214,6 +7218,7 @@ function makeElite(e, kind) {
   crest.scale.set(0.9, 0.9, 1); crest.position.y = (e.def.h + 0.4) / Math.max(0.01, e.baseScale);
   e.mesh.add(crest); e.crest = crest;
   e.eT = rand(2.5, 4.5); e.fT = 0;
+  statMet('elite_' + kind);
   try { if (!localStorage.getItem('rubblemaker-elite-seen')) { localStorage.setItem('rubblemaker-elite-seen', '1'); showHint('ELITES · IRON ones shrug off bullets (use explosions, headshots or the SPIKE flail) and pound the floor. EMBER ones burn the ground, throw fire and BLOW UP when they die.'); } } catch (_) {}
 }
 // IRON armor: half damage unless it is the right tool
@@ -7231,7 +7236,7 @@ function eliteKilled(e, info) {
     setTimeout(() => { if (G.state === 'play' || G.state === 'pause') { explode(p, 3.4, 0, 'enemy'); for (let i = 0; i < 5; i++) addFlame(p.x + rand(-2, 2), p.z + rand(-2, 2), 'cat', 3); } }, 450);
     ringFx(p.clone().setY(0.1), 3.4, 0xff4a0a);
   }
-  if (statsLive()) { STATS.elites = (STATS.elites || 0) + 1; }
+  if (statsLive()) { STATS.elites = (STATS.elites || 0) + 1; STATS.by['elite_' + e.elite] = (STATS.by['elite_' + e.elite] || 0) + 1; }
 }
 function updateElites(dt) {
   for (const e of enemies) {
@@ -7346,6 +7351,7 @@ function ghostTick(dt) {
 function ghostSave(t) {
   if (!GH.rec || GH.rec.length < 8 || cheatsOn() || (VS && VS.active)) return;
   const all = loadGhosts();
+  if (all[GH.key] && t < all[GH.key].t && statsLive()) { STATS.ghostBeats = (STATS.ghostBeats || 0) + 1; pushFeed('YOU BEAT YOUR GHOST', 'cool'); }
   if (all[GH.key] && all[GH.key].t <= t) return;
   all[GH.key] = { t, d: encodeFrames(GH.rec), at: Date.now() };
   for (let tries = 0; tries < 12; tries++) {
@@ -7590,7 +7596,7 @@ function vsFireCurse() {
   if (!VS.curses || VS.freeze > 0) return;
   VS.curses--;
   const k = Object.keys(CURSES)[(Math.random() * 4) | 0];
-  vsSend({ t: 'curse', k });
+  vsSend({ t: 'curse', k }); raceStat('curses');
   pushFeed('CURSE SENT · ' + CURSES[k][0], 'cool');
   addStyle(30, null, null);
   tone(300, 90, 0.5, 0.25, 'sawtooth');
@@ -7608,7 +7614,7 @@ function vsSendEnemies(n, why) {
   VS.sendCD = 9;
   const pool = SEND_POOL[Math.max(0, SCENES.indexOf(G.level.scene))] || SEND_POOL[0];
   const types = []; for (let i = 0; i < n; i++) types.push(pool[(Math.random() * pool.length) | 0]);
-  vsSend({ t: 'send', types });
+  vsSend({ t: 'send', types }); raceStat('sent', n);
   pushFeed(`${why} · SENT ${n} TO RIVAL`, 'cool');
 }
 function vsLabel(label) {
@@ -7753,7 +7759,7 @@ function updateRunes(dt) {
       for (const dr of r.doorObjs) dr.target = 1;
       sfx.door(); sfx.portal();
       burst(u.g.position.clone(), 20, 0x6affd8, 8, 0.12, 0.6, true);
-      banner('SHORTCUT!');
+      banner('SHORTCUT!'); raceStat('shortcuts');
       addStyle(60, 'SHORTCUT', null, 'cool');
     }
   }
@@ -7811,9 +7817,11 @@ function vsDecide(win, note) {
   if (VS.score.over) VS.score = { me: 0, riv: 0, over: false };
   if (win) VS.score.me++; else VS.score.riv++;
   if (VS.score.me >= 2 || VS.score.riv >= 2) VS.score.over = true;
+  raceStat(win ? 'wins' : 'losses');
+  if (VS.score.over && VS.score.me > VS.score.riv) raceStat('sets');
 }
 function vsFlip() { // both crossed the line before hearing about each other: the faster time wins
-  if (VS.result === 'win') { VS.result = 'lose'; VS.score.me--; VS.score.riv++; }
+  if (VS.result === 'win') { const wasSet = VS.score.over && VS.score.me > VS.score.riv; VS.result = 'lose'; VS.score.me--; VS.score.riv++; raceStat('wins', -1); raceStat('losses'); if (wasSet) raceStat('sets', -1); }
   VS.score.over = VS.score.me >= 2 || VS.score.riv >= 2;
 }
 function scoreLine() { return `SET ${VS.score.me} – ${VS.score.riv} · FIRST TO 2`; }
@@ -8131,3 +8139,60 @@ function showVariantPick() {
     done(`<b>CLAIMED</b><p>${b.textContent} is yours · swap to it by pressing the gun's number key again</p>`);
   }));
 }
+
+// ================================================================ BATCH 6.4: ELITES IN THE CODEX, NEW ACHIEVEMENTS + SKINS
+// codex-only entries (never spawned directly; any regular enemy can roll elite)
+Object.assign(DEFS, {
+  elite_iron: { hp: 108, speed: 6.1, r: 0.5, h: 2.25, color: 0xb8452c, mass: 1, kill: 120, label: 'IRON ELITE', base: 'grunt', scale: 1.12, eliteKind: 'iron', hint: 'Body shots do about half damage · HEADSHOTS, explosions, slams, shockwaves and the SPIKE flail hit IRON in full · jump its floor-pound shockwave' },
+  elite_ember: { hp: 105, speed: 6.5, r: 0.5, h: 2.45, color: 0x5c64b8, mass: 1, kill: 130, label: 'EMBER ELITE', base: 'shooter', scale: 1.12, eliteKind: 'ember', hint: 'Leaves burning floor and lobs fireballs · when it dies it blows up into fire, so do not finish it point-blank' },
+});
+CODEX_BEASTS.splice(CODEX_BEASTS.findIndex((x) => x[2] === 'TRAINER'), 0,
+  ['elite_iron', 'IRON ELITE', 'ELITE', 'Any brick can come back from the forge plated in iron: almost twice as tough, a little slower, and it pounds the floor to send out shockwaves. Marked by a blue crest.'],
+  ['elite_ember', 'EMBER ELITE', 'ELITE', 'Fired twice in the kiln and still glowing. EMBER elites run faster, burn the ground behind them and throw fire. Marked by an orange crest. They get more common the deeper you go.'],
+);
+function tintElite(mats, kind) {
+  const X = ELITES[kind]; const tint = new THREE.Color(X.color);
+  for (const mt of mats) {
+    if (!mt || !mt.color) continue;
+    mt.color.lerp(tint, kind === 'iron' ? 0.55 : 0.35);
+    if (kind === 'iron' && 'metalness' in mt) { mt.metalness = 0.75; mt.roughness = 0.35; }
+    if (mt.emissive) { mt.emissive.setHex(X.emissive); mt.emissiveIntensity = kind === 'ember' ? 0.9 : 0.4; }
+  }
+}
+
+// race stats are kept even though races do not feed the normal lifetime stats
+function raceStat(k, n = 1) {
+  if (cheatsOn() || !STATS) return;
+  STATS.race = STATS.race || {};
+  STATS.race[k] = Math.max(0, (STATS.race[k] || 0) + n);
+  saveStats();
+}
+const rs = (k) => ((STATS.race || {})[k] || 0);
+const raceSecret = () => !vsUnlocked();
+
+Object.assign(SKINS, {
+  iron: { name: 'IRONCLAD', steel: 0x8a96a8, dsteel: 0x2a3444, brass: 0x8ac8ff, em: 0x0a1a2a },
+  spectre: { name: 'SPECTRE', steel: 0xc8f0ff, dsteel: 0x5a8aa8, brass: 0x8ae8ff, em: 0x1a4a5a },
+  champion: { name: 'CHAMPION', steel: 0xe8e8e8, dsteel: 0x1a1a1a, brass: 0xff3a2a, em: 0x2a0404 },
+  stained: { name: 'STAINED GLASS', steel: 0x3a6aa8, dsteel: 0x1a2a4a, brass: 0xffc83a, em: 0x3a0a4a },
+});
+const MINIS = ['organist', 'ringer', 'stoker', 'glazier'];
+ACHS.splice(ACHS.findIndex((a) => a.id === 'all'), 0,
+  { id: 'flail100', name: 'CHAIN REACTION', desc: 'Kill 100 enemies with the CHAIN FLAIL', p: () => [STATS.wk.flail || 0, 100], scrap: 300 },
+  { id: 'wreck', name: 'FULL SWING', desc: 'Land 50 fully wound WRECKING BALL hits', p: () => [statL('WRECKING BALL'), 50], scrap: 250 },
+  { id: 'sweep', name: 'CLEAN SWEEP', desc: 'Pull off 25 DEMOLITION SWEEPS (3+ enemies in one swing)', p: () => [statL('DEMOLITION SWEEP'), 25], scrap: 300 },
+  { id: 'elite25', name: 'ELITE SQUAD', desc: 'Kill 25 elite enemies', p: () => [STATS.elites || 0, 25], scrap: 250 },
+  { id: 'iron50', name: 'IRON WILL', desc: 'Kill 50 IRON elites', p: () => [STATS.by.elite_iron || 0, 50], scrap: 300 },
+  { id: 'ember50', name: 'FIRE BRIGADE', desc: 'Kill 50 EMBER elites', p: () => [STATS.by.elite_ember || 0, 50], scrap: 300 },
+  { id: 'elite200', name: 'TOP BRASS', desc: 'Kill 200 elite enemies', p: () => [STATS.elites || 0, 200], skin: 'iron' },
+  { id: 'ghost1', name: 'HAUNTED', desc: 'Beat your own ghost on any level', p: () => [STATS.ghostBeats || 0, 1], scrap: 150 },
+  { id: 'ghost25', name: 'FASTER THAN YOURSELF', desc: 'Beat your own ghost 25 times', p: () => [STATS.ghostBeats || 0, 25], skin: 'spectre' },
+  { id: 'ghosts20', name: 'GHOST TOWN', desc: 'Have a ghost run saved on 20 levels', p: () => [new Set(Object.keys(loadGhosts()).map((k) => k.split(':')[0])).size, 20], scrap: 300 },
+  { id: 'minis', name: 'LAYER BREAKER', desc: 'Beat all four mini-bosses', p: () => [MINIS.filter((t) => STATS.bosses[t]).length, 4], skin: 'stained' },
+  { id: 'armed', name: 'FULLY ARMED', desc: 'Own all five guns', p: () => [1 + ['shotgun', 'nailgun', 'launcher', 'flail'].filter((id) => (prog().owned || []).includes(id)).length, 5], scrap: 400 },
+  { id: 'race1', name: 'FIRST PAST THE POST', desc: 'Win a RUBBLE RACE', p: () => [rs('wins'), 1], scrap: 200, secret: raceSecret },
+  { id: 'set5', name: 'SET AND MATCH', desc: 'Win 5 best-of-3 race sets', p: () => [rs('sets'), 5], skin: 'champion', secret: raceSecret },
+  { id: 'runes', name: 'SHORTCUT SAVANT', desc: 'Take 25 shortcut runes in races', p: () => [rs('shortcuts'), 25], scrap: 250, secret: raceSecret },
+  { id: 'hex', name: 'HEX BOMB', desc: 'Fire 25 curses at rivals', p: () => [rs('curses'), 25], scrap: 200, secret: raceSecret },
+  { id: 'deliver', name: 'SPECIAL DELIVERY', desc: 'Send 50 enemies into rivals’ levels', p: () => [rs('sent'), 50], scrap: 250, secret: raceSecret },
+);
