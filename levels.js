@@ -184,7 +184,38 @@ export const PRIMES = [
   { id: '1-P', name: 'HIGH MASON PRIME', duel: 'skin:marble', prime: true, unlockAfter: '1-12', theme: 'cathedral', par: 260, boss: true, startHint: 'The Architect has redrawn his plans. Survive them for the MARBLE gun skin.', rooms: [{ w: 46, d: 46, props: ['colonnade'], waves: [], boss: 'boss2', prime: true }] },
   { id: '2-P', name: 'FOREMAN PRIME', duel: 'skin:magma', prime: true, unlockAfter: '2-12', theme: 'kiln', par: 300, boss: true, startHint: 'The kiln burns white-hot. The Foreman is back on shift. Win the MAGMA gun skin.', rooms: [{ w: 48, d: 48, props: ['platforms', 'pillars'], waves: [], boss: 'boss3', prime: true }] },
 ];
-export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE })), ...PRIMES.map((d) => ({ ...d, scene: PRIME_SCENE }))];
+// RUBBLE RACE courses: short, trap-heavy, light fights, rooms marked shortcut hide a rune that skips the fight
+export const RACE_SCENE = { id: 'R', name: 'RACE COURSES', theme: 'cellar' };
+const SC = (w, d, props, waves, extra = {}) => ({ w, d, props, waves, ...extra });
+export const RACES = [
+  { id: 'R-1', name: 'CELLAR SPRINT', theme: 'cellar', par: 90, race: true, startHint: 'RACE! Shortcut runes glow high on the walls · wall jump to reach them', rooms: [
+    SC(18, 20, ['crates'], ['g3']),
+    SC(22, 22, ['pillars', 'water'], ['g3 s1', 'f2'], { shortcut: true }),
+    SC(16, 26, ['platforms'], ['f2 g2']),
+    SC(24, 22, ['ruins', 'water'], ['g4', 's2 x2'], { shortcut: true }),
+  ] },
+  { id: 'R-2', name: 'NAVE DASH', theme: 'cathedral', par: 110, race: true, startHint: 'RACE! Snipers watch the long halls · keep moving', rooms: [
+    SC(20, 30, ['colonnade'], ['g3 n1']),
+    SC(24, 24, ['balcony'], ['f3 s1', 'k2 g2'], { shortcut: true }),
+    SC(18, 34, ['pews'], ['g4 x2']),
+    SC(26, 26, ['altar', 'balcony'], ['s2 n1 g2', 'h1'], { shortcut: true }),
+  ] },
+  { id: 'R-3', name: 'FURNACE RUN', theme: 'kiln', par: 120, race: true, startHint: 'RACE! Lava, vents and crushers · the floor is the real enemy', rooms: [
+    SC(22, 26, ['lava', 'platforms'], ['g3 x2']),
+    SC(24, 24, ['vents', 'crushers'], ['f3 g2'], { shortcut: true }),
+    SC(20, 30, ['lava', 'crushers'], ['r1 g3', 's2 x2']),
+    SC(26, 24, ['vents', 'lava'], ['k2 g3', 'h1 f2'], { shortcut: true }),
+  ] },
+  { id: 'R-4', name: 'THE GAUNTLET', theme: 'kiln', par: 170, race: true, startHint: 'RACE! The long one. Six rooms, three shortcuts, no mercy', rooms: [
+    SC(22, 22, ['crushers'], ['g4']),
+    SC(24, 26, ['lava', 'vents'], ['x3 f2', 's2 g3'], { shortcut: true }),
+    SC(20, 28, ['crushers', 'platforms'], ['r1 g4']),
+    SC(26, 26, ['vents', 'lava'], ['h1 k2', 'n2 x2'], { shortcut: true }),
+    SC(22, 30, ['lava', 'crushers'], ['f4 s2']),
+    SC(28, 28, ['vents', 'platforms', 'lava'], ['h1 g4 x2', 'p1 s3 f2'], { shortcut: true }),
+  ] },
+];
+export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE })), ...PRIMES.map((d) => ({ ...d, scene: PRIME_SCENE })), ...RACES.map((d) => ({ ...d, scene: RACE_SCENE }))];
 
 export const THEMES = {
   cellar: { wallH: 8, corrH: 6, doorH: 5, fog: 0x10140f, fogNear: 8, fogFar: 75, sky: 0x0b0e0b },
@@ -280,7 +311,7 @@ export function buildLevel(level, ctx) {
   });
 
   // one arena room per level hides a secret wall (never in duels)
-  if (!level.duel) {
+  if (!level.duel && !level.race) {
     const cands = rooms.filter((x) => x.kind === 'arena');
     if (cands.length) cands[Math.floor(rng() * cands.length)].secret = true;
   }

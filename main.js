@@ -1641,6 +1641,7 @@ function startSlide(wish, fwd) {
 }
 
 function updateWeapons(dt) {
+  vsTauntInput();
   W.cd -= dt; W.punchCD -= dt; W.coreCD -= dt; W.sawCD -= dt; W.switchT = Math.max(0, W.switchT - dt);
   W.coins = Math.min(4, W.coins + dt / 1.6);
   flailTick(dt);
@@ -1970,6 +1971,8 @@ function frame(now) {
     updateBlasts(gdt);
     updateViewmodel(dt);
     updateHUD();
+  } else if (G.state === 'vsSpectate') {
+    vsSpectateTick(dt); updateParts(dt);
   } else if (G.state === 'cutscene') {
     updateCutscene(dt); updateParts(dt); updateBlasts(dt);
   } else if (menuish()) {
@@ -2639,6 +2642,7 @@ function updateCampaign(dt) {
   if (!L) return;
   G.levelTime += dt;
   vsTick(dt);
+  updateRunes(dt);
   ghostTick(dt);
   hudTimerT -= dt;
   if (hudTimerT <= 0) { hudTimerT = 0.2; $('wave').textContent = `${G.level.id} · ${fmtTime(G.levelTime)}`; }
@@ -2790,7 +2794,8 @@ function startEndless() {
 }
 function toMenu() {
   if (VS && VS.active) {
-    if (!VS.result) vsSend({ t: 'quit' });
+    if (!VS.myDone) vsSend({ t: 'quit' });
+    show('vsSpec', false);
     VS.active = false; VS.result = null; VS.fx = {}; G.lowgrav = false;
     show('vsHud', false); show('vsCount', false); show('vsResult', false); $('vsCurseFx').className = 'hidden';
     if (VS.rival.mesh) { scene.remove(VS.rival.mesh); VS.rival.mesh = null; }
@@ -3422,7 +3427,7 @@ function renderFrame(dt) {
   const slow = G.slow.t > 0;
   FXS.desat += ((slow ? 0.6 : 0) - FXS.desat) * (1 - Math.exp(-dt * 10));
   FXS.vig += ((slow ? 0.7 : P.hp < 30 && G.state === 'play' ? 0.35 : 0.15) - FXS.vig) * (1 - Math.exp(-dt * 6));
-  const showVM = !menuish() && G.state !== 'cutscene';
+  const showVM = !menuish() && G.state !== 'cutscene' && G.state !== 'vsSpectate' && G.state !== 'vsready';
   if (!settings.effects || settings.quality === 'low') {
     renderer.clear();
     renderer.render(scene, camera);
@@ -4577,7 +4582,7 @@ function updateSecrets(dt) {
     if (Math.hypot(P.pos.x - s2.x, P.pos.z - s2.z) < 1.8 && Math.abs(P.pos.y + 1 - s2.pickup.position.y) < 2) collectSecret(s2);
   }
 }
-const TOTAL_SKULLS = LEVELS.filter((l) => !l.duel).length;
+const TOTAL_SKULLS = LEVELS.filter((l) => !l.duel && !l.race).length;
 const skullCount = (p) => Object.keys(p.skulls || {}).length;
 const LORE = {
   '0-1': "WORK ORDER #1 · Dig the cellar deep. Deeper than the river. The Foreman wants room for what's coming. · M.",
@@ -7374,7 +7379,7 @@ function openVersus() {
   show('menu', false); show('vsResult', false);
   show('versus', true);
   const sel = $('vsLevel');
-  if (!sel.options.length) sel.innerHTML = vsLevels().map(([l, i]) => `<option value="${i}">${l.id} · ${l.name}</option>`).join('');
+  if (!sel.options.length) { const opt = ([l, i]) => `<option value="${i}">${l.id} · ${l.name}</option>`; const all = vsLevels(); sel.innerHTML = `<optgroup label="RACE COURSES">${all.filter(([l]) => l.race).map(opt).join('')}</optgroup><optgroup label="CAMPAIGN LEVELS">${all.filter(([l]) => !l.race).map(opt).join('')}</optgroup>`; }
   vsLobbyUI();
 }
 function vsLobbyUI() {
@@ -7389,6 +7394,9 @@ function vsLobbyUI() {
   $('vsStart').disabled = !VS.connected;
   $('vsLevel').value = String(VS.level);
   if (!VS.host) vsMsg(VS.connected ? 'The host picks the level and starts the race.' : '');
+  $('vsScore').textContent = VS.connected ? scoreLine() : '';
+  wireTauntRows();
+  show('vsTauntLobby', VS.connected);
 }
 function newCode() { return 'BRICK-' + String(1000 + Math.floor(Math.random() * 9000)); }
 function vsHost(tries = 0) {
@@ -7430,7 +7438,7 @@ function vsSend(m) { try { if (VS.conn && VS.conn.open) VS.conn.send(m); } catch
 function vsLost() {
   if (!VS.connected) return;
   VS.connected = false; VS.conn = null;
-  if (VS.active && !VS.result) { vsEndRace(true, 'RIVAL DISCONNECTED · WIN BY FORFEIT'); return; }
+  if (VS.active) { vsEndRace(true, 'RIVAL DISCONNECTED · WIN BY FORFEIT'); return; }
   if (G.state === 'versus') { vsMsg('Your rival left.', true); vsLobbyUI(); }
 }
 function vsLeave(quiet) {
@@ -7450,14 +7458,20 @@ function vsRecv(m) {
     case 'go': vsBegin(m.idx | 0); break;
     case 'ready': R.ready = true; VS.rivalReady = true; if (VS.meReady) vsCountdown(); vsReadyUI(); break;
     case 'p':
-      R.tgt = new V3(+m.x || 0, +m.y || 0, +m.z || 0); R.yaw = +m.yaw || 0; R.prog = clamp(+m.prog || 0, 0, 1); R.rooms = m.rooms | 0;
+      R.tgt = new V3(+m.x || 0, +m.y || 0, +m.z || 0); R.yaw = +m.yaw || 0; R.prog = clamp(+m.prog || 0, 0, 1); R.rooms = m.rooms | 0; R.lt = +m.lt || 0; R.ltAt = performance.now();
       if (!R.pos) R.pos = R.tgt.clone();
       break;
     case 'send': vsReceiveEnemies(Array.isArray(m.types) ? m.types.slice(0, 3) : []); break;
     case 'curse': vsApplyCurse(String(m.k)); break;
-    case 'done': R.done = true; R.t = +m.time || 0; if (VS.active && !VS.result) vsEndRace(VS.myDone && VS.myT <= R.t, VS.myDone ? null : 'YOUR RIVAL REACHED THE PORTAL FIRST'); break;
+    case 'done':
+      R.done = true; R.t = +m.time || 0;
+      if (!VS.active) break;
+      if (VS.myDone) { if (VS.result === 'win' && R.t < VS.myT) vsFlip(); vsShowResult(); }
+      else if (!VS.result) { vsDecide(false, 'YOUR RIVAL REACHED THE PORTAL FIRST'); banner('RIVAL FINISHED'); showHint('Your rival reached the portal first. Finish for your time, or quit from the pause menu.'); }
+      break;
+    case 'taunt': tauntPop('RIVAL', TAUNTS[m.i | 0] || 'GG'); break;
     case 'lobby': if (G.state === 'vsResult' || G.state === 'versus') { vsMsg('Host is back in the lobby.'); } break;
-    case 'quit': if (VS.active && !VS.result) vsEndRace(true, 'YOUR RIVAL GAVE UP'); break;
+    case 'quit': if (VS.active) vsEndRace(true, 'YOUR RIVAL GAVE UP'); break;
     case 'bye': vsLost(); break;
   }
 }
@@ -7475,6 +7489,8 @@ function vsBegin(idx) {
   show('versus', false); show('vsResult', false);
   normalizeLoadout();
   startLevel(idx);
+  placeRunes();
+  show('vsSpec', false);
   G.state = 'vsready';
   camera.position.set(P.pos.x, P.pos.y + P.camH, P.pos.z); camera.rotation.set(P.pitch, P.yaw, 0); camera.updateMatrixWorld();
   show('hud', true); show('vsHud', true);
@@ -7526,7 +7542,7 @@ function vsTick(dt) {
   VS.sendT -= dt;
   if (VS.sendT <= 0) {
     VS.sendT = 1 / 12;
-    vsSend({ t: 'p', x: Math.round(P.pos.x * 100) / 100, y: Math.round(P.pos.y * 100) / 100, z: Math.round(P.pos.z * 100) / 100, yaw: Math.round(P.yaw * 100) / 100, prog: vsProgress(), rooms: G.layout ? G.layout.rooms.filter((r) => r.state === 'clear').length : 0 });
+    vsSend({ t: 'p', x: Math.round(P.pos.x * 100) / 100, y: Math.round(P.pos.y * 100) / 100, z: Math.round(P.pos.z * 100) / 100, yaw: Math.round(P.yaw * 100) / 100, prog: vsProgress(), rooms: G.layout ? G.layout.rooms.filter((r) => r.state === 'clear').length : 0, lt: Math.round(G.levelTime * 10) / 10 });
   }
   // rival ghost
   if (R.mesh && R.tgt) {
@@ -7553,7 +7569,7 @@ function vsTick(dt) {
   fx.className = F.fog ? 'fog' : F.reverse ? 'rev' : F.jam ? 'jam' : F.lowgrav ? 'grav' : 'hidden';
   fx.textContent = F.reverse ? 'CONTROLS REVERSED' : F.jam ? 'WEAPONS JAMMED' : F.lowgrav ? 'LOW GRAVITY' : '';
   // HUD
-  $('vsMe').style.width = `${(G.portal ? 0.97 : vsProgress()) * 100}%`;
+  $('vsMe').style.width = `${vsProgress() * 100}%`;
   $('vsRiv').style.width = `${R.prog * 100}%`;
   $('vsCurse').innerHTML = VS.curses ? `CURSE ×${VS.curses} <b>[${keyLabel(bound('curse')[0] || 'KeyT')}]</b>` : '<span>clear rooms / earn style for curses</span>';
 }
@@ -7611,15 +7627,18 @@ function vsReceiveEnemies(types) {
 function vsFinish() {
   VS.myDone = true; VS.myT = G.levelTime;
   vsSend({ t: 'done', time: VS.myT });
-  if (VS.rival.done) vsEndRace(VS.myT < VS.rival.t);
-  else vsEndRace(true);
+  if (VS.rival.done) { if (!VS.result) vsDecide(VS.myT < VS.rival.t); vsShowResult(); return; }
+  vsDecide(true);
+  if (VS.connected && VS.rival.tgt) vsSpectate(); else vsShowResult();
 }
-function vsEndRace(win, note) {
-  if (VS.result) return;
-  VS.result = win ? 'win' : 'lose';
+function vsEndRace(win, note) { vsDecide(win, note); vsShowResult(); }
+function vsShowResult() {
+  const again = G.state === 'vsResult';
+  const win = VS.result === 'win';
   G.state = 'vsResult';
   document.exitPointerLock?.();
-  show('hud', false); show('vsHud', false); show('vsCount', false); show('pause', false); show('over', false);
+  show('hud', false); show('vsHud', false); show('vsCount', false); show('pause', false); show('over', false); show('vsSpec', false);
+  $('vsTauntPick').classList.add('hidden');
   G.lowgrav = false; VS.fx = {};
   $('vsCurseFx').className = 'hidden';
   if (VS.rival.mesh) VS.rival.mesh.visible = false;
@@ -7629,16 +7648,19 @@ function vsEndRace(win, note) {
   $('vsResStats').innerHTML = `<span>LEVEL</span><b>${lv.id} · ${lv.name}</b>` +
     `<span>YOUR TIME</span><b>${VS.myDone ? fmtTime(VS.myT) : 'DNF'}</b>` +
     `<span>RIVAL</span><b>${VS.rival.done ? fmtTime(VS.rival.t) : 'DNF'}</b>` +
-    `<span>KILLS</span><b>${G.kills}</b>` + (note ? `<p>${note}</p>` : '');
+    `<span>KILLS</span><b>${G.kills}</b>` + (VS.note ? `<p>${VS.note}</p>` : '');
+  const sc = VS.score;
+  $('vsResSet').innerHTML = sc.over ? `<b class="${sc.me > sc.riv ? 'win' : 'lose'}">${sc.me > sc.riv ? 'SET WON' : 'SET LOST'} ${sc.me} – ${sc.riv}</b><small>next race starts a new set</small>` : `<b>${scoreLine()}</b>`;
+  wireTauntRows();
   show('vsRematch', VS.host && VS.connected);
   show('vsResult', true);
-  win ? sfx.rankUp() : sfx.hurt();
+  if (!again) { if (win) sfx.rankUp(); else sfx.hurt(); }
 }
 function vsToLobby() {
   VS.active = false; VS.result = null;
   G.lowgrav = false;
   if (VS.rival.mesh) { scene.remove(VS.rival.mesh); VS.rival.mesh = null; }
-  show('vsHud', false); show('vsCount', false); show('vsResult', false);
+  show('vsHud', false); show('vsCount', false); show('vsResult', false); show('vsSpec', false);
   toMenu();
   normalizeLoadout();
   if (VS.host) vsSend({ t: 'lobby' });
@@ -7681,3 +7703,140 @@ function autoQuality(now) {
   AQ.slow = 0; AQ.grace = now + 6000;
   showHint(`AUTO QUALITY · ${Math.round(fps)} FPS, graphics lowered to ${settings.quality.toUpperCase()} (Settings → Video)`);
 }
+
+// ================================================================ BATCH 6.2: RACE EXTRAS
+// ---- shortcut runes: in race maps, some rooms hide a glowing rune up high. Touch it and the doors open (the fight follows you).
+const runeMat = new THREE.MeshBasicMaterial({ color: 0x6affd8 });
+const runeGlowMat = new THREE.SpriteMaterial({ map: GLOW, color: 0x3affc8, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+var RUNES = [];
+function placeRunes() {
+  RUNES = [];
+  if (!G.layout || !G.level || !G.level.race) return;
+  for (const r of G.layout.rooms) {
+    if (!r.shortcut) continue;
+    const used = new Set(r.doors.map((d) => d.side));
+    const side = ['N', 'E', 'S', 'W'].find((s2) => !used.has(s2)) || 'E';
+    // off the wall and off-centre, clear of furnaces / banners / torches hung mid-wall
+    const inset = 1.5, y = 4.4, sg = G.layout.rooms.indexOf(r) % 2 ? 1 : -1;
+    let x = r.cx + (r.x1 - r.x0) * 0.3 * sg, z = r.cz + (r.z1 - r.z0) * 0.3 * sg;
+    if (side === 'N') z = r.z0 + inset; else if (side === 'S') z = r.z1 - inset; else if (side === 'E') x = r.x1 - inset; else x = r.x0 + inset;
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.42), runeMat); g.add(m);
+    const s2 = new THREE.Sprite(runeGlowMat); s2.scale.set(2.6, 2.6, 1); g.add(s2);
+    levelGroup.add(g);
+    RUNES.push({ r, g, m, used: false });
+  }
+}
+function updateRunes(dt) {
+  for (const u of RUNES) {
+    if (u.used) continue;
+    u.m.rotation.y += dt * 2; u.g.position.y += Math.sin(G.time * 3) * dt * 0.15;
+    if (u.r.state === 'clear') { u.used = true; u.g.visible = false; continue; }
+    const d = Math.hypot(P.pos.x - u.g.position.x, (P.pos.y + 1) - u.g.position.y, P.pos.z - u.g.position.z);
+    if (d < 1.7) {
+      u.used = true; u.g.visible = false;
+      const r = u.r;
+      r.state = 'clear'; r.queue = [];
+      G.checkpoint = { x: r.cx, z: r.cz, yaw: P.yaw };
+      for (const dr of r.doorObjs) dr.target = 1;
+      sfx.door(); sfx.portal();
+      burst(u.g.position.clone(), 20, 0x6affd8, 8, 0.12, 0.6, true);
+      banner('SHORTCUT!');
+      addStyle(60, 'SHORTCUT', null, 'cool');
+    }
+  }
+}
+
+// ---- taunts
+const TAUNTS = ['GG', 'TOO SLOW!', 'GET BRICKED', 'NICE ONE', 'SEE YOU AT THE PORTAL', 'OOPS'];
+var tauntT = 0, tauntOpenT = 0, tauntPopT = 0;
+function vsTaunt(i) {
+  if (!VS.connected || performance.now() < tauntT || !TAUNTS[i]) return;
+  tauntT = performance.now() + 1500;
+  vsSend({ t: 'taunt', i });
+  tauntPop('YOU', TAUNTS[i], true);
+}
+function tauntPop(who, text, mine) {
+  const el = $('vsTauntPop');
+  el.innerHTML = `<b>${who}</b> ${text}`;
+  el.className = 'show' + (mine ? ' mine' : '');
+  clearTimeout(tauntPopT);
+  tauntPopT = setTimeout(() => (el.className = ''), 2600);
+  if (!mine) tone(700, 900, 0.08, 0.12, 'square');
+}
+function tauntRowsHTML() { return TAUNTS.map((t, i) => `<button class="sub" data-taunt="${i}">${t}</button>`).join(''); }
+function wireTauntRows() {
+  document.querySelectorAll('.vsTauntRow').forEach((row) => {
+    if (!row.dataset.wired) { row.innerHTML = tauntRowsHTML(); row.dataset.wired = '1'; row.addEventListener('click', (e) => { const b = e.target.closest('[data-taunt]'); if (b) vsTaunt(Number(b.dataset.taunt)); }); }
+  });
+}
+// in a race: press the taunt key, then 1-4 (instead of switching weapon)
+function vsTauntInput() {
+  if (!VS.active) return;
+  const now = performance.now();
+  if (hit('taunt')) {
+    tauntOpenT = now + 2500;
+    const pk = $('vsTauntPick');
+    pk.innerHTML = TAUNTS.slice(0, 4).map((t, i) => `<span><b>${i + 1}</b> ${t}</span>`).join('');
+    pk.classList.remove('hidden');
+  }
+  if (now > tauntOpenT) { $('vsTauntPick').classList.add('hidden'); return; }
+  for (let i = 0; i < 4; i++) {
+    const a = 'weapon' + (i + 1);
+    if (!hit(a)) continue;
+    for (const c of bound(a)) if (c) pressed.delete(c);
+    VHIT.delete(a);
+    vsTaunt(i);
+    tauntOpenT = 0; $('vsTauntPick').classList.add('hidden');
+  }
+}
+
+// ---- best of 3
+VS.score = { me: 0, riv: 0, over: false };
+function vsDecide(win, note) {
+  if (VS.result) return;
+  VS.result = win ? 'win' : 'lose'; VS.note = note || '';
+  if (VS.score.over) VS.score = { me: 0, riv: 0, over: false };
+  if (win) VS.score.me++; else VS.score.riv++;
+  if (VS.score.me >= 2 || VS.score.riv >= 2) VS.score.over = true;
+}
+function vsFlip() { // both crossed the line before hearing about each other: the faster time wins
+  if (VS.result === 'win') { VS.result = 'lose'; VS.score.me--; VS.score.riv++; }
+  VS.score.over = VS.score.me >= 2 || VS.score.riv >= 2;
+}
+function scoreLine() { return `SET ${VS.score.me} – ${VS.score.riv} · FIRST TO 2`; }
+
+// ---- spectate your rival after you finish
+function vsSpectate() {
+  G.state = 'vsSpectate';
+  document.exitPointerLock?.();
+  show('hud', false); show('vsHud', false);
+  show('vsSpec', true);
+  $('vsSpec').innerHTML = `<b>YOU WIN</b><span id="vsSpecT">your rival is still racing…</span><button id="vsSpecSkip">SEE RESULTS</button><small>1–6: taunt · SPACE: results</small>`;
+  $('vsSpecSkip').onclick = vsShowResult;
+  if (VS.rival.mesh) VS.rival.mesh.visible = true;
+  VS.specCam = null;
+}
+function vsSpectateTick(dt) {
+  const R = VS.rival;
+  if (!R.mesh || !R.tgt) return;
+  R.pos.lerp(R.tgt, Math.min(1, dt * 10));
+  const moved = Math.hypot(R.pos.x - R.mesh.position.x, R.pos.z - R.mesh.position.z);
+  R.mesh.position.copy(R.pos); R.mesh.rotation.y = R.yaw + Math.PI; R.mesh.visible = true;
+  const md = R.mesh.userData.md;
+  if (md && md.rig && md.rig.hipL) { R.walk = (R.walk || 0) + moved * 2.2; const sw = Math.sin(R.walk) * Math.min(1, moved / Math.max(dt, 1e-3) / 6) * 0.7; md.rig.hipL.rotation.x = sw; md.rig.hipR.rotation.x = -sw; }
+  const back = new V3(Math.sin(R.yaw), 0, Math.cos(R.yaw));
+  const want = R.pos.clone().addScaledVector(back, 4).setY(R.pos.y + 2.6);
+  if (!VS.specCam) VS.specCam = want.clone(); else VS.specCam.lerp(want, Math.min(1, dt * 4));
+  camera.position.copy(VS.specCam);
+  camera.lookAt(R.pos.x, R.pos.y + 1.2, R.pos.z);
+  camera.updateMatrixWorld();
+  const el = $('vsSpecT');
+  if (el) el.textContent = `RIVAL ${fmtTime((R.lt || 0) + (performance.now() - (R.ltAt || performance.now())) / 1000)} · ${Math.round(R.prog * 100)}%`;
+}
+addEventListener('keydown', (e) => {
+  if (G.state !== 'vsSpectate') return;
+  if (e.code === 'Space' || e.code === 'Escape' || e.code === 'Enter') { e.preventDefault(); vsShowResult(); }
+  const n = Number(e.code.replace('Digit', '')); if (n >= 1 && n <= 6) vsTaunt(n - 1);
+});

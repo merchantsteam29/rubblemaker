@@ -23,6 +23,7 @@ export const ACTIONS = [
   ['interact', 'Use (FORGE)', ['KeyE']],
   ['inspect', 'Inspect weapon', ['KeyR']],
   ['curse', 'Fire curse (RUBBLE RACE)', ['KeyT']],
+  ['taunt', 'Taunt (RUBBLE RACE, then 1-4)', ['KeyV']],
 ];
 
 export const DIFFS = {
