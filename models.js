@@ -916,7 +916,7 @@ export function buildForge(GLOW) {
   const cg = c.getContext('2d');
   cg.fillStyle = '#2a160a'; cg.fillRect(0, 0, 256, 96);
   cg.strokeStyle = '#7a4a20'; cg.lineWidth = 6; cg.strokeRect(6, 6, 244, 84);
-  cg.fillStyle = '#ffb35c'; cg.font = 'bold 54px Bungee, Impact, sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
+  cg.fillStyle = '#ffb35c'; cg.font = '900 54px Cinzel, Georgia, serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
   cg.fillText('FORGE', 128, 50);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   m(new THREE.PlaneGeometry(1.6, 0.55), new THREE.MeshBasicMaterial({ map: tex }), g, 0.4, 3.05, 0.705).userData.keep = true;

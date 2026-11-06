@@ -43,6 +43,7 @@ const PARTS = [
   '20-acts-minibosses',
   '21-aqueduct',
   '22-batch8',
+  '23-ui',
 ];
 
 let failed = null;
