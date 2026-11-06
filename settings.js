@@ -48,7 +48,7 @@ export const DEFAULTS = {
   skin: 'steel',
   padBinds: { ...PAD_DEFAULTS }, padSens: 1, padInvert: false, padDeadzone: 0.15, aimAssist: 0.5, rumble: true,
   touchControls: 'auto', touchSens: 1, touchOpacity: 0.55,
-  ghost: true,
+  ghost: true, autoQuality: true,
 };
 
 const KEY = 'rubblemaker-settings';
@@ -97,7 +97,7 @@ export function keyLabel(code) {
 // ---------------------------------------------------------------- UI
 // root: container element. onChange(key) is called after any change.
 export function initSettingsUI(root, onChange, onBack) {
-  const TABS = ['CONTROLS', 'CONTROLLER', 'MOUSE', 'TOUCH', 'VIDEO', 'AUDIO', 'GAMEPLAY'];
+  const TABS = ['CONTROLS', 'CONTROLLER', 'MOUSE', 'TOUCH', 'VIDEO', 'AUDIO', 'GAMEPLAY', 'SAVE'];
   let tab = 'CONTROLS';
   let capture = null; // {id, slot, btn}
 
@@ -111,9 +111,10 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.back').addEventListener('click', () => { stopCapture(); onBack(); });
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
-      CONTROLS: ['binds'], CONTROLLER: ['padBinds', 'padSens', 'padInvert', 'padDeadzone', 'aimAssist', 'rumble'], TOUCH: ['touchControls', 'touchSens', 'touchOpacity'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
+      CONTROLS: ['binds'], CONTROLLER: ['padBinds', 'padSens', 'padInvert', 'padDeadzone', 'aimAssist', 'rumble'], TOUCH: ['touchControls', 'touchSens', 'touchOpacity'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'autoQuality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
       AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers', 'gore', 'ghost'],
     }[tab];
+    if (!keysFor) return;
     for (const k of keysFor) { settings[k] = structuredClone(DEFAULTS[k]); onChange(k); }
     saveSettings(); render();
   });
@@ -150,6 +151,7 @@ export function initSettingsUI(root, onChange, onBack) {
     stopCapture();
     root.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     panel.innerHTML = '';
+    root.querySelector('.reset').style.visibility = tab === 'SAVE' ? 'hidden' : '';
     if (tab === 'CONTROLS') {
       panel.appendChild(el('<p class="hint">Click a slot, then press a key or mouse button. ESC cancels, BACKSPACE clears.</p>'));
       for (const [id, label] of ACTIONS) {
@@ -191,6 +193,7 @@ export function initSettingsUI(root, onChange, onBack) {
     } else if (tab === 'VIDEO') {
       panel.appendChild(slider('Field of view', 'fov', 70, 120, 1, (v) => `${v}°`));
       panel.appendChild(choice('Graphics quality', 'quality', [['low', 'LOW'], ['medium', 'MEDIUM'], ['high', 'HIGH']]));
+      panel.appendChild(toggle('Auto quality (lowers graphics when the FPS drops)', 'autoQuality'));
       panel.appendChild(slider('Screen shake', 'shake', 0, 2, 0.05, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(toggle('View bob', 'viewBob'));
       panel.appendChild(toggle('Fullscreen + key lock (stops Ctrl+W closing the tab)', 'fullscreen'));
@@ -200,6 +203,8 @@ export function initSettingsUI(root, onChange, onBack) {
       panel.appendChild(slider('Master volume', 'master', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(slider('Sound effects', 'sfx', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
       panel.appendChild(slider('Music', 'music', 0, 1, 0.01, (v) => `${Math.round(v * 100)}%`));
+    } else if (tab === 'SAVE') {
+      saveTab(panel);
     } else {
       panel.appendChild(choice('Difficulty', 'difficulty', Object.entries(DIFFS).map(([k, d]) => [k, d.label])));
       panel.appendChild(choice('Crosshair', 'crosshair', [['cross', 'CROSS'], ['dot', 'DOT'], ['circle', 'CIRCLE'], ['crossdot', 'CROSS+DOT'], ['none', 'NONE']]));
@@ -297,4 +302,80 @@ function el(html) {
   const t = document.createElement('template');
   t.innerHTML = html.trim();
   return t.content.firstElementChild;
+}
+
+// ---------------------------------------------------------------- save backup / restore
+const SAVE_PREFIX = 'rubblemaker-';
+export function exportSave() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(SAVE_PREFIX)) data[k] = localStorage.getItem(k); }
+  const json = JSON.stringify({ game: 'RUBBLEMAKER', v: 1, at: Date.now(), data });
+  return 'RBM1:' + btoa(unescape(encodeURIComponent(json)));
+}
+export function parseSave(code) {
+  code = String(code || '').trim();
+  if (!code.startsWith('RBM1:')) throw new Error('That is not a RUBBLEMAKER save code.');
+  let obj;
+  try { obj = JSON.parse(decodeURIComponent(escape(atob(code.slice(5).replace(/\s+/g, ''))))); } catch (_) { throw new Error('The save code is damaged or cut off.'); }
+  if (!obj || obj.game !== 'RUBBLEMAKER' || typeof obj.data !== 'object') throw new Error('That is not a RUBBLEMAKER save.');
+  const keys = Object.keys(obj.data).filter((k) => k.startsWith(SAVE_PREFIX) && typeof obj.data[k] === 'string');
+  if (!keys.length) throw new Error('That save is empty.');
+  return { at: obj.at, keys, data: obj.data };
+}
+export function applySave(sv) {
+  const old = [];
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(SAVE_PREFIX)) old.push(k); }
+  for (const k of old) localStorage.removeItem(k);
+  for (const k of sv.keys) localStorage.setItem(k, sv.data[k]);
+}
+function saveSummary() {
+  try {
+    const p = JSON.parse(localStorage.getItem('rubblemaker-progress') || '{}');
+    const st = JSON.parse(localStorage.getItem('rubblemaker-stats') || '{}');
+    const gh = Object.keys(JSON.parse(localStorage.getItem('rubblemaker-ghosts') || '{}')).length;
+    return `${(p.unlocked || 0)} levels unlocked · ${p.scrap || 0} scrap · ${(p.owned || []).length} items · ${Object.keys(st.ach || {}).length} achievements · ${gh} ghosts`;
+  } catch (_) { return ''; }
+}
+function saveTab(panel) {
+  const box = document.createElement('div');
+  box.className = 'saveTab';
+  box.innerHTML = `<p>Your progress lives in this browser only. Clearing site data or switching browsers wipes it. Back it up here.</p>
+    <p class="sum">${saveSummary()}</p>
+    <div class="row-buttons"><button class="sub" data-s="dl">DOWNLOAD SAVE FILE</button><button class="sub" data-s="copy">COPY SAVE CODE</button></div>
+    <h4>RESTORE</h4>
+    <div class="row-buttons"><button class="sub" data-s="file">LOAD SAVE FILE…</button></div>
+    <textarea spellcheck="false" placeholder="…or paste a save code (starts with RBM1:)"></textarea>
+    <div class="row-buttons"><button class="sub" data-s="paste">RESTORE FROM CODE</button></div>
+    <input type="file" accept=".txt,.rbm,text/plain" hidden>
+    <p class="msg"></p>`;
+  panel.appendChild(box);
+  const msg = (x, bad) => { const m = box.querySelector('.msg'); m.textContent = x; m.style.color = bad ? '#ff6a5a' : '#6dff8f'; };
+  const restore = (code) => {
+    let sv;
+    try { sv = parseSave(code); } catch (er) { msg(er.message, true); return; }
+    const when = sv.at ? new Date(sv.at).toLocaleString() : 'an unknown date';
+    if (!confirm(`Restore the save from ${when}? This REPLACES everything in this browser (progress, stats, ghosts, settings).`)) return;
+    try { applySave(sv); } catch (_) { msg('Could not write the save (browser storage full or blocked).', true); return; }
+    msg('Save restored. Reloading…');
+    setTimeout(() => location.reload(), 700);
+  };
+  box.querySelector('[data-s="dl"]').onclick = () => {
+    const blob = new Blob([exportSave()], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rubblemaker-save-' + new Date().toISOString().slice(0, 10) + '.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    msg('Save file downloaded.');
+  };
+  box.querySelector('[data-s="copy"]').onclick = async () => {
+    const code = exportSave();
+    try { await navigator.clipboard.writeText(code); msg(`Save code copied (${Math.round(code.length / 1024)} KB). Paste it somewhere safe.`); }
+    catch (_) { box.querySelector('textarea').value = code; msg('Could not reach the clipboard. The code is in the box below; copy it from there.', true); }
+  };
+  const file = box.querySelector('input[type=file]');
+  box.querySelector('[data-s="file"]').onclick = () => file.click();
+  file.onchange = () => { const f = file.files[0]; if (!f) return; f.text().then(restore); file.value = ''; };
+  box.querySelector('[data-s="paste"]').onclick = () => restore(box.querySelector('textarea').value);
+  box.querySelector('textarea').addEventListener('keydown', (e) => e.stopPropagation());
 }

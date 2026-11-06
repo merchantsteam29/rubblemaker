@@ -628,7 +628,7 @@ const parts = [];
 let partCursor = 0;
 function spawnPart(pos, vel, color, size, life, basic = false, grav = 1) {
   let p;
-  if (parts.length < 450) {
+  if (parts.length < QCAP(160, 300, 450)) {
     p = { mesh: new THREE.Mesh(partGeo, pmat(color, basic)), vel: new V3(), spin: new V3() };
     p.mesh.castShadow = false;
     scene.add(p.mesh);
@@ -1056,7 +1056,7 @@ function damageEnemy(e, dmg, info) {
   e.flinch = Math.min(1.2, (e.flinch || 0) + dmg / 35);
   if (settings.gore && info.point && Math.random() < 0.6) bloodSpray(info.point);
   if (e.def.onHurt) e.def.onHurt(e);
-  if (e.hp > 0 && Math.random() < 0.6) voice(e, 'hurt');
+  if (e.hp > 0 && Math.random() < 0.4) voice(e, 'hurt');
   const pt = info.point || e.mesh.position.clone().setY(e.mesh.position.y + e.def.h * 0.6);
   burst(pt, Math.min(12, 3 + (dmg / 8) | 0), 0x9a0e0a, 6, 0.1, 0.5, false, 1, 0.6);
   if (info.knock) e.vel.addScaledVector(info.knock, 1 / e.def.mass);
@@ -1978,6 +1978,7 @@ function frame(now) {
   updateAmbient(dt, now / 1000);
   pressed.clear(); released.clear(); VHIT.clear();
   updateFPS(now);
+  autoQuality(now);
   renderFrame(dt);
 }
 requestAnimationFrame(frame);
@@ -2150,7 +2151,7 @@ function applyCrosshair() {
 }
 function applySetting(k) {
   if (k === 'fov') { camera.fov = settings.fov; camera.updateProjectionMatrix(); }
-  if (k === 'quality') { applyQuality(); resizeFX(); }
+  if (k === 'quality') { applyQuality(); resizeFX(); AQ.reset = true; }
   if (k === 'master' || k === 'sfx') { initAudio(); applyVolume(); sfx.hit(); }
   if (k.startsWith('cross')) applyCrosshair();
   if (k === 'showFPS') show('fps', settings.showFPS);
@@ -3480,7 +3481,7 @@ function decal(point, normal, size, mat) {
   m.receiveShadow = true;
   scene.add(m);
   decals.push(m);
-  if (decals.length > 220) scene.remove(decals.shift());
+  while (decals.length > QCAP(60, 140, 220)) scene.remove(decals.shift());
 }
 function bloodSpray(point, from) {
   const dir = point.clone().sub(from || camera.position).normalize();
@@ -3513,7 +3514,7 @@ function addDebris(obj, vel, spin, owner, kind = 'piece', rad = 0.15) {
   scene.attach(obj);
   debris.push({ obj, vel, spin, owner, kind, rad, rest: false, tip: 0, tipDir: Math.random() < 0.5 ? -1 : 1 });
   if (owner) owner.refs++;
-  while (debris.length > 90) removeDebris(debris[0]);
+  while (debris.length > QCAP(30, 60, 90)) removeDebris(debris[0]);
 }
 function removeDebris(d) {
   const i = debris.indexOf(d);
@@ -5435,7 +5436,7 @@ function popBrickInPlace(b, e) {
 const flameMatCat = new THREE.SpriteMaterial({ map: GLOW, color: 0xff5a1a, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
 const flameMatPlayer = new THREE.SpriteMaterial({ map: GLOW, color: 0xffb03a, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
 function addFlame(x, z, owner, life = 3) {
-  if (flames.length > 80) { scene.remove(flames[0].s); flames.shift(); }
+  while (flames.length > QCAP(35, 60, 80)) { scene.remove(flames[0].s); flames.shift(); }
   const s2 = new THREE.Sprite(owner === 'player' ? flameMatPlayer : flameMatCat);
   const fy = Math.max(0, floorAt(x, z, 20));
   s2.position.set(x, fy + 0.55, z); s2.scale.set(1.5, 1.7, 1);
@@ -6884,7 +6885,7 @@ function tickAudio(theme) {
   if (G.state !== 'play') return;
   chatterT -= dt;
   if (chatterT <= 0) {
-    chatterT = 2 + Math.random() * 3;
+    chatterT = 4 + Math.random() * 4;
     const near = enemies.filter((e) => !e.dead && e.spawnT <= 0 && e.mesh.position.distanceTo(P.pos) < 32);
     if (near.length) voice(near[(Math.random() * near.length) | 0], 'idle');
   }
@@ -7160,7 +7161,7 @@ function flailAlt() {
 
 // ================================================================ BATCH 5b: ELITE ENEMIES
 const ELITES = {
-  iron: { name: 'IRON', hp: 2.2, speed: 0.9, color: 0x9aa4b4, emissive: 0x2a3a5a, glow: 0x8ac8ff, style: 120 },
+  iron: { name: 'IRON', hp: 1.8, speed: 0.9, color: 0x9aa4b4, emissive: 0x2a3a5a, glow: 0x8ac8ff, style: 120 },
   ember: { name: 'EMBER', hp: 1.5, speed: 1.25, color: 0xff7a3a, emissive: 0xff4a0a, glow: 0xff7a2a, style: 100 },
 };
 const ELITE_OK = new Set(['grunt', 'shooter', 'flyer', 'heavy', 'shield', 'sniper', 'priest', 'ram', 'burrower', 'mender']);
@@ -7204,7 +7205,7 @@ function eliteDmg(e, dmg, info) {
   if (e.elite !== 'iron') return dmg;
   if (info.explosion || info.head || info.combo || info.parry || info.pierce || info.weapon === 'slam' || info.weapon === 'shock' || info.countersnipe) return dmg;
   if (G.time - (e.tingT || 0) > 0.2) { e.tingT = G.time; sfx.ting(); if (info.point) burst(info.point, 4, 0xc8d8ff, 5, 0.06, 0.25, true); }
-  return dmg * 0.45;
+  return dmg * 0.55;
 }
 function eliteKilled(e, info) {
   if (!e.elite) return;
@@ -7557,7 +7558,7 @@ function vsTick(dt) {
   $('vsCurse').innerHTML = VS.curses ? `CURSE ×${VS.curses} <b>[${keyLabel(bound('curse')[0] || 'KeyT')}]</b>` : '<span>clear rooms / earn style for curses</span>';
 }
 function vsGainCurse() { if (VS.curses >= 3) return; VS.curses++; pushFeed('CURSE READY', 'cool'); sfx.coin(); }
-const CURSES = { fog: ['FOG', 6], reverse: ['REVERSED CONTROLS', 3.5], jam: ['WEAPON JAM', 3], lowgrav: ['LOW GRAVITY', 7] };
+const CURSES = { fog: ['FOG', 5], reverse: ['REVERSED CONTROLS', 3], jam: ['WEAPON JAM', 2.5], lowgrav: ['LOW GRAVITY', 6] };
 function vsFireCurse() {
   if (!VS.curses || VS.freeze > 0) return;
   VS.curses--;
@@ -7577,7 +7578,7 @@ function vsApplyCurse(k) {
 const SEND_POOL = [['grunt', 'shooter', 'flyer'], ['grunt', 'shooter', 'shield', 'flyer', 'bomber'], ['grunt', 'shooter', 'ram', 'bomber', 'flyer']];
 function vsSendEnemies(n, why) {
   if (!VS.active || VS.result || VS.sendCD > 0 || VS.freeze > 0) return;
-  VS.sendCD = 7;
+  VS.sendCD = 9;
   const pool = SEND_POOL[Math.max(0, SCENES.indexOf(G.level.scene))] || SEND_POOL[0];
   const types = []; for (let i = 0; i < n; i++) types.push(pool[(Math.random() * pool.length) | 0]);
   vsSend({ t: 'send', types });
@@ -7660,3 +7661,23 @@ $('vsBack').addEventListener('click', () => { G.state = 'menu'; show('versus', f
 $('vsRematch').addEventListener('click', () => { vsSend({ t: 'go', idx: VS.level }); VS.active = false; if (VS.rival.mesh) VS.rival.mesh.visible = false; toMenu(); vsBegin(VS.level); });
 $('vsLobbyBtn').addEventListener('click', vsToLobby);
 vsReveal();
+
+// ================================================================ BATCH 6.1: PERFORMANCE
+function QCAP(lo, med, hi) { return settings.quality === 'low' ? lo : settings.quality === 'medium' ? med : hi; }
+// auto quality: if play runs under ~40 FPS for two 3-second windows in a row, step the graphics down one notch
+var AQ = { t0: 0, frames: 0, slow: 0, grace: 0, reset: true, last: 'menu' };
+function autoQuality(now) {
+  if (!settings.autoQuality) return;
+  if (G.state !== 'play' || AQ.last !== 'play' || AQ.reset) { AQ.last = G.state; AQ.reset = false; AQ.t0 = now; AQ.frames = 0; AQ.grace = now + 5000; AQ.slow = 0; return; }
+  if (now < AQ.grace) { AQ.t0 = now; AQ.frames = 0; return; }
+  AQ.frames++;
+  if (now - AQ.t0 < 3000) return;
+  const fps = AQ.frames * 1000 / (now - AQ.t0);
+  AQ.t0 = now; AQ.frames = 0;
+  AQ.slow = fps < 40 ? AQ.slow + 1 : 0;
+  if (AQ.slow < 2 || settings.quality === 'low') return;
+  settings.quality = settings.quality === 'high' ? 'medium' : 'low';
+  saveSettings(); applyQuality(); resizeFX();
+  AQ.slow = 0; AQ.grace = now + 6000;
+  showHint(`AUTO QUALITY · ${Math.round(fps)} FPS, graphics lowered to ${settings.quality.toUpperCase()} (Settings → Video)`);
+}
