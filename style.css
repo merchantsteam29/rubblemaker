@@ -396,3 +396,11 @@ button:disabled { opacity: .4; cursor: default; }
 #vsSpec b { font-family: 'Bungee', sans-serif; font-size: clamp(28px, 5vw, 48px); color: #ffd23a; } #vsSpec span { letter-spacing: 2px; color: #ffb0a0; font-weight: 700; } #vsSpec small { opacity: .6; letter-spacing: 2px; }
 #vsSpec button { font-family: 'Bungee', sans-serif; font-size: 18px; padding: 10px 26px; border: 3px solid #ff4a1c; background: #1c0d08; color: #ffd9c4; cursor: pointer; transform: skew(-6deg); }
 @media (max-width: 760px) { #vsTauntPick { flex-wrap: wrap; justify-content: center; width: 92vw; } }
+
+/* batch 6.3: acts + layers, mini-boss rewards */
+.scene.act > h3 span { color: #ffd23a; }
+.layer { margin: 4px 0 14px; } .layer h4 { margin: 8px 0 6px; font-family: 'Bungee', sans-serif; font-size: 14px; letter-spacing: 3px; color: #ffd9c4; text-align: left; } .layer h4 span { color: #ff8a4a; margin-right: 10px; font-size: 11px; }
+#shopList button.from { font-size: 10px; letter-spacing: 1px; opacity: .8; }
+.varPick { margin: 6px auto 12px; text-align: center; max-width: 760px; } .varPick b { font-family: 'Bungee', sans-serif; color: #9ae8ff; letter-spacing: 2px; display: block; margin-bottom: 6px; }
+.varPick > div { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; } .screen .varPick button { font-size: 12px; padding: 6px 12px; }
+.varPick p { margin: 4px 0; opacity: .85; }

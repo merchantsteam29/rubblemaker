@@ -1,3 +1,4 @@
+import './migrate.js';
 import * as THREE from 'three';
 import { buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, buildPortal, buildVariantModel, buildDuelistModel, animateEnemy, buildViewmodels, buildCatModel } from './models.js';
 import { LEVELS, SCENES, DUELS, PRIMES, buildLevel } from './levels.js';
@@ -786,10 +787,10 @@ const WNAMES = ['REVOLVER', 'SHOTGUN', 'NAILGUN', 'LAUNCHER'];
 
 const W = { altCD: 0, variant: [0, 0, 0, 0], arm: 'fist', heat: 0, nailCD: 0, shockCharge: 0, coins: 4, pump: 0, sawCD: 0, cur: 0, cd: 0, switchT: 0, lastSwitch: -9, charge: 0, charging: false, punchCD: 0, punchT: 0, kick: 0, coreCD: 0, flashT: 0 };
 function switchWeapon(i) {
-  if (i === 4 && !owns('flail')) { if (G.state === 'play') pushFeed('FLAIL LOCKED · visit the FORGE', 'bad'); return; }
-  if (i === 3 && !owns('launcher')) { if (G.state === 'play') pushFeed('LAUNCHER LOCKED · visit the FORGE', 'bad'); return; }
-  if (i === 2 && !owns('nailgun')) { if (G.state === 'play') pushFeed('NAILGUN LOCKED · visit the FORGE', 'bad'); return; }
-  if (i === 1 && !owns('shotgun')) { if (G.state === 'play') pushFeed('SHOTGUN LOCKED · visit the FORGE', 'bad'); return; }
+  if (i === 4 && !owns('flail')) { if (G.state === 'play') pushFeed('FLAIL LOCKED · beat THE STOKER (4-5)', 'bad'); return; }
+  if (i === 3 && !owns('launcher')) { if (G.state === 'play') pushFeed('LAUNCHER LOCKED · beat THE BELL-RINGER (2-5)', 'bad'); return; }
+  if (i === 2 && !owns('nailgun')) { if (G.state === 'play') pushFeed('NAILGUN LOCKED · beat THE ORGANIST (1-5)', 'bad'); return; }
+  if (i === 1 && !owns('shotgun')) { if (G.state === 'play') pushFeed('SHOTGUN LOCKED · beat MORTIMER (0-5)', 'bad'); return; }
   if (i === W.cur) { cycleVariant(i); return; }
   W.cur = i; W.switchT = 0.18; W.lastSwitch = G.time; W.charging = false; W.charge = 0;
   W.cd = Math.max(W.cd, 0.12);
@@ -810,7 +811,7 @@ const DEFS = {
   bulwark: { hp: 480, speed: 2.8, r: 1.0, h: 3.5, color: 0x6a7088, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE BULWARK · TRAINER', short: 'THE BULWARK', hint: 'Bullets glance off THE BULWARK · PUNCH his big orb to PARRY it back into him', canHurt: (i) => !!i.parry, onHurt: (e) => { e.state = 'recover'; e.t = 1.2; banner('CRACKED!'); } },
   sweeper: { hp: 650, speed: 3.4, r: 1.3, h: 4.2, color: 0x8a6a40, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE SWEEPER · TRAINER', short: 'THE SWEEPER', hint: 'His waves are too tall to jump · DASH straight through them' },
   roost: { hp: 400, speed: 10, r: 1.4, h: 2.4, color: 0x6a5a7a, mass: 30, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, fly: true, name: 'THE ROOST · TRAINER', short: 'THE ROOST', hint: 'THE ROOST only flinches when you are AIRBORNE · jump and shoot, or GROUND SLAM her when she lands', canHurt: (i) => !P.grounded || i.weapon === 'slam' },
-  kiln: { hp: 560, speed: 2.6, r: 1.6, h: 5.2, color: 0x2e2622, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE KILN · TRAINER', short: 'THE KILN', hint: 'Only a COMBO BLAST cracks THE KILN · lob a core (shotgun ALT) and shoot it with the revolver', canHurt: (i) => !!i.combo || (!owns('shotgun') && !!i.parry) },
+  kiln: { hp: 560, speed: 2.6, r: 1.6, h: 5.2, color: 0x2e2622, mass: 40, kill: 300, label: 'TRAINER DOWN', boss: true, trainer: true, name: 'THE KILN · TRAINER', short: 'THE KILN', hint: 'THE KILN only cracks when its own spit hits it · PUNCH the glowing spit back (PARRY)', canHurt: (i) => !!i.parry || !!i.combo },
   shield: { hp: 90, speed: 4.2, r: 0.55, h: 2.25, color: 0x8a5a3a, mass: 1.6, kill: 90, label: 'KILL', ai: 'grunt', variantModel: true, shielded: true, hint: 'SHIELDBEARERS block from the front · flank them, or break the shield with explosions, slams or the GRAPPLE' },
   sniper: { hp: 60, speed: 4.5, r: 0.5, h: 2.45, color: 0x3a4a3a, mass: 1, kill: 90, label: 'KILL', ai: 'sniper', variantModel: true },
   bomber: { hp: 25, speed: 9.5, r: 0.45, h: 1.8, color: 0x8a6a2a, mass: 0.8, kill: 50, label: 'KILL', ai: 'bomber', variantModel: true, bomber: true },
@@ -830,7 +831,7 @@ const DEFS = {
 const enemies = [];
 function makeEnemy(type, x, z, y = 0) {
   const def = DEFS[type];
-  const model = def.cat ? buildCatModel() : def.base ? buildEnemyModel(def.base, def.color) : def.duelist ? buildDuelistModel(type) : def.variantModel ? buildVariantModel(type) : def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
+  const model = def.mini ? buildMiniModel(type) : def.cat ? buildCatModel() : def.base ? buildEnemyModel(def.base, def.color) : def.duelist ? buildDuelistModel(type) : def.variantModel ? buildVariantModel(type) : def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
   const g = model.root;
   if (def.scale) g.scale.multiplyScalar(def.scale);
   if (CHEATS.bigheads && model.rig.head) model.rig.head.scale.multiplyScalar(2);
@@ -841,7 +842,7 @@ function makeEnemy(type, x, z, y = 0) {
   const e = {
     type, def, mesh: g, mats: model.mats, extraMats: model.extraMats, hit: model.hit, rig: model.rig, orb: model.orb,
     hp: def.hp * (DIFF().hp || 1), vel: new V3(), state: 'chase', t: 0, cd: rand(0.8, 2), flash: 0,
-    grounded: true, strafe: Math.random() < 0.5 ? -1 : 1, strafeT: rand(1, 3), spawnT: def.boss ? 1.6 : 0.7, spawnMax: def.boss ? 1.6 : 0.7, spawnY: y, baseScale, home: new V3(x, y + 1, z), animType: { boss1: 'heavy', boss2: 'shooter', bulwark: 'grunt', sweeper: 'heavy', roost: 'flyer', kiln: 'heavy', shield: 'grunt', sniper: 'shooter', bomber: 'grunt', priest: 'shooter', shard: 'grunt', bertha: 'heavy', kite: 'grunt', swarmling: 'flyer', mirror: 'grunt', marksman: 'shooter', fortress: 'heavy', queen: 'flyer', boss3: 'heavy', gilded: 'grunt', ram: 'heavy', burrower: 'grunt', mender: 'shooter', tumble: 'grunt', twirl: 'grunt', anvil: 'heavy', bellows: 'heavy', crane: 'flyer' }[type] || null, layers: def.layers || 0, shieldUp: !!def.shielded, shieldHP: 80, maxHp: def.hp * (DIFF().hp || 1), mv: new V3(), orbit: rand(0, 6.28), alt: rand(4, 6.5), dead: false, walk: rand(0, 6),
+    grounded: true, strafe: Math.random() < 0.5 ? -1 : 1, strafeT: rand(1, 3), spawnT: def.boss ? 1.6 : 0.7, spawnMax: def.boss ? 1.6 : 0.7, spawnY: y, baseScale, home: new V3(x, y + 1, z), animType: { boss1: 'heavy', boss2: 'shooter', bulwark: 'grunt', sweeper: 'heavy', roost: 'flyer', kiln: 'heavy', shield: 'grunt', sniper: 'shooter', bomber: 'grunt', priest: 'shooter', shard: 'grunt', bertha: 'heavy', kite: 'grunt', swarmling: 'flyer', mirror: 'grunt', marksman: 'shooter', fortress: 'heavy', queen: 'flyer', boss3: 'heavy', gilded: 'grunt', ram: 'heavy', burrower: 'grunt', mender: 'shooter', tumble: 'grunt', twirl: 'grunt', anvil: 'heavy', bellows: 'heavy', crane: 'flyer' }[type] || def.animAs || null, layers: def.layers || 0, shieldUp: !!def.shielded, shieldHP: 80, maxHp: def.hp * (DIFF().hp || 1), mv: new V3(), orbit: rand(0, 6.28), alt: rand(4, 6.5), dead: false, walk: rand(0, 6),
   };
   for (const m of model.hit) m.userData.enemy = e;
   maybeIntro(type);
@@ -932,6 +933,7 @@ function updateEnemies(dt) {
     if (e.type === 'boss1') { updateBoss1(e, e.prime ? dt * 1.25 : dt); if (e.prime && !e.dead) primeTick(e, dt); continue; }
     if (e.type === 'boss2') { updateBoss2(e, e.prime ? dt * 1.25 : dt); if (e.prime && !e.dead) primeTick(e, dt); continue; }
     if (e.def.ai === 'ram' || e.def.ai === 'burrower' || e.def.ai === 'mender') { updateNewAI(e, dt); continue; }
+    if (e.def.mini) { updateMiniBoss(e, dt); continue; }
     if (e.def.trainer) { updateTrainer(e, dt); continue; }
     if (e.def.duelist) { updateDuelist(e, dt); continue; }
     if (e.def.ai && e.def.ai !== 'grunt') { updateVariantAI(e, dt); continue; }
@@ -2565,6 +2567,7 @@ function updateBossBar() {
 function bossDefeated(e) {
   if (e.def.twin && e.sib && !e.sib.dead) { twinDown(e); return; }
   duelReward(e);
+  miniReward(e);
   killCam(1.8, 0.12);
   fxShift(0.03);
   G.boss = null;
@@ -2723,7 +2726,7 @@ function completeLevel() {
   saveProgress(prog);
   statLevelDone(overall, t, earned);
   const g = (i) => `<span class="g g${GRADE_SHORT[i]}">${GRADE_SHORT[i]}</span>`;
-  $('completeLevel').textContent = `${lv.scene.name} · ${lv.id} · ${lv.name}`;
+  $('completeLevel').textContent = `${levelActLabel(lv)} · ${lv.id} · ${lv.name}`;
   $('completeStats').innerHTML =
     `<span>TIME</span><span>${fmtTime(t)} <small style="opacity:.5">/ ${fmtTime(lv.par)}</small></span>${g(gTime)}` +
     `<span>STYLE</span><span>${Math.floor(G.styleTotal).toLocaleString()}</span>${g(gStyle)}` +
@@ -2739,7 +2742,8 @@ function completeLevel() {
   show('nextBtn', hasNext);
   if (hasNext) $('nextBtn').textContent = `NEXT: ${LEVELS[G.levelIdx + 1].id} ${LEVELS[G.levelIdx + 1].name}`;
   const fin = () => setTimeout(() => { show('complete', true); sfx.rankUp(); }, 300);
-  if (lv.id === '2-12' && !cutsSeen().ending) playEnding(fin); else fin();
+  showVariantPick();
+  if (lv.id === '6-2' && !cutsSeen().ending) playEnding(fin); else fin();
 }
 
 function openLevels() {
@@ -2973,6 +2977,7 @@ function renderShop() {
     const blocked = it.req && !owns(it.req);
     const afford = (p.scrap || 0) >= it.price;
     const btn = have ? '<button disabled class="owned">OWNED</button>'
+      : it.from ? `<button disabled class="from">WIN IT FROM ${it.from}</button>`
       : blocked ? `<button disabled>NEEDS ${it.req.toUpperCase()}</button>`
       : `<button data-buy="${it.id}" ${afford ? '' : 'disabled'}>◆ ${it.price}</button>`;
     return `<div class="item ${have ? 'have' : ''}"><div class="sw" style="background:${vd.css}"></div><div class="txt"><b>${WNAMES[it.gun]} · <span style="color:${vd.css}">${vd.name}</span></b><p>${it.desc}</p></div>${btn}</div>`;
@@ -2983,7 +2988,7 @@ function renderShop() {
 function buy(id) {
   const it = SHOP.find((x) => x.id === id);
   const p = prog();
-  if (!it || owns(id) || (p.scrap || 0) < it.price) return;
+  if (!it || it.from || owns(id) || (p.scrap || 0) < it.price) return;
   p.scrap -= it.price;
   STATS.scrapSpent += it.price;
   p.owned = [...(p.owned || []), id];
@@ -3218,6 +3223,7 @@ function updateTrainer(e, dt) {
     if (e.cd <= 0) {
       if (k === 'bulwark' || k === 'mirror') e.atk = dist < def.r + 2.4 ? 'bash' : 'throw';
       else if (k === 'sweeper') e.atk = dist < 5 ? 'stomp' : 'sweep';
+      else if (k === 'kiln') e.atk = dist < 4 && Math.random() < 0.35 ? 'stomp' : 'spit';
       else e.atk = dist < 6 || Math.random() < 0.5 ? 'stomp' : 'spit';
       e.wt = { bash: 0.5, throw: 0.8, sweep: 0.9, stomp: 0.8, spit: 0.7 }[e.atk];
       e.state = 'windup'; e.t = e.wt;
@@ -3600,12 +3606,12 @@ function clearGore() {
 
 // ================================================================ BOSS INTRO CARDS
 const EPITHETS = {
-  boss1: ['SCENE 0 BOSS', 'WARDEN OF THE CELLAR'],
-  boss2: ['SCENE 1 BOSS', 'ARCHITECT OF RUIN'],
+  boss1: ['ACT I BOSS', 'WARDEN OF THE CELLAR'],
+  boss2: ['ACT II BOSS', 'ARCHITECT OF RUIN'],
   bulwark: ['TRAINER', 'LESSON I · THE PARRY'],
   sweeper: ['TRAINER', 'LESSON II · THE DASH'],
   roost: ['TRAINER', 'LESSON III · THE AIR'],
-  kiln: ['TRAINER', 'LESSON IV · THE COMBO BLAST'],
+  kiln: ['TRAINER', 'LESSON IV · THE RETURN TO SENDER'],
 };
 let introT = 0;
 function showIntro(type) {
@@ -4312,7 +4318,7 @@ function renderLevels() {
     return `<button class="lvl ${l.boss ? 'boss' : ''} ${l.duel ? 'duel' : ''}" data-idx="${idx}" ${locked ? 'disabled' : ''}><b>${l.id}${prog.skulls && prog.skulls[l.id] ? ' <u title="skull found">☠</u>' : ''}</b><i>${locked ? (l.duel ? (l.skulls ? `FIND ALL SKULLS (${skullCount(prog)}/${TOTAL_SKULLS})` : 'BEAT ' + l.unlockAfter + (l.orArm ? ' OR THE LAST DUEL' : '')) : 'LOCKED') : l.name}</i>${b ? `<em class="g${GRADE_SHORT[b.rank]}">${GRADE_SHORT[b.rank]}</em><small>BEST ${fmtTime(b.time)}</small>` : ''}${l.duel ? `<small>${won ? 'REWARD EARNED' : 'REWARD: ' + prizeName(l.duel)}</small>` : ''}</button>`;
   };
   $('sceneList').innerHTML = `<div class="scrapLine">◆ ${prog.scrap || 0} SCRAP · spend it at the FORGE in any level's start room</div>` + diffRow +
-    SCENES.map((sc) => `<div class="scene"><h3><span>SCENE ${sc.id}</span>${sc.name}</h3><div class="grid">${sc.levels.map(card).join('')}</div></div>`).join('') +
+    SCENES.map((sc, si) => `<div class="scene act"><h3><span>${ACT_NAMES[si]}</span>${sc.name}</h3>` + [...new Set(sc.levels.map(layerOf))].map((ln) => `<div class="layer"><h4><span>LAYER ${ln}</span>${LAYER_NAMES[ln] || ''}</h4><div class="grid">${sc.levels.filter((l) => layerOf(l) === ln).map(card).join('')}</div></div>`).join('') + '</div>').join('') +
     `<div class="scene"><h3><span>SECRET</span>DUELS</h3><div class="grid">${DUELS.map(card).join('')}</div></div>` +
     `<div class="scene prime"><h3><span>PRIME</span>BOSS REMATCHES</h3><div class="grid">${PRIMES.map(card).join('')}</div></div>` +
     `<div class="scene lore"><h3><span>SECRETS</span>☠ ${skullCount(prog)} / ${TOTAL_SKULLS} SKULLS · LORE ${Object.keys(prog.lore || {}).length} / ${Object.keys(LORE).length}</h3>${Object.keys(LORE).filter((k) => (prog.lore || {})[k]).map((k) => `<p><b>${k}</b> ${LORE[k]}</p>`).join('') || '<p>Cracked walls hide skulls, notes and gun skins. Blow them open.</p>'}</div>`;
@@ -4590,13 +4596,13 @@ const LORE = {
   '0-4': 'Mortimer used to be one of us. A bricklayer. Then the Foreman offered him a crown and a key to the vault.',
   '1-1': "They built the Cathedral to keep the Kiln's heat down below. Every brick was blessed. Every blessing failed.",
   '1-4': "The High Mason drew plans for a city with no doors. 'Walls,' he said, 'are the only honest prayer.'",
-  '1-8': 'Sister Shard swears the stained glass sings when the furnaces below run hot. Lately it never stops singing.',
-  '1-10': "The buttresses aren't holding the roof up. They're holding something DOWN.",
-  '2-1': 'KILN SAFETY NOTICE · Do not touch the lava. Do not feed the Foreman. Do not let him see you idle.',
-  '2-7': 'Kiln No. 7 was meant to fire bricks. The Foreman fires workers now. Same heat. Better walls, he says.',
-  '2-11': "If you're reading this, you made it up the stack. He's waiting at the top. Bring something that burns hotter than him.",
+  '2-3': 'Sister Shard swears the stained glass sings when the furnaces below run hot. Lately it never stops singing.',
+  '2-5': "The buttresses aren't holding the roof up. They're holding something DOWN.",
+  '4-1': 'KILN SAFETY NOTICE · Do not touch the lava. Do not feed the Foreman. Do not let him see you idle.',
+  '5-2': 'Kiln No. 7 was meant to fire bricks. The Foreman fires workers now. Same heat. Better walls, he says.',
+  '6-1': "If you're reading this, you made it up the stack. He's waiting at the top. Bring something that burns hotter than him.",
 };
-const SKIN_AT = { '0-3': 'bone', '1-8': 'obsidian', '2-6': 'ember' };
+const SKIN_AT = { '0-3': 'bone', '2-3': 'obsidian', '5-1': 'ember' };
 const SKINS = {
   steel: { name: 'STEEL', steel: 0xa8a8b4, dsteel: 0x4a4a56, brass: 0xd0a24a, em: 0x000000 },
   bone: { name: 'BONE', steel: 0xe0d4b8, dsteel: 0x8a7a60, brass: 0x5a4a30, em: 0x000000 },
@@ -4782,7 +4788,7 @@ function updateBoss3(e, dt) {
 // ================================================================ wiring for duels / UI
 Object.assign(DUEL_LINES, { gilded: { intro: 'Every skull, returned to me. You have earned a real fight.', 75: 'Gold does not dent, little brick.', 50: 'Ha! You shine brighter than I do!', 25: 'Is this... what losing feels like?', win: 'Take my shine. Wear it well.' } });
 Object.assign(EPITHETS, {
-  boss3: ['SCENE 2 BOSS', 'LORD OF THE KILN'], gilded: ['SECRET DUEL', 'KEEPER OF THE SKULLS'],
+  boss3: ['ACT III BOSS', 'LORD OF THE KILN'], gilded: ['SECRET DUEL', 'KEEPER OF THE SKULLS'],
   mirror: ['TRAINER', 'LESSON V · THE RICOCHET'], marksman: ['TRAINER', 'LESSON VI · THE COUNTERSNIPE'],
   fortress: ['TRAINER', 'LESSON VII · THE SHIELD BREAK'], queen: ['TRAINER', 'LESSON VIII · THE SWARM'],
 });
@@ -6001,7 +6007,7 @@ const PIT_MODS = [
   { name: 'UNDERGROUND', desc: 'burrowers tunnel under the floor', mult: 1.2, add: [['burrower', 4]] },
   { name: 'LOW GRAVITY', desc: 'you float · enemies do not', mult: 1.15, lowgrav: true },
 ];
-const PIT_BOSS_POOL = ['bulwark', 'sweeper', 'roost', 'kiln', 'mirror', 'fortress', 'queen', 'anvil', 'bellows', 'crane', 'shard', 'bertha', 'kite', 'twins', 'cat'];
+const PIT_BOSS_POOL = ['organist', 'ringer', 'stoker', 'glazier', 'bulwark', 'sweeper', 'roost', 'kiln', 'mirror', 'fortress', 'queen', 'anvil', 'bellows', 'crane', 'shard', 'bertha', 'kite', 'twins', 'cat'];
 function pitWaveSetup(n) {
   const kind = PIT_ORDER[Math.floor((n - 1) / 5) % PIT_ORDER.length];
   let shifted = null;
@@ -6232,9 +6238,9 @@ const ACHS = [
   { id: 'rubble', name: 'STYLE ICON', desc: 'Reach the RUBBLEMAKER style rank', p: () => [STATS.maxRank >= RANKS.length - 1 ? 1 : 0, 1], scrap: 200 },
   { id: 'p1', name: 'PERFECTIONIST', desc: 'Earn a P-rank', p: () => [STATS.pRanks, 1], scrap: 300 },
   { id: 'p10', name: 'P FOR PERFECT', desc: 'Earn 10 P-ranks', p: () => [STATS.pRanks, 10], scrap: 800 },
-  { id: 's0', name: 'CELLAR CLEARED', desc: 'Beat SCENE 0: THE CELLAR', p: () => [beaten('0-5') ? 1 : 0, 1], scrap: 200 },
-  { id: 's1', name: 'CATHEDRAL CLEARED', desc: 'Beat SCENE 1: THE CATHEDRAL', p: () => [beaten('1-12') ? 1 : 0, 1], scrap: 400 },
-  { id: 's2', name: 'KILN CLEARED', desc: 'Beat SCENE 2: THE KILN', p: () => [beaten('2-12') ? 1 : 0, 1], scrap: 600 },
+  { id: 's0', name: 'CELLAR CLEARED', desc: 'Beat ACT I: THE CELLAR', p: () => [beaten('0-5') ? 1 : 0, 1], scrap: 200 },
+  { id: 's1', name: 'CATHEDRAL CLEARED', desc: 'Beat ACT II: THE CATHEDRAL', p: () => [beaten('3-2') ? 1 : 0, 1], scrap: 400 },
+  { id: 's2', name: 'KILN CLEARED', desc: 'Beat ACT III: THE KILN', p: () => [beaten('6-2') ? 1 : 0, 1], scrap: 600 },
   { id: 'trainers', name: 'SCHOOLED', desc: 'Beat all 11 trainers', p: () => [TRAINERS.filter((t) => STATS.bosses[t]).length, TRAINERS.length], scrap: 500 },
   { id: 'duels', name: 'DUELIST', desc: 'Win every duel reward', p: () => [DUELS.filter((d) => (prog().owned || []).includes(duelPrize(d.duel))).length, DUELS.length], scrap: 600 },
   { id: 'primes', name: 'PRIME TIME', desc: 'Beat all three PRIME rematches', p: () => [PRIMES.filter((d) => beaten(d.id)).length, PRIMES.length], skin: 'void' },
@@ -6297,7 +6303,7 @@ const CODEX_BEASTS = [
   ['bulwark', 'THE BULWARK', 'TRAINER', 'LESSON I · THE PARRY. Bullets glance off him. Punch his big orb back into his face.'],
   ['sweeper', 'THE SWEEPER', 'TRAINER', 'LESSON II · THE DASH. His waves are too tall to jump over. Dash straight through them.'],
   ['roost', 'THE ROOST', 'TRAINER', 'LESSON III · THE AIR. She only flinches when you are airborne, or when a slam lands under her.'],
-  ['kiln', 'THE KILN', 'TRAINER', 'LESSON IV · THE COMBO BLAST. Lob a core with the shotgun and shoot it with the revolver.'],
+  ['kiln', 'THE KILN', 'TRAINER', 'LESSON IV · THE RETURN TO SENDER. A walking furnace that spits fire. Only its own spit, punched back, cracks it.'],
   ['mirror', 'THE MIRROR KNIGHT', 'TRAINER', 'LESSON V · THE RICOCHET. Only bounced shots hurt him: coins and chainlink banks.'],
   ['marksman', 'THE MARKSMAN', 'TRAINER', 'LESSON VI · THE COUNTERSNIPE. He only falls to his own bullets. Punch the moment his laser flashes.'],
   ['fortress', 'THE FORTRESS', 'TRAINER', 'LESSON VII · THE SHIELD BREAK. Three layers of shield. Strip them with explosions, slams, shockwaves or the grapple.'],
@@ -6340,7 +6346,7 @@ let codexTab = 'beasts', codexSel = null;
 const CX = { r: null, scene: null, cam: null, model: null, raf: 0, t: 0 };
 function codexModel(type) {
   const def = DEFS[type];
-  const md = def.cat ? buildCatModel() : def.base ? buildEnemyModel(def.base, def.color) : def.duelist ? buildDuelistModel(type) : def.variantModel ? buildVariantModel(type) : def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
+  const md = def.mini ? buildMiniModel(type) : def.cat ? buildCatModel() : def.base ? buildEnemyModel(def.base, def.color) : def.duelist ? buildDuelistModel(type) : def.variantModel ? buildVariantModel(type) : def.trainer ? buildTrainerModel(type) : def.boss ? buildBossModel(type) : buildEnemyModel(type, def.color);
   if (def.scale) md.root.scale.multiplyScalar(def.scale);
   return md;
 }
@@ -6391,9 +6397,9 @@ function renderCodex() {
   if (codexTab === 'beasts') {
     const met = CODEX_BEASTS.filter(([t]) => STATS.met[t] || STATS.by[t]);
     if (!codexSel || !met.some(([t]) => t === codexSel)) codexSel = met.length ? met[0][0] : null;
-    const cats = ['ENEMY', 'TRAINER', 'DUELIST', 'BOSS'];
-    body.innerHTML = `<div class="cxBeasts"><div class="cxList">${cats.map((c) => `<h4>${{ ENEMY: 'ENEMIES', TRAINER: 'TRAINERS', DUELIST: 'DUELISTS', BOSS: 'BOSSES' }[c]}</h4><div>${CODEX_BEASTS.filter((x) => x[2] === c).map(([t, n]) => { const seen = STATS.met[t] || STATS.by[t]; return `<button data-beast="${t}" class="${t === codexSel ? 'on' : ''}" ${seen ? '' : 'disabled'}>${seen ? n : '???'}</button>`; }).join('')}</div>`).join('')}</div>` +
-      `<div class="cxDetail">${codexSel ? (() => { const [t, n, c, lore] = CODEX_BEASTS.find((x) => x[0] === codexSel); const d = DEFS[t]; return `<canvas id="codexCanvas"></canvas><h3>${n}</h3><small>${c} · ${Math.round(d.hp)} HP · KILLED ${STATS.by[t] || 0}×</small><p>${lore}</p>${d.hint || ENEMY_INTRO[t] ? `<p class="tip">${d.hint || ENEMY_INTRO[t]}</p>` : ''}`; })() : '<p>You haven\'t met anything yet. Go break something.</p>'}</div></div>` +
+    const cats = ['ENEMY', 'TRAINER', 'DUELIST', 'MINIBOSS', 'BOSS'];
+    body.innerHTML = `<div class="cxBeasts"><div class="cxList">${cats.map((c) => `<h4>${{ ENEMY: 'ENEMIES', TRAINER: 'TRAINERS', DUELIST: 'DUELISTS', MINIBOSS: 'MINI-BOSSES', BOSS: 'BOSSES' }[c]}</h4><div>${CODEX_BEASTS.filter((x) => x[2] === c).map(([t, n]) => { const seen = STATS.met[t] || STATS.by[t]; return `<button data-beast="${t}" class="${t === codexSel ? 'on' : ''}" ${seen ? '' : 'disabled'}>${seen ? n : '???'}</button>`; }).join('')}</div>`).join('')}</div>` +
+      `<div class="cxDetail">${codexSel ? (() => { const [t, n, c, lore] = CODEX_BEASTS.find((x) => x[0] === codexSel); const d = DEFS[t]; return `<canvas id="codexCanvas"></canvas><h3>${n}</h3><small>${c === 'MINIBOSS' ? 'MINI-BOSS' : c} · ${Math.round(d.hp)} HP · KILLED ${STATS.by[t] || 0}×</small><p>${lore}</p>${d.hint || ENEMY_INTRO[t] ? `<p class="tip">${d.hint || ENEMY_INTRO[t]}</p>` : ''}`; })() : '<p>You haven\'t met anything yet. Go break something.</p>'}</div></div>` +
       `<p class="cxCount">${met.length} / ${CODEX_BEASTS.length} DISCOVERED</p>`;
     body.querySelectorAll('[data-beast]').forEach((b) => b.addEventListener('click', () => { codexSel = b.dataset.beast; renderCodex(); }));
     if (CX.r) { CX.r.dispose(); CX.r.forceContextLoss(); CX.r = null; CX.model = null; }
@@ -6438,18 +6444,18 @@ document.querySelectorAll('#codexTabs button').forEach((b) => b.addEventListener
 
 // ================================================================ BATCH 4.4b: STORY + CUTSCENES
 const STORY = {
-  prologue: { title: 'PROLOGUE', card: 'SCENE 0 · THE CELLAR', lines: [
+  prologue: { title: 'PROLOGUE', card: 'ACT I · THE CELLAR', lines: [
     ['THE GUILD', 'Before the fire, there was the GUILD. Masons. Bricklayers. The builders of this city.'],
     ['THE GUILD', 'Then came the MOLTEN FOREMAN. He took the kilns, fired the workers, and turned every brick against us.'],
     ['THE GUILD', 'With the last of our mortar, the dead guild raised one more pair of hands.'],
     ['THE GUILD', 'You do not speak. You do not tire. You were made to tear it all down.'],
   ] },
-  scene1: { title: 'SCENE 1', card: 'SCENE 1 · THE CATHEDRAL', lines: [
+  scene1: { title: 'ACT II', card: 'ACT II · THE CATHEDRAL', lines: [
     ['THE GUILD', 'The cellar is quiet now. The Warden\'s keys are rust.'],
     ['THE GUILD', 'Above it stands the CATHEDRAL, drawn by the HIGH MASON: our guildmaster, who sold our plans to the fire.'],
     ['THE GUILD', 'Every arch he laid is a lie. Bring them down.'],
   ] },
-  scene2: { title: 'SCENE 2', card: 'SCENE 2 · THE KILN', lines: [
+  scene2: { title: 'ACT III', card: 'ACT III · THE KILN', lines: [
     ['THE GUILD', 'The cathedral has fallen, and the roof of the city has fallen in with it.'],
     ['THE GUILD', 'Below, the kilns roar. The Foreman is waiting for the last brick he hasn\'t fired.'],
     ['THE GUILD', 'Go into the heat. Make rubble of the rest.'],
@@ -6472,7 +6478,7 @@ const STORY = {
     ['THE GUILD', 'Rest, golem. Or don\'t. There are always more walls.'],
   ] },
 };
-const STORY_AT = { '0-1': 'prologue', '1-1': 'scene1', '2-1': 'scene2' };
+const STORY_AT = { '0-1': 'prologue', '1-1': 'scene1', '4-1': 'scene2' };
 const CUTS_KEY = 'rubblemaker-cuts';
 function cutsSeen() { try { return JSON.parse(localStorage.getItem(CUTS_KEY) || '{}'); } catch (_) { return {}; } }
 function markCut(id) { const s2 = cutsSeen(); s2[id] = 1; try { localStorage.setItem(CUTS_KEY, JSON.stringify(s2)); } catch (_) {} }
@@ -7175,9 +7181,9 @@ const fireballMat = new THREE.SpriteMaterial({ map: GLOW, color: 0xff6a1a, blend
 function eliteChance() {
   if (G.mode === 'endless') return G.wave >= 6 ? Math.min(0.2, 0.025 * (G.wave - 4)) : 0;
   if (G.mode !== 'campaign' || !G.level || G.level.duel || G.level.prime) return 0;
-  const si = SCENES.indexOf(G.level.scene), num = Number(String(G.level.id).split('-')[1]) || 1;
-  if (si <= 0) return num >= 3 ? 0.05 : 0;
-  return 0.04 + si * 0.03 + num * 0.003;
+  const ly = layerOf(G.level), num = Number(String(G.level.id).split('-')[1]) || 1;
+  if (ly <= 0) return num >= 3 ? 0.05 : 0;
+  return 0.04 + ly * 0.015 + num * 0.004;
 }
 function maybeElite(e) {
   if (e.def.boss || e.dummy || !ELITE_OK.has(e.type) || e.sent === 'never') return;
@@ -7840,3 +7846,283 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space' || e.code === 'Escape' || e.code === 'Enter') { e.preventDefault(); vsShowResult(); }
   const n = Number(e.code.replace('Digit', '')); if (n >= 1 && n <= 6) vsTaunt(n - 1);
 });
+
+// ================================================================ BATCH 6.3: ACTS, LAYERS, MINI-BOSSES, WEAPON REWARDS
+var LAYER_NAMES = { 0: 'FOUNDATIONS', 1: 'NAVE', 2: 'CHOIR', 3: 'SPIRE', 4: 'FIREBOX', 5: 'CHAMBER', 6: 'CHIMNEY' };
+var ACT_NAMES = ['ACT I', 'ACT II', 'ACT III'];
+function layerOf(lv) { const n = Number(String(lv.id).split('-')[0]); return Number.isFinite(n) ? n : -1; }
+function levelActLabel(lv) {
+  if (lv.race) return 'RACE COURSES';
+  if (lv.duel || lv.prime) return lv.scene.name;
+  const si = SCENES.indexOf(lv.scene);
+  return `${ACT_NAMES[si] || ''} · ${lv.scene.name}${LAYER_NAMES[layerOf(lv)] ? ' · ' + LAYER_NAMES[layerOf(lv)] : ''}`;
+}
+
+// ---- mini-bosses: one at the end of layers 1, 2, 4 and 5. Each drops a weapon.
+Object.assign(DEFS, {
+  organist: { hp: 1500, speed: 4.2, r: 0.9, h: 4.2, color: 0x5a3a5a, mass: 40, kill: 500, label: 'MINI-BOSS DOWN', boss: true, mini: true, animAs: 'shooter', award: 'nailgun', name: 'THE ORGANIST · MINI-BOSS', short: 'THE ORGANIST', hint: 'THE ORGANIST plays volleys of nails · his big chord-orb can be PARRIED back for huge damage' },
+  ringer: { hp: 1900, speed: 3.6, r: 1.4, h: 4.4, color: 0x6a5a48, mass: 50, kill: 500, label: 'MINI-BOSS DOWN', boss: true, mini: true, animAs: 'heavy', award: 'launcher', name: 'THE BELL-RINGER · MINI-BOSS', short: 'THE BELL-RINGER', hint: 'Lobbed bells explode where they land · DASH through the tall TOLL waves' },
+  stoker: { hp: 2300, speed: 3.8, r: 1.5, h: 4.6, color: 0x3a2a22, mass: 60, kill: 500, label: 'MINI-BOSS DOWN', boss: true, mini: true, animAs: 'heavy', award: 'flail', name: 'THE STOKER · MINI-BOSS', short: 'THE STOKER', hint: 'Keep away while THE STOKER whirls his coal ball · hit him hard when he stops, dizzy' },
+  glazier: { hp: 2100, speed: 6, r: 0.8, h: 4.0, color: 0x6ac8d8, mass: 40, kill: 500, label: 'MINI-BOSS DOWN', boss: true, mini: true, animAs: 'grunt', award: 'variant', name: 'THE GLAZIER · MINI-BOSS', short: 'THE GLAZIER', hint: 'THE GLAZIER blinks behind you · watch the floor for falling glass' },
+});
+DEFS.boss1.award = 'shotgun';
+Object.assign(EPITHETS, {
+  organist: ['MINI-BOSS · LAYER 1', 'KEEPER OF THE NAVE'],
+  ringer: ['MINI-BOSS · LAYER 2', "THE CHOIR'S LAST BELL"],
+  stoker: ['MINI-BOSS · LAYER 4', 'SHOVEL OF THE FIREBOX'],
+  glazier: ['MINI-BOSS · LAYER 5', 'HE FIRES THE GLASS'],
+});
+Object.assign(VOICES, {
+  organist: [110, 520, 1400, 0.2, 0.6, 'square'], ringer: [62, 420, 820, 0.7, 0.6], stoker: [50, 340, 700, 0.9, 0.7], glazier: [240, 900, 2600, 0.05, 0.4, 'triangle'],
+});
+CODEX_BEASTS.push(
+  ['organist', 'THE ORGANIST', 'MINIBOSS', 'He played the great organ until the pipes rusted shut, then he started playing them at people. Beat him at the end of the NAVE for the NAILGUN.'],
+  ['ringer', 'THE BELL-RINGER', 'MINIBOSS', 'Deaf for forty years and still ringing. He carries the choir bell like a club. Beat him at the end of the CHOIR for the BRICK LAUNCHER.'],
+  ['stoker', 'THE STOKER', 'MINIBOSS', "The Foreman's best shoveller. He swings a ball of burning coal on a chain. Beat him at the end of the FIREBOX for the CHAIN FLAIL."],
+  ['glazier', 'THE GLAZIER', 'MINIBOSS', 'He fires glass in the kiln chamber and blinks like light through a window. Beat him at the end of the CHAMBER for a free gun variant.'],
+);
+var AWARD_FROM = { shotgun: 'MORTIMER · 0-5', nailgun: 'THE ORGANIST · 1-5', launcher: 'THE BELL-RINGER · 2-5', flail: 'THE STOKER · 4-5' };
+for (const it of SHOP) if (AWARD_FROM[it.id]) { it.from = AWARD_FROM[it.id]; it.desc = it.desc.replace(/^Unlocks the /, 'The '); }
+
+// models: built on the regular rigs, dressed up with props
+function buildMiniModel(type) {
+  const def = DEFS[type];
+  const base = { organist: 'shooter', ringer: 'heavy', stoker: 'heavy', glazier: 'grunt' }[type];
+  const md = buildEnemyModel(base, def.color);
+  const r = md.rig;
+  const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.4, ...o });
+  const glow = (color) => new THREE.MeshBasicMaterial({ color });
+  const add = (geo, mat, parent, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; (parent || md.root).add(m); return m; };
+  if (type === 'organist') {
+    const brass = std(0xc8a040, { metalness: 0.85, roughness: 0.3 }), g = glow(0xc08aff);
+    for (let i = 0; i < 5; i++) { const h = 0.6 + (2 - Math.abs(i - 2)) * 0.28; add(new THREE.CylinderGeometry(0.06, 0.06, h, 8), brass, r.torso, (i - 2) * 0.14, 0.35 + h / 2, -0.32); add(new THREE.SphereGeometry(0.05, 6, 5), g, r.torso, (i - 2) * 0.14, 0.35 + h, -0.32); }
+    add(new THREE.BoxGeometry(0.62, 0.08, 0.3), brass, r.torso, 0, 0.32, -0.3);
+    add(new THREE.ConeGeometry(0.42, 0.7, 6), std(0x2a1a2a, { roughness: 0.9 }), r.head, 0, 0.2, -0.05);
+    md.root.scale.setScalar(1.7);
+  } else if (type === 'ringer') {
+    const bronze = std(0xa0703a, { metalness: 0.9, roughness: 0.3 });
+    const bell = new THREE.Group(); bell.position.set(0, -0.9, 0.2); r.elR.add(bell);
+    add(new THREE.CylinderGeometry(0.28, 0.62, 0.9, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xa0703a, metalness: 0.9, roughness: 0.3, side: THREE.DoubleSide }), bell, 0, 0, 0);
+    add(new THREE.SphereGeometry(0.29, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), bronze, bell, 0, 0.44, 0);
+    add(new THREE.SphereGeometry(0.12, 8, 6), std(0x3a3a3a), bell, 0, -0.42, 0);
+    add(new THREE.TorusGeometry(0.62, 0.04, 5, 16), glow(0xffd04a), bell, 0, -0.45, 0, Math.PI / 2);
+    r.bell = bell;
+    md.root.scale.setScalar(1.35);
+  } else if (type === 'stoker') {
+    const iron = std(0x3a3a40, { metalness: 0.8 });
+    const chain = new THREE.Group(); chain.position.set(0, -0.6, 0.1); r.elR.add(chain);
+    for (let i = 0; i < 5; i++) add(new THREE.TorusGeometry(0.06, 0.02, 4, 8), iron, chain, 0, -i * 0.13, 0, 0, i % 2 ? Math.PI / 2 : 0);
+    const ball = new THREE.Group(); ball.position.set(0, -0.8, 0); chain.add(ball);
+    add(new THREE.IcosahedronGeometry(0.5, 0), std(0x1a1410, { emissive: 0xff4a0a, emissiveIntensity: 0.9, roughness: 0.9 }), ball, 0, 0, 0);
+    for (let i = 0; i < 6; i++) add(new THREE.ConeGeometry(0.08, 0.3, 4), iron, ball, Math.cos(i) * 0.48, Math.sin(i * 2) * 0.3, Math.sin(i) * 0.48, i, i * 2, 0);
+    add(new THREE.BoxGeometry(0.8, 0.12, 0.5), std(0x2a1a10), r.head, 0, 0.3, 0.02);
+    r.chain = chain; r.ball = ball;
+    md.root.scale.setScalar(1.4);
+  } else if (type === 'glazier') {
+    const glass = new THREE.MeshStandardMaterial({ color: 0x9ae8ff, emissive: 0x2a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.6, roughness: 0.05, metalness: 0.1 });
+    for (const sd of [-1, 1]) for (let i = 0; i < 3; i++) add(new THREE.OctahedronGeometry(0.16 + i * 0.04), glass, r.torso, sd * (0.36 + i * 0.05), 0.55 + i * 0.16, -0.05, i, 0, sd * 0.5);
+    add(new THREE.BoxGeometry(0.5, 0.4, 0.06), glass, r.head, 0, 0.12, 0.27);
+    add(new THREE.OctahedronGeometry(0.22), glass, r.elR, 0, -0.75, 0.1);
+    md.root.scale.setScalar(1.6);
+  }
+  return md;
+}
+
+// one AI for all four, each with its own attack set
+const MINI_ATK = {
+  organist: { near: ['volley', 'chord'], far: ['volley', 'hymn', 'chord'], range: [9, 16] },
+  ringer: { near: ['toll', 'charge'], far: ['bells', 'bells', 'charge'], range: [6, 13] },
+  stoker: { near: ['whirl', 'smash'], far: ['coal', 'whirl', 'coal'], range: [4, 10] },
+  glazier: { near: ['blink', 'shards'], far: ['shards', 'rain', 'blink'], range: [8, 15] },
+};
+const MINI_WIND = { volley: 0.55, hymn: 0.9, chord: 0.8, bells: 0.7, toll: 1.0, charge: 0.6, whirl: 0.5, coal: 0.6, smash: 0.85, shards: 0.5, blink: 0.35, rain: 0.7 };
+function miniHead(e) { const h = new V3(); (e.rig.head || e.mesh).getWorldPosition(h); return h; }
+function fanOrbs(e, n, spread, speed, dmg, color) {
+  const head = miniHead(e), eye = playerEye();
+  const base = Math.atan2(eye.x - head.x, eye.z - head.z);
+  const dist = Math.hypot(eye.x - head.x, eye.z - head.z);
+  const dy = (eye.y - 0.3 - head.y) / Math.max(1, dist);
+  for (let i = 0; i < n; i++) {
+    const a = base + (i - (n - 1) / 2) * spread;
+    const v = new V3(Math.sin(a), dy, Math.cos(a)).normalize().multiplyScalar(speed);
+    spawnOrb(head.clone().addScaledVector(v, 0.25), v, dmg, { color });
+  }
+  sfx.orb(1);
+}
+function updateMiniBoss(e, dt) {
+  const p = e.mesh.position, def = e.def, k = e.type, A = MINI_ATK[k];
+  const dx = P.pos.x - p.x, dz = P.pos.z - p.z, dist = Math.hypot(dx, dz) || 0.001, nx = dx / dist, nz = dz / dist;
+  const rage = e.hp < e.maxHp * 0.5;
+  if (rage && !e.raged) { e.raged = true; banner(def.short + ' IS FURIOUS'); sfx.bossRoar(); }
+  e.cd -= dt; e.t -= dt;
+  let mx = 0, mz = 0, w = 0;
+  e.mesh.rotation.y = Math.atan2(dx, dz);
+  const sp = def.speed * DIFF().speed * (rage ? 1.2 : 1);
+  if (e.state === 'chase') {
+    const want = dist > A.range[1] ? 1 : dist < A.range[0] ? -0.6 : 0;
+    e.strafeT -= dt; if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = rand(1.5, 3); }
+    mx = nx * sp * want - nz * e.strafe * sp * 0.5; mz = nz * sp * want + nx * e.strafe * sp * 0.5;
+    if (e.cd <= 0) {
+      const list = dist < A.range[0] + 1 ? A.near : A.far;
+      let atk = list[(Math.random() * list.length) | 0];
+      if (atk === e.lastAtk && Math.random() < 0.6) atk = list[(list.indexOf(atk) + 1) % list.length];
+      e.atk = e.lastAtk = atk;
+      e.wt = MINI_WIND[atk] * (rage ? 0.8 : 1);
+      e.state = 'windup'; e.t = e.wt;
+      if (atk === 'toll' || atk === 'smash') ringFx(p.clone().setY(p.y + 0.05), atk === 'toll' ? 6 : 4, 0xff6a2a);
+      sfxAt(p, 'windup', 1);
+    }
+  } else if (e.state === 'windup') {
+    w = 1 - e.t / e.wt;
+    if (k === 'stoker' && e.rig.chain) e.rig.chain.rotation.x = -w * 2.5;
+    if (e.t <= 0) { miniAttack(e, e.atk, dist, nx, nz, rage); if (e.state === 'windup') { e.state = 'recover'; e.t = rage ? 0.6 : 0.85; } }
+  } else if (e.state === 'whirl') {
+    e.whirlT -= dt;
+    mx = nx * sp * 1.35; mz = nz * sp * 1.35;
+    if (e.rig.chain) { e.rig.chain.rotation.z += dt * 18; e.rig.chain.rotation.x = -1.4; }
+    if (dist < 4.6 && G.time > (e.whirlHit || 0)) { e.whirlHit = G.time + 0.45; if (hurtPlayer(14, new V3(nx * 12, 5, nz * 12))) sfx.flailHit(0.5); }
+    if (Math.random() < 0.5) spawnPart(p.clone().add(new V3(rand(-3, 3), 2, rand(-3, 3))), new V3(0, 2, 0), 0xff7a2a, 0.1, 0.3, true, -0.1);
+    if (e.whirlT <= 0) { e.state = 'stun'; e.t = 1.6; banner('DIZZY!'); if (e.rig.chain) e.rig.chain.rotation.set(0, 0, 0); }
+  } else if (e.state === 'charge') {
+    e.chargeT -= dt;
+    mx = e.chargeDir.x * 19; mz = e.chargeDir.z * 19;
+    if (dist < def.r + 1.4 && !e.chargeHit) { e.chargeHit = true; hurtPlayer(25, new V3(e.chargeDir.x * 16, 7, e.chargeDir.z * 16)); }
+    if (e.chargeT <= 0) { e.state = 'recover'; e.t = 0.9; shockwave(p.clone(), 12, 10, 12); }
+  } else if (e.state === 'stun') {
+    w = 0.3;
+    if (e.t <= 0) { e.state = 'chase'; e.cd = 1; }
+  } else if (e.t <= 0) {
+    e.state = 'chase';
+    e.cd = (rage ? 1.3 : 1.9) * DIFF().fire;
+  }
+  if (e.rain) for (let i = e.rain.length - 1; i >= 0; i--) {
+    const q = e.rain[i]; q.t -= dt;
+    if (q.t <= 0) {
+      e.rain.splice(i, 1);
+      burst(new V3(q.x, 0.4, q.z), 14, 0x9ae8ff, 8, 0.1, 0.5, true);
+      sfx.ting();
+      if (Math.hypot(P.pos.x - q.x, P.pos.z - q.z) < 1.8 && P.pos.y < 2.5) hurtPlayer(20, null);
+    }
+  }
+  if (k === 'stoker' && e.rig.ball && e.state !== 'whirl') e.rig.ball.rotation.y += dt;
+  enemyPhysics(e, mx, mz, dt);
+  const moving = Math.hypot(mx, mz) > 0.5;
+  if (moving) e.walk += dt * 4;
+  animateEnemy(e, dt, moving, w, G.time);
+  applyFlash(e, w);
+}
+function miniAttack(e, atk, dist, nx, nz, rage) {
+  const p = e.mesh.position;
+  if (atk === 'volley') {
+    fanOrbs(e, rage ? 9 : 7, 0.11, 19, 8, 0xc8a040);
+    if (rage) setTimeout(() => { if (!e.dead && G.boss === e) fanOrbs(e, 8, 0.12, 19, 8, 0xc8a040); }, 350);
+  } else if (atk === 'hymn') {
+    const head = miniHead(e), eye = playerEye();
+    const v = eye.clone().setY(eye.y - 0.3).sub(head).normalize().multiplyScalar(9);
+    spawnOrb(head.clone().addScaledVector(v, 0.3), v, 30, { big: true, color: 0xc08aff });
+    const o = orbs[orbs.length - 1]; o.big = true; o.m.scale.setScalar(2.4); o.glow.material.color.setHex(0xa06aff);
+    sfx.orb(1); showHint('PUNCH the chord-orb back at THE ORGANIST');
+  } else if (atk === 'chord') {
+    for (let i = 0; i < (rage ? 3 : 2); i++) setTimeout(() => { if (!e.dead && G.boss === e) { shockwave(e.mesh.position.clone(), 13, 30, 20, i % 2 === 0); sfx.heavySlam(0.7); } }, i * 550);
+  } else if (atk === 'bells') {
+    const head = miniHead(e);
+    for (let i = 0; i < (rage ? 4 : 3); i++) {
+      const tx = P.pos.x + rand(-3.5, 3.5) + P.vel.x * 0.5, tz = P.pos.z + rand(-3.5, 3.5) + P.vel.z * 0.5;
+      const d = Math.hypot(tx - head.x, tz - head.z), t = Math.max(0.7, d / 13);
+      const v = new V3((tx - head.x) / t, (0 - head.y) / t + 7 * t, (tz - head.z) / t);
+      spawnOrb(head.clone(), v, 15, { grav: 14, boom: 3.2, color: 0xa0703a });
+      orbs[orbs.length - 1].m.scale.setScalar(1.8);
+    }
+    sfx.door();
+  } else if (atk === 'toll') {
+    shockwave(p.clone(), 12, 34, 25, true);
+    G.shake = Math.max(G.shake, 0.6); sfx.bossRoar();
+    tn(220, 218, 2.2, 0.5, 'sine'); tn(440, 436, 1.8, 0.25, 'sine');
+    if (dist < 5) hurtPlayer(18, new V3(nx * 14, 7, nz * 14));
+  } else if (atk === 'charge') {
+    e.state = 'charge'; e.chargeT = 0.75; e.chargeHit = false; e.chargeDir = new V3(nx, 0, nz);
+    sfx.bossRoar();
+  } else if (atk === 'whirl') {
+    e.state = 'whirl'; e.whirlT = rage ? 3 : 2.2;
+    sfx.chain();
+  } else if (atk === 'coal') {
+    const head = miniHead(e);
+    for (let i = 0; i < (rage ? 4 : 3); i++) setTimeout(() => { if (!e.dead && G.boss === e) throwFireball(miniHead(e), playerEye().add(new V3(rand(-2, 2), 0, rand(-2, 2)))); }, i * 220);
+    void head;
+  } else if (atk === 'smash') {
+    const c = p.clone().addScaledVector(new V3(nx, 0, nz), 2.5);
+    shockwave(c, 15, 22, 20);
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; addFlame(c.x + Math.cos(a) * 2.5, c.z + Math.sin(a) * 2.5, 'cat', 3); }
+    G.shake = Math.max(G.shake, 0.6); sfx.heavySlam(1); burst(c.clone().setY(0.3), 20, 0xff7a2a, 9, 0.2, 0.7, true);
+    if (Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < 3.5 && P.pos.y < 1.5) hurtPlayer(25, new V3(nx * 10, 8, nz * 10));
+  } else if (atk === 'shards') {
+    fanOrbs(e, rage ? 7 : 5, 0.16, 22, 10, 0x9ae8ff);
+  } else if (atk === 'blink') {
+    burst(p.clone().setY(p.y + 2), 16, 0x9ae8ff, 8, 0.12, 0.5, true);
+    const fwd = new V3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
+    for (let tries = 0; tries < 6; tries++) {
+      const a = rand(-0.9, 0.9), d = rand(5, 7);
+      const back = fwd.clone().negate().applyAxisAngle(new V3(0, 1, 0), a);
+      const x = P.pos.x + back.x * d, z = P.pos.z + back.z * d;
+      if (overlapBox(x - 1, 0.1, z - 1, x + 1, 3, z + 1)) continue;
+      p.x = x; p.z = z; break;
+    }
+    burst(p.clone().setY(p.y + 2), 16, 0x9ae8ff, 8, 0.12, 0.5, true);
+    sfx.ting();
+    setTimeout(() => { if (!e.dead && G.boss === e) fanOrbs(e, 3, 0.2, 20, 10, 0x9ae8ff); }, 300);
+  } else if (atk === 'rain') {
+    e.rain = e.rain || [];
+    const n = rage ? 7 : 5;
+    for (let i = 0; i < n; i++) {
+      const x = P.pos.x + (i === 0 ? 0 : rand(-6, 6)), z = P.pos.z + (i === 0 ? 0 : rand(-6, 6));
+      e.rain.push({ x, z, t: 0.9 + i * 0.08 });
+      ringFx(new V3(x, floorAt(x, z, 3) + 0.06, z), 1.8, 0x9ae8ff);
+    }
+    sfx.screech(0.6);
+  }
+}
+
+// ---- rewards
+function awardItem(id) {
+  const p = loadProgress(); p.owned = p.owned || [];
+  if (p.owned.includes(id)) return false;
+  p.owned.push(id); saveProgress(p); PROGC = null;
+  return true;
+}
+function miniReward(e) {
+  const aw = e.def.award;
+  if (!aw || G.mode !== 'campaign' || !G.level || G.level.prime || G.level.race || G.level.duel || (VS && VS.active) || e.prime) return;
+  if (aw === 'variant') { const pp = loadProgress(); if (!pp.glazierGift) { pp.glazierGift = 1; pp.pendingVar = true; saveProgress(pp); PROGC = null; } return; }
+  if (!awardItem(aw)) return;
+  const gun = { shotgun: 1, nailgun: 2, launcher: 3, flail: 4 }[aw];
+  applyVariantLook();
+  setTimeout(() => {
+    const el = $('achToast');
+    el.innerHTML = `<small>NEW WEAPON</small><b>${WNAMES[gun]}</b><span>dropped by ${e.def.short} · press ${gun + 1} to equip</span>`;
+    el.classList.add('show'); sfx.buy();
+    setTimeout(() => el.classList.remove('show'), 4200);
+    if (G.state === 'play') { switchWeapon(gun); showHint(`${WNAMES[gun]} ACQUIRED · its variants are now for sale at the FORGE`); }
+  }, 1400);
+}
+function variantChoices() {
+  return SHOP.filter((it) => it.v > 0 && !owns(it.id) && (!it.req || owns(it.req) || it.gun === 0));
+}
+function variantPickHTML() {
+  const list = variantChoices();
+  if (!list.length) return '<div class="varPick"><b>FREE VARIANT</b><p>You already own every variant you can use · +800 ◆ SCRAP instead</p></div>';
+  return `<div class="varPick"><b>THE GLAZIER'S GIFT · PICK A FREE VARIANT</b><div>${list.map((it) => `<button data-freevar="${it.id}" style="border-color:${VARIANTS[it.gun][it.v].css}">${WNAMES[it.gun]} · ${VARIANTS[it.gun][it.v].name}</button>`).join('')}</div></div>`;
+}
+// shown on the level-clear screen while the Glazier's gift is unclaimed (kept in the save until you pick)
+function showVariantPick() {
+  document.querySelectorAll('.varPick').forEach((x) => x.remove());
+  if ((VS && VS.active) || !loadProgress().pendingVar) return;
+  $('completeStats').insertAdjacentHTML('afterend', variantPickHTML());
+  const box = document.querySelector('.varPick');
+  const done = (msg) => { const pp = loadProgress(); pp.pendingVar = false; saveProgress(pp); PROGC = null; box.innerHTML = msg; sfx.buy(); };
+  if (!box.querySelector('[data-freevar]')) { awardScrap(800); done('<b>FREE VARIANT</b><p>You already own every variant you can use · +800 ◆ SCRAP instead</p>'); return; }
+  box.querySelectorAll('[data-freevar]').forEach((b) => b.addEventListener('click', () => {
+    if (!loadProgress().pendingVar) return;
+    awardItem(b.dataset.freevar);
+    done(`<b>CLAIMED</b><p>${b.textContent} is yours · swap to it by pressing the gun's number key again</p>`);
+  }));
+}

@@ -25,13 +25,13 @@ export const SCENES = [
         R(24, 24, ['platforms'], ['g5 f2']),
         { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'roost', hint: 'TRAINER: get AIRBORNE or GROUND SLAM to hurt her' },
       ] },
-      { id: '0-4', name: 'THE SUMP', par: 200, startHint: 'Need the SHOTGUN? Buy it at the FORGE. Lob a core (ALT) and shoot it: COMBO BLAST', rooms: [
+      { id: '0-4', name: 'THE SUMP', par: 200, startHint: 'The KILN spits fire · PUNCH its glowing spit straight back at it', rooms: [
         R(24, 24, ['ruins', 'water'], ['g5', 'h1 g2']),
         R(20, 30, ['pillars'], ['s3 f2', 'g4 s2 x2'], 'BOMBERS blow up near you · shoot them at range'),
         R(30, 26, ['platforms', 'crates'], ['h1 g3 f2', 'h1 s3']),
-        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'kiln', hint: 'TRAINER: only a COMBO BLAST cracks the KILN' },
+        { w: 26, d: 26, props: ['pillars'], waves: [], boss: 'kiln', hint: 'TRAINER: only its own spit, PARRIED back, cracks the KILN' },
       ] },
-      { id: '0-5', name: "WARDEN'S VAULT", par: 260, startHint: 'Something heavy stirs below...', boss: true, rooms: [
+      { id: '0-5', name: "WARDEN'S VAULT", par: 260, startHint: 'Something heavy stirs below... beat MORTIMER to claim the SHOTGUN', boss: true, rooms: [
         R(22, 22, ['crates'], ['g4 s2', 'f3 g3']),
         { w: 40, d: 40, props: ['pillars'], waves: [], boss: 'boss1' },
       ] },
@@ -60,47 +60,49 @@ export const SCENES = [
         R(18, 18, ['pews'], ['f3 g3']),
         R(18, 18, ['altar'], ['h1 s2 p1'], 'PRIESTS heal and ward their allies · kill them first'),
         R(22, 22, ['colonnade'], ['g6 f2', 's3 h1']),
+        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'marksman', hint: 'TRAINER: punch his shot back' },
       ] },
       { id: '1-5', name: 'CHOIR OF STONE', par: 220, rooms: [
         R(24, 24, ['pews'], ['s4 g2', 's3 f3']),
         R(28, 22, ['balcony'], ['s4 h1 p1', 'g6 k2 n1']),
         R(24, 30, ['altar'], ['h2', 's3 f3 g2']),
-        { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'marksman', hint: 'TRAINER: punch his shot back' },
+        { w: 32, d: 32, props: ['colonnade'], waves: [], boss: 'organist', hint: 'MINI-BOSS · beat THE ORGANIST for the NAILGUN' },
       ] },
-      { id: '1-6', name: 'RELIQUARY', par: 230, rooms: [
+      { id: '2-1', seed: '1-6', name: 'RELIQUARY', par: 230, rooms: [
         R(26, 26, ['colonnade'], ['h1 g4', 'h2']),
         R(22, 22, ['altar'], ['s3 f3', 'h1 s2 g3']),
         R(30, 30, ['balcony'], ['h2 g4 p1', 'h1 s3 f3 x3']),
       ] },
-      { id: '1-7', name: 'THE TRANSEPT', par: 250, rooms: [
+      { id: '2-2', seed: '1-7', name: 'THE TRANSEPT', par: 250, rooms: [
         R(36, 24, ['colonnade', 'pews'], ['g8 s2', 'f4 s3 n2', 'h2 g4 k2']),
         R(24, 36, ['colonnade'], ['s4 f4', 'h2 s2 g4']),
         { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'fortress', hint: 'TRAINER: strip the shield layers' },
       ] },
-      { id: '1-8', name: 'STAINED GLASS', par: 240, rooms: [
+      { id: '2-3', seed: '1-8', name: 'STAINED GLASS', par: 240, rooms: [
         R(26, 26, ['balcony'], ['f6', 'f4 g4']),
         R(30, 24, ['pews'], ['f5 s3 p1', 'h1 f4 x3']),
         R(26, 30, ['colonnade'], ['f6 s2', 'h2 f4']),
       ] },
-      { id: '1-9', name: 'CATACOMB DESCENT', par: 250, theme: 'cellar', rooms: [
+      { id: '2-4', seed: '1-9', name: 'CATACOMB DESCENT', par: 250, theme: 'cellar', rooms: [
         R(20, 26, ['pillars', 'water'], ['g7', 's3 f3']),
         R(24, 24, ['crates'], ['h1 g3 x4', 's3 f3 k2']),
         R(28, 28, ['platforms'], ['h2 s2', 'g6 f4']),
         { w: 28, d: 28, props: ['colonnade'], waves: [], boss: 'queen', hint: 'TRAINER: only nails hurt the queen' },
       ] },
-      { id: '1-10', name: 'BUTTRESS', par: 260, rooms: [
+      { id: '2-5', seed: '1-10', name: 'BUTTRESS', par: 260, rooms: [
         R(28, 28, ['balcony'], ['s5 g4', 'h2 f3']),
         R(24, 34, ['colonnade'], ['h2 s3 n2', 'g6 k3 p1']),
         R(30, 26, ['altar'], ['h3', 's4 f4 g3']),
+        { w: 32, d: 32, props: ['pews'], waves: [], boss: 'ringer', hint: 'MINI-BOSS · beat THE BELL-RINGER for the BRICK LAUNCHER' },
       ] },
-      { id: '1-11', name: 'THE SPIRE', par: 320, rooms: [
+      { id: '3-1', seed: '1-11', name: 'THE SPIRE', par: 320, rooms: [
         R(20, 20, ['pews'], ['g6 s2']),
         R(22, 22, ['balcony'], ['f5 s2']),
         R(24, 24, ['colonnade'], ['h2 g4']),
         R(26, 26, ['altar'], ['s5 f4 n2 p1']),
         R(30, 30, ['balcony'], ['h2 s3 f4', 'g6 k2 x3 h1']),
       ] },
-      { id: '1-12', name: 'THE HIGH MASON', par: 300, boss: true, rooms: [
+      { id: '3-2', seed: '1-12', name: 'THE HIGH MASON', par: 300, boss: true, rooms: [
         R(24, 24, ['pews'], ['g6 s3', 'f4 h1']),
         { w: 44, d: 44, props: ['colonnade'], waves: [], boss: 'boss2' },
       ] },
@@ -110,69 +112,71 @@ export const SCENES = [
 export const DUEL_SCENE = { id: 'S', name: 'DUELS', theme: 'cathedral' };
 export const DUELS = [
   { id: '0-S', name: 'SISTER SHARD', duel: 'blade', unlockAfter: '0-5', theme: 'cathedral', par: 150, boss: true, startHint: 'A duel of honor. Win it, and the BLADE ARM is yours.', rooms: [{ w: 32, d: 32, props: ['colonnade'], waves: [], boss: 'shard' }] },
-  { id: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '1-6', orArm: 'blade', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
-  { id: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '1-11', orArm: 'shock', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
-  { id: '2-S1', name: 'TUMBLE & TWIRL', duel: 'djump', unlockAfter: '2-4', orArm: 'grapple', theme: 'kiln', par: 170, boss: true, startHint: 'A drumroll echoes off the kiln walls... the TWIN ACROBATS are on. Beat BOTH for the DOUBLE JUMP.', rooms: [{ w: 36, d: 36, props: ['platforms', 'pillars'], waves: [], boss: 'twins' }] },
-  { id: '2-S2', name: 'CINDER, THE KILN-CAT', duel: 'firedash', unlockAfter: '2-9', orArm: 'djump', theme: 'kiln', par: 170, boss: true, startHint: 'Something big is purring inside the furnace. Tame CINDER to earn the FIRE DASH.', rooms: [{ w: 38, d: 38, props: ['lava', 'platforms'], waves: [], boss: 'cat' }] },
-  { id: '2-S', name: 'THE GILDED ONE', duel: 'gold', skulls: true, theme: 'kiln', par: 180, boss: true, startHint: 'Every skull found. The gilded one has been waiting for you.', rooms: [{ w: 34, d: 34, props: ['pillars'], waves: [], boss: 'gilded' }] },
+  { id: '2-S', seed: '1-S', name: 'BIG BERTHA BRICKS', duel: 'shock', unlockAfter: '2-1', orArm: 'blade', theme: 'cellar', par: 170, boss: true, startHint: 'The crowd roars. Beat the champ for the SHOCKWAVE FIST.', rooms: [{ w: 34, d: 34, props: ['ruins'], waves: [], boss: 'bertha' }] },
+  { id: '3-S', seed: '1-S2', name: 'KITE', duel: 'grapple', unlockAfter: '3-1', orArm: 'shock', theme: 'cathedral', par: 160, boss: true, startHint: 'Something is swinging up in the rafters... Catch it for the GRAPPLE HOOK.', rooms: [{ w: 34, d: 34, props: ['colonnade', 'balcony'], waves: [], boss: 'kite' }] },
+  { id: '4-S', seed: '2-S1', name: 'TUMBLE & TWIRL', duel: 'djump', unlockAfter: '4-4', orArm: 'grapple', theme: 'kiln', par: 170, boss: true, startHint: 'A drumroll echoes off the kiln walls... the TWIN ACROBATS are on. Beat BOTH for the DOUBLE JUMP.', rooms: [{ w: 36, d: 36, props: ['platforms', 'pillars'], waves: [], boss: 'twins' }] },
+  { id: '5-S', seed: '2-S2', name: 'CINDER, THE KILN-CAT', duel: 'firedash', unlockAfter: '5-4', orArm: 'djump', theme: 'kiln', par: 170, boss: true, startHint: 'Something big is purring inside the furnace. Tame CINDER to earn the FIRE DASH.', rooms: [{ w: 38, d: 38, props: ['lava', 'platforms'], waves: [], boss: 'cat' }] },
+  { id: '6-S', seed: '2-S', name: 'THE GILDED ONE', duel: 'gold', skulls: true, theme: 'kiln', par: 180, boss: true, startHint: 'Every skull found. The gilded one has been waiting for you.', rooms: [{ w: 34, d: 34, props: ['pillars'], waves: [], boss: 'gilded' }] },
 ];
 SCENES.push({
   id: 2, name: 'THE KILN', theme: 'kiln',
   levels: [
-    { id: '2-1', name: 'BRICKWORKS GATE', par: 200, startHint: 'The KILN. Lava burns and launches you · jump or dash across', rooms: [
+    { id: '4-1', seed: '2-1', name: 'BRICKWORKS GATE', par: 200, startHint: 'The KILN. Lava burns and launches you · jump or dash across', rooms: [
       R(24, 26, ['lava', 'pillars'], ['g6 s2', 'x3 f3']),
       R(26, 24, ['lava', 'platforms'], ['h1 g4 s2', 'k2 n1 f2']),
     ] },
-    { id: '2-2', name: 'FIRING LINE', par: 210, startHint: 'FLAME VENTS glow before they erupt · enemies burn too', rooms: [
+    { id: '4-2', seed: '2-2', name: 'FIRING LINE', par: 210, startHint: 'FLAME VENTS glow before they erupt · enemies burn too', rooms: [
       R(24, 30, ['vents', 'ruins'], ['g6 x2', 's3 n2 f2']),
       R(28, 24, ['vents', 'lava'], ['h2 g4', 'k3 p1 s2']),
     ] },
-    { id: '2-3', name: 'THE PRESS', par: 270, startHint: 'CRUSHERS slam on a rhythm · lure enemies underneath for style', rooms: [
+    { id: '4-3', seed: '2-3', name: 'THE PRESS', par: 270, startHint: 'CRUSHERS slam on a rhythm · lure enemies underneath for style', rooms: [
       R(26, 26, ['crushers'], ['g8', 'h1 k2 s2']),
       R(24, 32, ['crushers', 'vents'], ['x4 g4 f2', 'h2 n2 p1']),
       { w: 28, d: 28, props: ['pillars'], waves: [], boss: 'anvil', hint: 'TRAINER: only the BLADE cuts the ANVIL' },
     ] },
-    { id: '2-4', name: 'SLAG CANALS', par: 230, rooms: [
+    { id: '4-4', seed: '2-4', name: 'SLAG CANALS', par: 230, rooms: [
       R(22, 32, ['lava', 'crates'], ['g6 s3 r1', 'f5 x3']),
       R(30, 24, ['lava', 'platforms'], ['h2 k2 p1', 'n3 s3 g4']),
       R(24, 24, ['vents'], ['h1 x5 f3']),
     ] },
-    { id: '2-5', name: 'BELLOWS HALL', par: 230, rooms: [
+    { id: '4-5', seed: '2-5', name: 'BELLOWS HALL', par: 230, rooms: [
       R(30, 30, ['crushers', 'pillars'], ['g8 s2', 'h2 k3', 'f6 p1']),
       R(26, 22, ['vents', 'lava'], ['n3 x4 s2 b3']),
+      { w: 32, d: 32, props: ['pillars'], waves: [], boss: 'stoker', hint: 'MINI-BOSS · beat THE STOKER for the CHAIN FLAIL' },
     ] },
-    { id: '2-6', name: 'CLINKER YARD', par: 290, rooms: [
+    { id: '5-1', seed: '2-6', name: 'CLINKER YARD', par: 290, rooms: [
       R(26, 26, ['ruins', 'lava'], ['g7 k2', 's4 f4 p1']),
       R(28, 28, ['crushers', 'platforms'], ['h3 x3', 'n3 s3 k2']),
       R(24, 24, ['vents'], ['f6 x4 m1 b2']),
       { w: 28, d: 28, props: ['pillars'], waves: [], boss: 'bellows', hint: 'TRAINER: only a CHARGED SHOCKWAVE cracks the BELLOWS' },
     ] },
-    { id: '2-7', name: 'KILN No. 7', par: 250, rooms: [
+    { id: '5-2', seed: '2-7', name: 'KILN No. 7', par: 250, rooms: [
       R(32, 26, ['lava', 'vents'], ['g8 s3', 'h2 n2 p2']),
       R(26, 32, ['crushers', 'lava'], ['k4 x4 f3 r2', 'h2 s4 g4']),
     ] },
-    { id: '2-8', name: 'ASH PITS', par: 250, rooms: [
+    { id: '5-3', seed: '2-8', name: 'ASH PITS', par: 250, rooms: [
       R(24, 24, ['vents', 'pillars'], ['f6 x3']),
       R(28, 28, ['lava', 'platforms'], ['h2 g6 m1 b2', 'n4 k2 s2']),
       R(26, 26, ['crushers'], ['h3 x4 f3']),
     ] },
-    { id: '2-9', name: 'MORTAR MILL', par: 310, rooms: [
+    { id: '5-4', seed: '2-9', name: 'MORTAR MILL', par: 310, rooms: [
       R(30, 30, ['crushers', 'vents'], ['g10 k2', 's4 n3 p1', 'h3 x4 r2 m1']),
       R(24, 28, ['lava'], ['f8 s3 p1']),
       { w: 30, d: 30, props: ['pillars'], waves: [], boss: 'crane', hint: 'TRAINER: GRAPPLE the CRANE to drag it down' },
     ] },
-    { id: '2-10', name: 'GLAZE ROOM', par: 260, rooms: [
+    { id: '5-5', seed: '2-10', name: 'GLAZE ROOM', par: 260, rooms: [
       R(26, 26, ['lava', 'ruins'], ['h2 k3 s3', 'x6 f4 b4']),
       R(28, 24, ['vents', 'crushers'], ['n4 p2 g6', 'h3 k2 s3']),
       R(24, 24, ['lava', 'platforms'], ['h2 x4 f4 p1']),
+      { w: 32, d: 32, props: ['pillars'], waves: [], boss: 'glazier', hint: 'MINI-BOSS · beat THE GLAZIER for a free gun variant' },
     ] },
-    { id: '2-11', name: 'THE CHIMNEY STACK', par: 320, rooms: [
+    { id: '6-1', seed: '2-11', name: 'THE CHIMNEY STACK', par: 320, rooms: [
       R(22, 22, ['vents'], ['g8 x4']),
       R(24, 24, ['crushers'], ['h2 k3 p1']),
       R(26, 26, ['lava', 'platforms'], ['n4 s4 f4']),
       R(28, 28, ['vents', 'lava'], ['h3 x5 p2', 'k4 n3 g6 r2 m1 b2']),
     ] },
-    { id: '2-12', name: 'THE MOLTEN FOREMAN', par: 320, boss: true, startHint: 'The heat is unbearable. Something enormous is working the kiln...', rooms: [
+    { id: '6-2', seed: '2-12', name: 'THE MOLTEN FOREMAN', par: 320, boss: true, startHint: 'The heat is unbearable. Something enormous is working the kiln...', rooms: [
       R(24, 24, ['vents'], ['g6 x3 s3', 'h2 n2 r1 m1']),
       { w: 46, d: 46, props: ['platforms', 'pillars'], waves: [], boss: 'boss3' },
     ] },
@@ -181,8 +185,8 @@ SCENES.push({
 export const PRIME_SCENE = { id: 'P', name: 'BOSS REMATCHES', theme: 'cellar' };
 export const PRIMES = [
   { id: '0-P', name: 'MORTIMER PRIME', duel: 'skin:rust', prime: true, unlockAfter: '0-5', theme: 'cellar', par: 200, boss: true, startHint: 'The Warden has been rebuilt: harder, faster, angrier. Beat him for the RUSTED gun skin.', rooms: [{ w: 42, d: 42, props: ['pillars'], waves: [], boss: 'boss1', prime: true }] },
-  { id: '1-P', name: 'HIGH MASON PRIME', duel: 'skin:marble', prime: true, unlockAfter: '1-12', theme: 'cathedral', par: 260, boss: true, startHint: 'The Architect has redrawn his plans. Survive them for the MARBLE gun skin.', rooms: [{ w: 46, d: 46, props: ['colonnade'], waves: [], boss: 'boss2', prime: true }] },
-  { id: '2-P', name: 'FOREMAN PRIME', duel: 'skin:magma', prime: true, unlockAfter: '2-12', theme: 'kiln', par: 300, boss: true, startHint: 'The kiln burns white-hot. The Foreman is back on shift. Win the MAGMA gun skin.', rooms: [{ w: 48, d: 48, props: ['platforms', 'pillars'], waves: [], boss: 'boss3', prime: true }] },
+  { id: '3-P', seed: '1-P', name: 'HIGH MASON PRIME', duel: 'skin:marble', prime: true, unlockAfter: '3-2', theme: 'cathedral', par: 260, boss: true, startHint: 'The Architect has redrawn his plans. Survive them for the MARBLE gun skin.', rooms: [{ w: 46, d: 46, props: ['colonnade'], waves: [], boss: 'boss2', prime: true }] },
+  { id: '6-P', seed: '2-P', name: 'FOREMAN PRIME', duel: 'skin:magma', prime: true, unlockAfter: '6-2', theme: 'kiln', par: 300, boss: true, startHint: 'The kiln burns white-hot. The Foreman is back on shift. Win the MAGMA gun skin.', rooms: [{ w: 48, d: 48, props: ['platforms', 'pillars'], waves: [], boss: 'boss3', prime: true }] },
 ];
 // RUBBLE RACE courses: short, trap-heavy, light fights, rooms marked shortcut hide a rune that skips the fight
 export const RACE_SCENE = { id: 'R', name: 'RACE COURSES', theme: 'cellar' };
@@ -246,15 +250,15 @@ function hashStr(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c
 
 const DIRS = { N: [0, -1], E: [1, 0], W: [-1, 0], S: [0, 1] };
 export const VARIETY = {
-  '0-4': ['bridge'], '1-2': ['mezzanine'], '1-4': ['towers'], '1-6': ['bridge'], '1-8': ['mezzanine'], '1-10': ['towers'],
-  '2-2': ['mezzanine'], '2-5': ['bridge'], '2-7': ['towers'], '2-8': ['mezzanine'], '2-10': ['bridge'], '2-11': ['mezzanine'],
+  '0-4': ['bridge'], '1-2': ['mezzanine'], '1-4': ['towers'], '2-1': ['bridge'], '2-3': ['mezzanine'], '2-5': ['towers'],
+  '4-2': ['mezzanine'], '4-5': ['bridge'], '5-2': ['towers'], '5-3': ['mezzanine'], '5-5': ['bridge'], '6-1': ['mezzanine'],
 };
 const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
 const CW = 5; // corridor / door width
 
 // ctx: { box(x,y,z,w,h,d,mat,tex,solid), decor(obj), torch(x,y,z,nx,nz), mats, makeWindow(), makeBanner(), candle(x,y,z) }
 export function buildLevel(level, ctx) {
-  const rng = mulberry(hashStr(level.id) ^ 0x9e3779b9);
+  const rng = mulberry(hashStr(level.seed || level.id) ^ 0x9e3779b9);
   const rand = (a, b) => a + rng() * (b - a);
   const T = THEMES[level.theme];
   const M = ctx.mats;
