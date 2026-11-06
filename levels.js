@@ -188,6 +188,72 @@ export const PRIMES = [
   { id: '3-P', seed: '1-P', name: 'HIGH MASON PRIME', duel: 'skin:marble', prime: true, unlockAfter: '3-2', theme: 'cathedral', par: 260, boss: true, startHint: 'The Architect has redrawn his plans. Survive them for the MARBLE gun skin.', rooms: [{ w: 46, d: 46, props: ['colonnade'], waves: [], boss: 'boss2', prime: true }] },
   { id: '6-P', seed: '2-P', name: 'FOREMAN PRIME', duel: 'skin:magma', prime: true, unlockAfter: '6-2', theme: 'kiln', par: 300, boss: true, startHint: 'The kiln burns white-hot. The Foreman is back on shift. Win the MAGMA gun skin.', rooms: [{ w: 48, d: 48, props: ['platforms', 'pillars'], waves: [], boss: 'boss3', prime: true }] },
 ];
+SCENES.push({
+  id: 3, name: 'THE AQUEDUCT', theme: 'aqueduct',
+  levels: [
+    { id: '7-1', name: 'THE INTAKE', par: 200, startHint: 'The AQUEDUCT. CURRENTS drag you along · deep water slows you down', rooms: [
+      R(24, 24, ['channel', 'pillars'], ['g5 s2', 'd2 g3'], 'DIVERS swim under the floor · GROUND SLAM to drag them up'),
+      R(26, 22, ['channel', 'water'], ['d3 s3', 'f3 g3']),
+      R(24, 28, ['flood'], ['g6 d2', 's3 y1'], 'The water RISES while you fight · it drains when the room is clear'),
+    ] },
+    { id: '7-2', name: 'SLUICE GATE No. 1', par: 220, startHint: 'SLUICE GATES glow blue, then blast water across the room · get out of the beam', rooms: [
+      R(26, 26, ['sluice', 'pillars'], ['g5 k2', 's3 d3']),
+      R(24, 30, ['sluice', 'channel'], ['y1 g4', 'n2 f3'], 'SIPHONS suck you in, then spray · kill them before they finish'),
+      R(28, 24, ['flood', 'platforms'], ['d4 s2', 'h1 y1 g3']),
+    ] },
+    { id: '7-3', name: 'THE OVERFLOW', par: 250, rooms: [
+      R(24, 24, ['channel'], ['g6 d2', 's3 x2']),
+      R(26, 26, ['sluice', 'water'], ['k2 d3 s2', 'h1 g4']),
+      { w: 30, d: 30, props: ['channel'], waves: [], boss: 'buoy', hint: 'TRAINER: only a fully wound FLAIL swing sinks THE BUOY' },
+    ] },
+    { id: '7-4', name: 'MILLRACE', par: 240, rooms: [
+      R(30, 24, ['channel', 'pillars'], ['g6 r1 d2', 's3 y1 f2']),
+      R(24, 30, ['sluice', 'flood'], ['d4 b2', 'h1 s3 m1']),
+      R(26, 26, ['channel', 'platforms'], ['g8 k2', 'y2 n2 f3']),
+    ] },
+    { id: '7-5', name: 'THE DREDGE PIT', par: 260, rooms: [
+      R(26, 26, ['flood', 'pillars'], ['g6 d3', 's4 y1 h1']),
+      R(24, 28, ['sluice'], ['d4 x3', 'k3 n2']),
+      { w: 34, d: 34, props: ['pillars'], waves: [], boss: 'dredger', hint: 'MINI-BOSS · beat THE DREDGER for the TIDE arm' },
+    ] },
+    { id: '8-1', name: 'HIGH ARCADE', par: 230, startHint: 'The ARCHES carry the water over the city · a long way down', rooms: [
+      R(32, 22, ['colonnade', 'channel'], ['g6 s3', 'f4 n2']),
+      R(22, 32, ['sluice', 'colonnade'], ['d4 k2', 'y2 g4']),
+      R(28, 28, ['channel', 'platforms'], ['h2 s3 d2', 'f4 p1 g4']),
+    ] },
+    { id: '8-2', name: 'THE SPILLWAY', par: 250, rooms: [
+      R(26, 30, ['flood', 'channel'], ['d5 g3', 's4 y1']),
+      R(28, 24, ['sluice', 'pillars'], ['h2 k3', 'n3 f3 x2']),
+      R(24, 24, ['flood'], ['y2 d4 m1']),
+    ] },
+    { id: '8-3', name: 'LOCK AND KEY', par: 280, rooms: [
+      R(26, 26, ['sluice', 'channel'], ['g8 d3', 'h1 s3 y1']),
+      R(24, 28, ['flood', 'pillars'], ['k3 n2 f2', 'd4 b2']),
+      { w: 30, d: 30, props: ['pillars'], waves: [], boss: 'lockkeeper', hint: 'TRAINER: only the TIDE arm shifts THE LOCK-KEEPER' },
+    ] },
+    { id: '8-4', name: 'SIPHON WORKS', par: 260, rooms: [
+      R(28, 28, ['channel', 'platforms'], ['y3 g6', 'h2 s3']),
+      R(24, 32, ['sluice', 'flood'], ['y2 d4 k2', 'n3 x3 f2']),
+      R(26, 26, ['channel', 'pillars'], ['h2 y2 p1', 'g8 d4 r2']),
+    ] },
+    { id: '8-5', name: 'THE SINGING ARCH', par: 280, rooms: [
+      R(26, 26, ['colonnade', 'flood'], ['g8 d3', 's4 y2 f3']),
+      R(28, 24, ['sluice', 'channel'], ['h2 k3 n2', 'd5 m1 b2']),
+      { w: 34, d: 34, props: ['colonnade'], waves: [], boss: 'siren', hint: 'MINI-BOSS · beat THE SIREN for the TIDAL gun skin' },
+    ] },
+    { id: '9-1', name: 'THE DROWNED STAIR', par: 330, startHint: 'The CISTERN. Everything the city drinks passes through here.', rooms: [
+      R(26, 26, ['flood', 'channel'], ['g8 d4', 's4 y2 n2']),
+      R(24, 32, ['sluice', 'platforms'], ['h2 k3 d3', 'f6 x3']),
+      R(30, 28, ['flood', 'pillars'], ['y3 h2 p1', 'd6 r2 m1']),
+      R(28, 28, ['channel', 'sluice'], ['h3 s4 n3', 'g10 d4 k3 y2']),
+    ] },
+    { id: '9-2', name: 'THE GUILDMASTER', par: 340, boss: true, startHint: 'The guild hall stands on the cistern floor. He is waiting.', rooms: [
+      R(26, 26, ['channel', 'pillars'], ['g6 d3 k2', 's4 y2 h1']),
+      { w: 48, d: 48, props: ['pillars'], waves: [], boss: 'guildmaster' },
+    ] },
+  ],
+});
+
 // RUBBLE RACE courses: short, trap-heavy, light fights, rooms marked shortcut hide a rune that skips the fight
 export const RACE_SCENE = { id: 'R', name: 'RACE COURSES', theme: 'cellar' };
 const SC = (w, d, props, waves, extra = {}) => ({ w, d, props, waves, ...extra });
@@ -225,9 +291,10 @@ export const THEMES = {
   cellar: { wallH: 8, corrH: 6, doorH: 5, fog: 0x10140f, fogNear: 8, fogFar: 75, sky: 0x0b0e0b },
   kiln: { wallH: 12, corrH: 8, doorH: 6, fog: 0x2a0e06, fogNear: 14, fogFar: 100, sky: 0x1a0804 },
   cathedral: { wallH: 18, corrH: 10, doorH: 7, fog: 0x1d1210, fogNear: 20, fogFar: 130, sky: 0x150c0a },
+  aqueduct: { wallH: 14, corrH: 8, doorH: 6, fog: 0x0e1c22, fogNear: 14, fogFar: 110, sky: 0x08141a },
 };
 
-const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer', k: 'shield', n: 'sniper', x: 'bomber', p: 'priest', r: 'ram', b: 'burrower', m: 'mender' };
+const TYPES = { g: 'grunt', s: 'shooter', h: 'heavy', f: 'flyer', k: 'shield', n: 'sniper', x: 'bomber', p: 'priest', r: 'ram', b: 'burrower', m: 'mender', d: 'diver', y: 'siphon' };
 export function parseWave(str) {
   const out = [];
   for (const tok of str.trim().split(/\s+/)) {
@@ -252,6 +319,7 @@ const DIRS = { N: [0, -1], E: [1, 0], W: [-1, 0], S: [0, 1] };
 export const VARIETY = {
   '0-4': ['bridge'], '1-2': ['mezzanine'], '1-4': ['towers'], '2-1': ['bridge'], '2-3': ['mezzanine'], '2-5': ['towers'],
   '4-2': ['mezzanine'], '4-5': ['bridge'], '5-2': ['towers'], '5-3': ['mezzanine'], '5-5': ['bridge'], '6-1': ['mezzanine'],
+  '7-4': ['bridge'], '8-1': ['mezzanine'], '8-4': ['towers'], '9-1': ['mezzanine'],
 };
 const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
 const CW = 5; // corridor / door width
@@ -262,7 +330,7 @@ export function buildLevel(level, ctx) {
   const rand = (a, b) => a + rng() * (b - a);
   const T = THEMES[level.theme];
   const M = ctx.mats;
-  const wallMat = level.theme === 'cellar' ? M.cobble : M.brick;
+  const wallMat = level.theme === 'cellar' ? M.cobble : level.theme === 'aqueduct' ? (M.ashlar || M.brick) : M.brick;
   const isKiln = level.theme === 'kiln';
   const trimMat = level.theme === 'cellar' ? M.brick : M.cobble;
 
@@ -519,6 +587,40 @@ export function buildLevel(level, ctx) {
         }
         continue;
       }
+      if (p === 'channel') {
+        // a strip of fast water that drags anything standing in it
+        let made = 0;
+        for (let i = 0; i < 8 && made < 2; i++) {
+          const horiz = rng() < 0.5;
+          const len = (horiz ? r.w : r.d) - 4, off = rand(-0.26, 0.26) * (horiz ? r.d : r.w);
+          const x = horiz ? r.cx : r.cx + off, z = horiz ? r.cz + off : r.cz;
+          if (!tryRect(x, z, horiz ? len : 3, horiz ? 3 : len)) continue;
+          const sgn = rng() < 0.5 ? 1 : -1;
+          ctx.hazard('current', x, z, horiz ? len : 3, horiz ? 3 : len, { dir: horiz ? [sgn, 0] : [0, sgn] });
+          made++;
+        }
+        continue;
+      }
+      if (p === 'sluice') {
+        // sluice gates on the walls blast water across the room
+        const sides = ['N', 'S', 'E', 'W'].filter((sd) => !r.doors.some((d) => d.side === sd));
+        let made = 0;
+        for (const sd of sides) {
+          if (made >= 2) break;
+          const horiz = sd === 'N' || sd === 'S';
+          const along = (horiz ? r.cx : r.cz) + rand(-0.2, 0.2) * (horiz ? r.w : r.d);
+          const x = horiz ? along : sd === 'E' ? r.x1 - 0.4 : r.x0 + 0.4;
+          const z = horiz ? (sd === 'S' ? r.z1 - 0.4 : r.z0 + 0.4) : along;
+          const dir = { N: [0, 1], S: [0, -1], E: [-1, 0], W: [1, 0] }[sd];
+          ctx.hazard('jet', x, z, horiz ? r.d - 1 : r.w - 1, 2.4, { dir, phase: rng() * 4.5 });
+          made++;
+        }
+        continue;
+      }
+      if (p === 'flood') {
+        ctx.hazard('flood', r.cx, r.cz, r.w - 0.6, r.d - 0.6, { room: r, max: 0.85 });
+        continue;
+      }
       if (p === 'vents') {
         for (let i = 0; i < 6; i++) { const { x, z } = ri(); if (tryRect(x, z, 1.8, 1.8)) ctx.hazard('vent', x, z, 1.6, 1.6, { phase: rng() * 4 }); }
         continue;
@@ -634,6 +736,23 @@ export function buildLevel(level, ctx) {
         const x = horiz ? r.cx + rand(-r.w / 4, r.w / 4) : r.cx + dx * (r.w / 2 - 0.05);
         const z = horiz ? r.cz + dz * (r.d / 2 - 0.05) : r.cz + rand(-r.d / 4, r.d / 4);
         ctx.furnace(x, z, side);
+      }
+    }
+    if (level.theme === 'aqueduct') {
+      for (const side of ['N', 'S', 'E', 'W']) {
+        const horiz = side === 'N' || side === 'S';
+        const len = horiz ? r.w : r.d;
+        const n = Math.max(2, Math.floor(len / 7));
+        for (let i = 0; i <= n; i++) {
+          const along = (horiz ? r.cx : r.cz) + (i / n - 0.5) * (len - 2);
+          if (doorSides.has(side) && Math.abs(along - (horiz ? r.cx : r.cz)) < CW) continue;
+          const x = horiz ? along : side === 'E' ? r.x1 - 0.55 : r.x0 + 0.55;
+          const z = horiz ? (side === 'S' ? r.z1 - 0.55 : r.z0 + 0.55) : along;
+          ctx.box(x, 0, z, 1.1, H * 0.72, 1.1, trimMat, 3, false);
+          ctx.box(x, H * 0.72, z, horiz ? 2.2 : 1.3, 0.6, horiz ? 1.3 : 2.2, trimMat, 3, false);
+        }
+        const x = horiz ? r.cx : side === 'E' ? r.x1 - 0.3 : r.x0 + 0.3, z = horiz ? (side === 'S' ? r.z1 - 0.3 : r.z0 + 0.3) : r.cz;
+        ctx.box(x, H * 0.72 + 0.6, z, horiz ? len : 0.6, 0.35, horiz ? 0.6 : len, M.water, 1, false);
       }
     }
     // cathedral dressing: stained glass + banners
