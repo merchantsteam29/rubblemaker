@@ -285,6 +285,18 @@ export const RACES = [
     SC(28, 28, ['vents', 'platforms', 'lava'], ['h1 g4 x2', 'p1 s3 f2'], { shortcut: true }),
   ] },
 ];
+// batch 8: Act IV secret duels + the Guildmaster's PRIME rematch
+DUELS.push(
+  { id: '7-S', name: 'THE FERRYMAN', duel: 'dash4', unlockAfter: '7-4', theme: 'aqueduct', par: 170, boss: true, startHint: 'A lantern bobs on the black water. Beat THE FERRYMAN for an EXTRA DASH charge.', rooms: [{ w: 36, d: 36, props: ['channel'], waves: [], boss: 'ferryman' }] },
+  { id: '8-S', name: 'THE KEYSTONE', duel: 'slambounce', unlockAfter: '8-4', orArm: 'dash4', theme: 'aqueduct', par: 180, boss: true, startHint: 'The stone that holds the arches up has climbed down to fight. Beat it for SLAM BOUNCE.', rooms: [{ w: 38, d: 38, props: ['pillars'], waves: [], boss: 'keystone' }] },
+);
+PRIMES.push({ id: '9-P', name: 'GUILDMASTER PRIME', duel: 'skin:cistern', prime: true, unlockAfter: '9-2', theme: 'aqueduct', par: 360, boss: true, startHint: 'He rebuilt himself from the cistern floor. Beat him again for the CISTERN gun skin.', rooms: [{ w: 50, d: 50, props: ['pillars'], waves: [], boss: 'guildmaster', prime: true }] });
+RACES.push({ id: 'R-5', name: 'SPILLWAY SPRINT', theme: 'aqueduct', par: 120, race: true, startHint: 'RACE! Ride the CURRENTS, dodge the SLUICE jets', rooms: [
+  SC(22, 26, ['channel', 'pillars'], ['g3 d2']),
+  SC(24, 24, ['sluice', 'flood'], ['d3 s1', 'f2'], { shortcut: true }),
+  SC(20, 30, ['channel', 'sluice'], ['y1 g3', 'k2']),
+  SC(26, 26, ['flood', 'platforms'], ['d3 k2', 'y1 s2'], { shortcut: true }),
+] });
 export const LEVELS = [...SCENES.flatMap((s) => s.levels.map((l) => ({ ...l, scene: s, theme: l.theme || s.theme }))), ...DUELS.map((d) => ({ ...d, scene: DUEL_SCENE })), ...PRIMES.map((d) => ({ ...d, scene: PRIME_SCENE })), ...RACES.map((d) => ({ ...d, scene: RACE_SCENE }))];
 
 export const THEMES = {

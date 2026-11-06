@@ -50,6 +50,7 @@ export const DEFAULTS = {
   padBinds: { ...PAD_DEFAULTS }, padSens: 1, padInvert: false, padDeadzone: 0.15, aimAssist: 0.5, rumble: true,
   touchControls: 'auto', touchSens: 1, touchOpacity: 0.55,
   ghost: true, autoQuality: true, controllers: true,
+  golemBody: 'brick', golemGlow: 'cyan', speedrun: false, ngplus: false,
 };
 
 const KEY = 'rubblemaker-settings';
@@ -113,7 +114,7 @@ export function initSettingsUI(root, onChange, onBack) {
   root.querySelector('.reset').addEventListener('click', () => {
     const keysFor = {
       CONTROLS: ['binds'], CONTROLLER: ['controllers', 'padBinds', 'padSens', 'padInvert', 'padDeadzone', 'aimAssist', 'rumble'], TOUCH: ['touchControls', 'touchSens', 'touchOpacity'], MOUSE: ['sens', 'invertY', 'wheelSwap'], VIDEO: ['fov', 'quality', 'autoQuality', 'shake', 'viewBob', 'fullscreen', 'effects', 'killcam'],
-      AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers', 'gore', 'ghost'],
+      AUDIO: ['master', 'sfx', 'music'], GAMEPLAY: ['crosshair', 'crossColor', 'crossSize', 'difficulty', 'showFPS', 'hitmarkers', 'gore', 'ghost', 'speedrun', 'golemBody', 'golemGlow'],
     }[tab];
     if (!keysFor) return;
     for (const k of keysFor) { settings[k] = structuredClone(DEFAULTS[k]); onChange(k); }
@@ -216,6 +217,9 @@ export function initSettingsUI(root, onChange, onBack) {
       panel.appendChild(toggle('Show FPS', 'showFPS'));
       panel.appendChild(toggle('Gore, blood & rubble', 'gore'));
       panel.appendChild(toggle('Ghost of your best run in each level', 'ghost'));
+      panel.appendChild(toggle('Speedrun timer (room splits vs your best)', 'speedrun'));
+      panel.appendChild(choice('Golem body', 'golemBody', [['brick', 'BRICK'], ['granite', 'GRANITE'], ['sandstone', 'SANDSTONE'], ['marble', 'MARBLE'], ['moss', 'MOSS'], ['copper', 'COPPER'], ['obsidian', 'OBSIDIAN']]));
+      panel.appendChild(choice('Golem glow', 'golemGlow', [['cyan', 'CYAN'], ['ember', 'EMBER'], ['gold', 'GOLD'], ['violet', 'VIOLET'], ['lime', 'LIME'], ['white', 'WHITE'], ['red', 'RED']]));
     }
   }
 

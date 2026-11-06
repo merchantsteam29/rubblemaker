@@ -407,3 +407,15 @@ button:disabled { opacity: .4; cursor: default; }
 
 /* batch 6.4: reward tag sits above the title so long skin names never overlap it */
 .ach { padding-top: 22px; } .ach em { top: 5px; font-size: 10px; letter-spacing: 1px; }
+
+/* batch 8: training, speedrun timer, hard mode */
+#tut { position: fixed; left: 16px; top: 120px; z-index: 14; width: min(330px, 80vw); background: rgba(10,6,4,.8); border: 2px solid #ff8a4a; padding: 10px 14px; font-size: 13px; }
+#tut h4 { margin: 0 0 6px; font-family: 'Bungee', sans-serif; color: #ffd23a; letter-spacing: 2px; }
+#tut ol { margin: 0; padding-left: 20px; line-height: 1.6; } #tut li { opacity: .5; } #tut li.done { opacity: .75; color: #6dff8f; text-decoration: line-through; } #tut li.now { opacity: 1; color: #fff; font-weight: 800; }
+#tut .sub { margin-top: 6px; color: #ffe0a0; min-height: 2.6em; } #tut button { margin-top: 8px; font-family: 'Bungee', sans-serif; font-size: 12px; padding: 6px 12px; border: 2px solid #ff4a1c; background: #1c0d08; color: #ffd9c4; cursor: pointer; pointer-events: auto; }
+#srTimer { position: fixed; left: 50%; top: 86px; transform: translateX(-50%); z-index: 12; font-family: 'Bungee', sans-serif; font-size: 22px; letter-spacing: 2px; color: #fff; text-shadow: 2px 2px 0 #000; pointer-events: none; }
+#srTimer small { display: block; text-align: center; font-size: 11px; color: #ffb04a; letter-spacing: 1px; }
+#srDelta { position: fixed; left: 50%; top: 128px; transform: translateX(-50%); z-index: 12; font-family: 'Bungee', sans-serif; font-size: 18px; text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity .3s; pointer-events: none; }
+#srDelta.show { opacity: 1; } #srDelta.ahead { color: #6dff8f; } #srDelta.behind { color: #ff6a5a; }
+.diffRow button.ng { border-color: #ff2a6a; color: #ffb0c8; } .diffRow button.ng.on { background: #ff2a6a; color: #1a0006; }
+.runLine { grid-column: 1 / -1; text-align: center; color: #ffd23a; letter-spacing: 2px; font-size: 14px; }

@@ -43,7 +43,7 @@
 
   <div id="bottomLeft">
     <div id="hpWrap"><div id="hpFill"></div><div id="hpText">100</div></div>
-    <div id="pips"><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+    <div id="pips"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip" style="display:none"></div></div>
   </div>
 
   <div id="bottomRight">
@@ -64,10 +64,10 @@
 <div id="menu" class="screen">
   <h1>RUBBLEMAKER</h1>
   <p class="tag">brick. cobblestone. carnage.</p>
-  <p class="ver">v1.5 · ACT IV · THE AQUEDUCT</p>
+  <p class="ver">v1.6 · HARD MODE · TRAINING · SPEEDRUNS</p>
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
-  <div class="row-buttons"><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">VERSUS</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
+  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">VERSUS</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
   <div class="controls" id="controlsList"></div>
   <div class="tips">
     Revolver RMB: hold to charge a piercing shot. Shotgun RMB: lob a core &mdash; shoot it with the revolver for a <b>COMBO BLAST</b>.<br>
@@ -143,6 +143,9 @@
 <div id="vsCount" class="hidden"></div>
 <div id="vsCurseFx" class="hidden"></div>
 <div id="vsTauntPop"></div>
+<div id="tut" class="hidden"></div>
+<div id="srTimer" class="hidden"></div>
+<div id="srDelta"></div>
 <div id="vsTauntPick" class="hidden"></div>
 <div id="vsSpec" class="hidden"></div>
 <div id="cutscene" class="hidden"><div class="bar top"></div><div class="bar bot"></div><div id="cutCard"></div><div id="cutCap" class="hidden"><b id="cutWho"></b><p id="cutText"></p></div><div id="cutSkip"></div></div>
