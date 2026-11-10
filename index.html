@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b0908">
 <title>RUBBLEMAKER</title>
+<link rel="icon" href="icons/icon.svg">
+<meta name="theme-color" content="#0a0806">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -67,7 +71,8 @@
   <p class="ver">v1.8 · MASON'S LODGE</p>
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
-  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button></div>
+  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button>
+    <button class="sub" id="installApp" style="display:none">INSTALL APP</button></div>
   <div class="tablet">
   <div class="controls" id="controlsList"></div>
   <div class="tips">
@@ -181,5 +186,6 @@
 </div>
 
 <script type="module" src="main.js"></script>
+<script src="install.js"></script>
 </body>
 </html>
