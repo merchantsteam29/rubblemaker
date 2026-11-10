@@ -1,0 +1,103 @@
+[
+  {
+    "version": "1.8.1",
+    "date": "2026-11-09",
+    "title": "Install as an app",
+    "notes": [
+      "RUBBLEMAKER can be installed as an app from the menu (INSTALL APP), with its own icon. It opens fullscreen and works offline once it has loaded."
+    ]
+  },
+  {
+    "version": "1.8",
+    "date": "2026-11-06",
+    "title": "Mason's Lodge",
+    "notes": [
+      "A secret co-op campaign for two golems over a room code.",
+      "Enemies chase the nearer golem, and doors closing pull your partner into the fight.",
+      "At 0 HP you go down: your partner can lift you back up before you bleed out."
+    ]
+  },
+  {
+    "version": "1.7",
+    "date": "2026-11-06",
+    "title": "Chiselled Stone",
+    "notes": [
+      "Every menu and panel is carved stone: cut corners, bevelled light and carved capitals.",
+      "A new HUD: molten health trough, a style-meter tablet and a lintel boss bar."
+    ]
+  },
+  {
+    "version": "1.6",
+    "date": "2026-11-06",
+    "title": "Hard mode, training, speedruns",
+    "notes": [
+      "Hard mode, with its own ranks and a skin for beating it.",
+      "A training level the first time you play the campaign.",
+      "A speedrun timer, golem colours and a tuning pass.",
+      "Two new duels in Act IV."
+    ]
+  },
+  {
+    "version": "1.5",
+    "date": "2026-11-05",
+    "title": "Act IV: The Aqueduct",
+    "notes": [
+      "Twelve new levels across the Sluice, the Arches and the Cistern, with their own look and music.",
+      "Water hazards: currents, sluice-gate jets and rooms that flood while you fight.",
+      "New enemies, trainers and mini-bosses, the TIDE arm, and THE GUILDMASTER at the end."
+    ]
+  },
+  {
+    "version": "1.4",
+    "date": "2026-11-05",
+    "title": "Three acts, seven layers",
+    "notes": [
+      "The campaign is regrouped into acts and layers, and your old saves move over by themselves.",
+      "Guns are dropped by new mini-bosses instead of being sold.",
+      "Elites in the codex, 17 new achievements and 4 new skins.",
+      "Fixed the camera spinning on its own with some controllers and devices."
+    ]
+  },
+  {
+    "version": "1.3",
+    "date": "2026-11-05",
+    "title": "The Chain Flail",
+    "notes": [
+      "The CHAIN FLAIL (weapon 5): whirl it, then sweep, hook, pierce or smash.",
+      "Elite IRON and EMBER enemies.",
+      "Ghost replays of your fastest clear on every level.",
+      "A tuning pass, a performance mode and save backups."
+    ]
+  },
+  {
+    "version": "1.2",
+    "date": "2026-11-05",
+    "title": "The Story, the Codex, new sound",
+    "notes": [
+      "Story cutscenes for the prologue, each act and the ending.",
+      "The Codex: a bestiary, the arsenal, lifetime stats and 32 achievements.",
+      "A sound overhaul: room reverb, 3D sound through walls and enemy voices."
+    ]
+  },
+  {
+    "version": "1.1",
+    "date": "2026-11-05",
+    "title": "Prime rematches and P-ranks",
+    "notes": [
+      "PRIME boss rematches with new gun skins to win.",
+      "P-rank for a perfect run.",
+      "New Kiln trainers, and the RUBBLE PIT arena shifts every 5 waves."
+    ]
+  },
+  {
+    "version": "1.0",
+    "date": "2026-11-04",
+    "title": "Brick launcher and swap chains",
+    "notes": [
+      "Weapon 4, the BRICK LAUNCHER, with three variants.",
+      "Swap chains: switch weapons between hits for style and extra damage.",
+      "New enemies RAM, BURROWER and MENDER, and two new duels.",
+      "Controller and touch support, and the PRACTICE ROOM (v0.9)."
+    ]
+  }
+]
