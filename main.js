@@ -8,6 +8,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { settings, saveSettings, ACTIONS, DIFFS, keyLabel, initSettingsUI, padLabel } from './settings.js';
+import { createBatcher } from './batch.js';
 
 // =====================================================================
 //  RUBBLEMAKER — boot
@@ -17,7 +18,7 @@ import { settings, saveSettings, ACTIONS, DIFFS, keyLabel, initSettingsUI, padLa
 //  To add a part: create js/NN-name.js and list it in PARTS.
 // =====================================================================
 
-Object.assign(window, { THREE, buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, buildPortal, buildVariantModel, buildDuelistModel, animateEnemy, buildViewmodels, buildCatModel, LEVELS, SCENES, DUELS, PRIMES, buildLevel, createMusic, EffectComposer, RenderPass, ShaderPass, OutputPass, settings, saveSettings, ACTIONS, DIFFS, keyLabel, initSettingsUI, padLabel });
+Object.assign(window, { THREE, buildEnemyModel, buildBossModel, buildTrainerModel, buildForge, buildPortal, buildVariantModel, buildDuelistModel, animateEnemy, buildViewmodels, buildCatModel, LEVELS, SCENES, DUELS, PRIMES, buildLevel, createMusic, EffectComposer, RenderPass, ShaderPass, OutputPass, settings, saveSettings, ACTIONS, DIFFS, keyLabel, initSettingsUI, padLabel, createBatcher });
 
 const PARTS = [
   '00-engine',

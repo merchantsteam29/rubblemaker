@@ -59,6 +59,9 @@ function updateAmbient(dt, t) {
 }
 
 let last = performance.now();
+// static level meshes get merged into a few draw calls (batch.js); ?nobatch turns it off to compare
+let BATCH = null;
+const NO_BATCH = /[?&]nobatch/.test(location.search);
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.033, (now - last) / 1000);
@@ -86,6 +89,10 @@ function frame(now) {
   pressed.clear(); released.clear(); VHIT.clear();
   updateFPS(now);
   autoQuality(now);
+  if (!NO_BATCH) {
+    if (!BATCH || BATCH.root !== levelGroup) { if (BATCH) BATCH.dispose(); BATCH = createBatcher(levelGroup); }
+    BATCH.update(dt);
+  }
   renderFrame(dt);
 }
 requestAnimationFrame(frame);
