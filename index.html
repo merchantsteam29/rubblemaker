@@ -71,7 +71,7 @@
   <p class="ver">v1.8 · MASON'S LODGE</p>
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
-  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button>
+  <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button><button class="sub" id="syncBtn" title="Keep your progress on all your devices">☁ SYNC</button>
     <button class="sub" id="installApp" style="display:none">INSTALL APP</button>
     <button class="sub" id="pcDownload" title="The Game Library app for Windows: every game in one place">DOWNLOAD FOR PC</button></div>
   <div class="tablet">
@@ -186,6 +186,16 @@
   <button class="sub" id="overMenuBtn">MENU</button>
 </div>
 
+<script src="sync.js"></script>
+<script>
+// progress sync between devices (sync.js): progress and best scores, never settings
+(function () {
+  if (!window.GameSync) return;
+  var idle = function () { var t = document.getElementById("menu"); return !!t && t.getClientRects().length > 0 && getComputedStyle(t).visibility !== 'hidden'; };
+  GameSync.init({ game: "rubblemaker", keys: [{ match: 'rubblemaker-progress', mode: 'max' }, { match: 'rubblemaker-elite-seen' }, { match: 'rubblemaker-tut' }, { match: 'rubblemaker-best' }, { match: 'rubblemaker-pit-scores' }, { match: 'rubblemaker-stats' }, { match: 'rubblemaker-splits' }, { match: 'rubblemaker-actruns' }, { match: 'rubblemaker-cuts' }, { match: 'rubblemaker-cheats' }, { match: 'rubblemaker-save-*' }], idle: idle });
+  document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#syncBtn')) { e.stopPropagation(); GameSync.open(); } }, true);
+})();
+</script>
 <script type="module" src="main.js"></script>
 <script src="install.js"></script>
 </body>
