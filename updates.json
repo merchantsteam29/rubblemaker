@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.10",
+    "date": "2026-11-11",
+    "title": "Achievements",
+    "notes": [
+      "Achievements: unlock them as you play (a 🏆 pops up), and see them all on the Game Library's new Profile page.",
+      "Daily leaderboards: see today's top 10 for the daily challenge and put your name on it."
+    ]
+  },
+  {
     "version": "1.9",
     "date": "2026-11-11",
     "title": "Daily Pit",

@@ -267,6 +267,7 @@ function recordDaily(score, wave) {
   return { isBest, d };
 }
 $('dailyBtn').addEventListener('click', startDaily);
+$('dailyBoardBtn').addEventListener('click', () => { const t = dailyToday(); window.GameSync?.board('daily-' + t.date, 'Daily Pit · ' + t.date + ' · ' + t.mod.name, null); });
 $('pitBtn').addEventListener('click', () => { G.daily = null; }, true); // the normal pit is never the daily
 const refreshDailyBtn = () => { const el = $('dailyInfo'); if (el) el.textContent = dailyInfo(); };
 refreshDailyBtn();

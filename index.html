@@ -72,6 +72,7 @@
   <button id="startBtn">CAMPAIGN</button>
   <button id="pitBtn" class="alt">RUBBLE PIT <small>endless</small></button>
   <button id="dailyBtn" class="alt">DAILY PIT <small id="dailyInfo">today's modifier</small></button>
+  <button id="dailyBoardBtn" class="sub">🏆 TODAY'S TOP 10</button>
   <div class="row-buttons"><button class="sub" id="trainingBtn">TRAINING</button><button class="sub" id="practiceBtn">PRACTICE ROOM</button><button class="sub" id="pitRecordsBtn">PIT RECORDS</button><button class="sub" id="codexBtn">CODEX</button><button class="sub hidden" id="vsBtn">MASON'S LODGE</button><button class="sub" id="menuSettingsBtn">SETTINGS</button><button class="sub" id="syncBtn" title="Keep your progress on all your devices">☁ SYNC</button>
     <button class="sub" id="installApp" style="display:none">INSTALL APP</button>
     <button class="sub" id="pcDownload" title="The Game Library app for Windows: every game in one place">DOWNLOAD FOR PC</button></div>
@@ -193,7 +194,12 @@
 (function () {
   if (!window.GameSync) return;
   var idle = function () { var t = document.getElementById("menu"); return !!t && t.getClientRects().length > 0 && getComputedStyle(t).visibility !== 'hidden'; };
-  GameSync.init({ game: "rubblemaker", keys: [{ match: 'rubblemaker-progress', mode: 'max' }, { match: 'rubblemaker-elite-seen' }, { match: 'rubblemaker-tut' }, { match: 'rubblemaker-best' }, { match: 'rubblemaker-pit-scores' }, { match: 'rubblemaker-stats' }, { match: 'rubblemaker-splits' }, { match: 'rubblemaker-actruns' }, { match: 'rubblemaker-cuts' }, { match: 'rubblemaker-cheats' }, { match: 'rubblemaker-save-*' }, { match: 'rubblemaker-daily' }], idle: idle });
+  GameSync.init({ game: "rubblemaker", ach: [
+    { id: 'pit10', name: 'Pit regular', desc: 'Reach wave 10 in the Rubble Pit', test: (g) => (g('rubblemaker-pit-scores') || []).some((r) => r.wave >= 10) },
+    { id: 'pit25', name: 'Pit legend', desc: 'Reach wave 25 in the Rubble Pit', test: (g) => (g('rubblemaker-pit-scores') || []).some((r) => r.wave >= 25) },
+    { id: 'daily', name: 'Daily grind', desc: 'Play a Daily Pit', test: (g) => !!g('rubblemaker-daily') },
+    { id: 'streak3', name: 'Three in a row', desc: 'Play the Daily Pit three days running', test: (g) => ((g('rubblemaker-daily') || {}).streak || 0) >= 3 }
+  ], keys: [{ match: 'rubblemaker-progress', mode: 'max' }, { match: 'rubblemaker-elite-seen' }, { match: 'rubblemaker-tut' }, { match: 'rubblemaker-best' }, { match: 'rubblemaker-pit-scores' }, { match: 'rubblemaker-stats' }, { match: 'rubblemaker-splits' }, { match: 'rubblemaker-actruns' }, { match: 'rubblemaker-cuts' }, { match: 'rubblemaker-cheats' }, { match: 'rubblemaker-save-*' }, { match: 'rubblemaker-daily' }], idle: idle });
   document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#syncBtn')) { e.stopPropagation(); GameSync.open(); } }, true);
 })();
 </script>
