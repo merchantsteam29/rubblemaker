@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.9",
+    "date": "2026-11-11",
+    "title": "Daily Pit",
+    "notes": [
+      "DAILY PIT: the Rubble Pit with one modifier for the whole run, the same for everyone that day, and the same bosses.",
+      "Today's best and your day streak show on the button and on the results screen.",
+      "Sync: keep your progress on all your devices (☁ SYNC on the menu)."
+    ]
+  },
+  {
     "version": "1.8.1",
     "date": "2026-11-09",
     "title": "Install as an app",

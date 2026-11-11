@@ -192,6 +192,7 @@ function gameOver() {
     if (isBest && !cheatsOn()) saveBest({ score, wave: G.wave, rank: G.bestRank });
     const place = cheatsOn() ? -1 : addPitScore({ score, wave: G.wave, rank: G.bestRank, kills: G.kills, date: Date.now() });
     $('overStats').innerHTML = `RUBBLE PIT<br>SCORE ${score.toLocaleString()}${isBest ? ' — NEW BEST!' : ''}<br>WAVE ${G.wave} · ${G.kills} KILLS<br>HIGHEST STYLE: ${RANKS[G.bestRank].l}` + pitTableHTML(place, 5);
+    if (G.daily && !cheatsOn()) { const r = recordDaily(score, G.wave); $('overStats').innerHTML = `DAILY PIT · ${G.daily.date} · ${G.daily.mod.name}<br>TODAY'S BEST ${Math.floor(r.d.best).toLocaleString()} (WAVE ${r.d.wave})${r.isBest ? ' — NEW!' : ''}${r.d.streak > 1 ? ' · ' + r.d.streak + ' DAY STREAK' : ''}<br><br>` + $('overStats').innerHTML; }
     const earned = Math.floor(score / 40);
     if (earned) { awardScrap(earned); if (statsLive()) STATS.scrapEarned += earned; $('overStats').innerHTML += `<br><span class="scrap">+${earned} ◆ SCRAP</span>`; }
     $('againBtn').textContent = 'TRY AGAIN';

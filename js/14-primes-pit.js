@@ -85,8 +85,9 @@ function pitWaveSetup(n) {
   let shifted = null;
   if (kind !== pitKind) { rebuildPit(kind); shifted = kind; }
   G.mod = null; G.modDiff = null; G.lowgrav = false;
-  if (n >= 3 && n % 10 !== 0 && (n >= 15 || Math.random() < 0.6)) {
-    const m = PIT_MODS[(Math.random() * PIT_MODS.length) | 0];
+  const m = G.daily ? (n >= 2 && n % 10 !== 0 ? G.daily.mod : null)
+    : (n >= 3 && n % 10 !== 0 && (n >= 15 || Math.random() < 0.6)) ? PIT_MODS[(Math.random() * PIT_MODS.length) | 0] : null;
+  if (m) {
     G.mod = m;
     if (m.diff) {
       const b = DIFFS[settings.difficulty] || DIFFS.normal;
@@ -115,7 +116,7 @@ function spawnPitBoss() {
   const n = G.wave;
   const fixed = { 20: 'boss1', 30: 'boss2', 40: 'boss3' }[n];
   const pool = n > 40 ? [...PIT_BOSS_POOL, 'boss1', 'boss2', 'boss3'] : PIT_BOSS_POOL;
-  const type = fixed || pool[(Math.random() * pool.length) | 0];
+  const type = fixed || pool[((G.daily ? G.daily.rng() : Math.random()) * pool.length) | 0];
   const room = { boss: type, cx: 0, cz: 0, w: 44, d: 44, x0: -22, x1: 22, z0: -22, z1: 22, spawns: SPAWNS, doorObjs: [], doors: [], waves: [] };
   const before = new Set(enemies);
   spawnBoss(room);
@@ -236,3 +237,37 @@ $('pitRecordsBtn').addEventListener('click', () => {
   show('pitRecords', true);
 });
 $('pitRecordsBack').addEventListener('click', () => { G.state = 'menu'; show('pitRecords', false); show('menu', true); });
+
+// ================================================================ DAILY PIT
+// Today's date (UTC, so it's the same day for everyone) picks the modifier and seeds the bosses.
+const DAILY_KEY = 'rubblemaker-daily';
+function dailyToday() {
+  const d = new Date().toISOString().slice(0, 10);
+  let h = 2166136261; for (const c of 'rubble:' + d) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  let s = h >>> 0;
+  const rng = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return { date: d, mod: PIT_MODS[(h >>> 0) % PIT_MODS.length], rng };
+}
+function loadDaily() { try { const v = JSON.parse(localStorage.getItem(DAILY_KEY) || 'null'); return v && typeof v === 'object' ? v : {}; } catch (_) { return {}; } }
+function dailyInfo() {
+  const t = dailyToday(), d = loadDaily();
+  const best = d.date === t.date ? d.best : 0;
+  return `${t.mod.name}${best ? ' · today ' + Math.floor(best).toLocaleString() : ''}${d.streak > 1 && (d.date === t.date || d.prev === t.date) ? ' · ' + d.streak + ' day streak' : ''}`;
+}
+function startDaily() { G.daily = dailyToday(); startEndless(); setTimeout(() => { if (G.daily) showHint(`DAILY PIT · ${G.daily.date} · ${G.daily.mod.name} every wave: ${G.daily.mod.desc}`); }, 1200); }
+// called when a daily run ends: today's best and the streak (played yesterday too = streak + 1)
+function recordDaily(score, wave) {
+  const t = G.daily.date, d = loadDaily();
+  const y = new Date(Date.parse(t + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  if (d.date !== t) { d.streak = d.date === y ? (d.streak || 1) + 1 : 1; d.date = t; d.best = 0; d.wave = 0; }
+  const isBest = score > (d.best || 0);
+  if (isBest) { d.best = score; d.wave = wave; }
+  d.runs = (d.runs || 0) + 1;
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch (_) {}
+  return { isBest, d };
+}
+$('dailyBtn').addEventListener('click', startDaily);
+$('pitBtn').addEventListener('click', () => { G.daily = null; }, true); // the normal pit is never the daily
+const refreshDailyBtn = () => { const el = $('dailyInfo'); if (el) el.textContent = dailyInfo(); };
+refreshDailyBtn();
+new MutationObserver(refreshDailyBtn).observe($('menu'), { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
